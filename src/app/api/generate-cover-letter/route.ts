@@ -34,12 +34,12 @@ Structure JSON requise :
   "signOff": "string"
 }`;
 
-async function callGemini(userPrompt: string): Promise<string> {
+async function callGemini(userPrompt: string, model: string = "gemini-2.5-flash"): Promise<string> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error("GEMINI_API_KEY is not set.");
   const ai = new GoogleGenAI({ apiKey });
   const response = await ai.models.generateContent({
-    model: "gemini-2.5-flash",
+    model,
     contents: [{ role: "user", parts: [{ text: SYSTEM_PROMPT + "\n\n" + userPrompt }] }],
     config: {
       temperature: 0.5,
@@ -51,12 +51,12 @@ async function callGemini(userPrompt: string): Promise<string> {
   return text;
 }
 
-async function callGroq(userPrompt: string): Promise<string> {
+async function callGroq(userPrompt: string, model: string = "llama-3.3-70b-versatile"): Promise<string> {
   const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) throw new Error("GROQ_API_KEY is not set.");
   const groq = new Groq({ apiKey });
   const response = await groq.chat.completions.create({
-    model: "llama-3.3-70b-versatile",
+    model,
     messages: [
       { role: "system", content: SYSTEM_PROMPT },
       { role: "user", content: userPrompt }
@@ -69,10 +69,42 @@ async function callGroq(userPrompt: string): Promise<string> {
   return text;
 }
 
+async function callMistral(userPrompt: string, model: string = "mistral-large-2512"): Promise<string> {
+  const apiKey = process.env.MISTRAL_API_KEY;
+  if (!apiKey) throw new Error("MISTRAL_API_KEY is not set.");
+
+  const response = await fetch("https://api.mistral.ai/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model,
+      messages: [
+        { role: "system", content: SYSTEM_PROMPT },
+        { role: "user", content: userPrompt }
+      ],
+      temperature: 0.5,
+      response_format: { type: "json_object" },
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Mistral API error: ${response.status} ${response.statusText} - ${errorText}`);
+  }
+
+  const data = await response.json();
+  const text = data.choices?.[0]?.message?.content;
+  if (!text) throw new Error("Mistral returned an empty response.");
+  return text;
+}
+
 export async function POST(req: Request) {
   try {
     const body = (await req.json()) as GenerateCoverLetterRequest;
-    const { jobDescription, cvData, provider = "gemini" } = body;
+    const { jobDescription, cvData, provider = "gemini", model } = body;
 
     if (!jobDescription || !cvData) {
       return NextResponse.json(
@@ -97,28 +129,40 @@ ${jobDescription}
 ${JSON.stringify(cvData, null, 2)}
     `;
 
-    let rawResponse: string;
-    let actualProvider: AIProvider = provider;
+    let rawResponse = "";
+    let actualProvider: AIProvider | null = null;
+    let lastError: any = null;
 
-    try {
-      if (provider === "groq") {
-        rawResponse = await callGroq(userPrompt);
-      } else {
-        rawResponse = await callGemini(userPrompt);
+    const providersToTry: AIProvider[] = [provider];
+    const otherProviders: AIProvider[] = ["gemini", "groq", "mistral"];
+    for (const p of otherProviders) {
+      if (!providersToTry.includes(p)) {
+        providersToTry.push(p);
       }
-    } catch (primaryError) {
-      console.warn(`Primary provider (${provider}) failed for Cover Letter, trying fallback...`, primaryError);
+    }
+
+    for (const p of providersToTry) {
       try {
-        if (provider === "gemini") {
-          rawResponse = await callGroq(userPrompt);
-          actualProvider = "groq";
+        if (p === "groq") {
+          const modelToUse = (provider === "groq" && model) ? model : "llama-3.3-70b-versatile";
+          rawResponse = await callGroq(userPrompt, modelToUse);
+        } else if (p === "mistral") {
+          const modelToUse = (provider === "mistral" && model) ? model : "mistral-large-2512";
+          rawResponse = await callMistral(userPrompt, modelToUse);
         } else {
-          rawResponse = await callGemini(userPrompt);
-          actualProvider = "gemini";
+          const modelToUse = (provider === "gemini" && model) ? model : "gemini-2.5-flash";
+          rawResponse = await callGemini(userPrompt, modelToUse);
         }
-      } catch (fallbackError) {
-        throw new Error("Both AI providers failed. Check your API keys.");
+        actualProvider = p;
+        break;
+      } catch (err) {
+        console.warn(`Provider ${p} failed for Cover Letter, trying next fallback...`, err);
+        lastError = err;
       }
+    }
+
+    if (!actualProvider) {
+      throw new Error(`All AI providers failed. Last error: ${lastError instanceof Error ? lastError.message : "Unknown error"}`);
     }
 
     const cleaned = rawResponse

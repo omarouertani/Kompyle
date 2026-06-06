@@ -34,6 +34,14 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { SidebarProvider, Sidebar, SidebarHeader, SidebarContent, SidebarRail, SidebarInset } from "@/components/ui/sidebar";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 // Dynamic imports with SSR disabled
 const CVPreview = dynamic(() => import("@/components/cv/CVPreview"), {
@@ -116,6 +124,23 @@ const initialCoverLetter: CoverLetterData = {
   signOff: "Je vous prie d'agréer, Madame, Monsieur, mes salutations distinguées.",
 };
 
+const PROVIDER_MODELS: Record<AIProvider, { id: string; name: string }[]> = {
+  gemini: [
+    { id: "gemini-2.5-flash", name: "Gemini 2.5 Flash" },
+    { id: "gemini-2.5-pro", name: "Gemini 2.5 Pro" },
+  ],
+  groq: [
+    { id: "llama-3.3-70b-versatile", name: "Llama 3.3 70B" },
+    { id: "llama3-70b-8192", name: "Llama 3 70B" },
+    { id: "mixtral-8x7b-32768", name: "Mixtral 8x7B" },
+  ],
+  mistral: [
+    { id: "mistral-large-2512", name: "Mistral Large" },
+    { id: "mistral-small-2603", name: "Mistral Small" },
+    { id: "ministral-8b-2512", name: "Ministral 8B" },
+  ],
+};
+
 export default function AdaptPage() {
   const t = useTranslations("LeftPanel");
   const tr = useTranslations("RightPanel");
@@ -129,6 +154,7 @@ export default function AdaptPage() {
   
   const [jobDescription, setJobDescription] = useState("");
   const [provider, setProvider] = useState<AIProvider>("gemini");
+  const [model, setModel] = useState<string>("gemini-2.5-flash");
 
   const getInitialCV = useCallback((profile: "omar" | "chaima", lang: string) => {
     if (profile === "omar") {
@@ -146,9 +172,27 @@ export default function AdaptPage() {
 
   const [status, setStatus] = useState<Status>("idle");
   const [statusMessage, setStatusMessage] = useState("");
+  const [statusDetails, setStatusDetails] = useState<string | string[] | null>(null);
   const [loadingType, setLoadingType] = useState<"cv" | "letter" | null>(null);
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+
+  const handleProviderChange = useCallback((newProvider: AIProvider) => {
+    setProvider(newProvider);
+    if (newProvider === "gemini") {
+      setModel("gemini-2.5-flash");
+    } else if (newProvider === "groq") {
+      setModel("llama-3.3-70b-versatile");
+    } else if (newProvider === "mistral") {
+      setModel("mistral-large-2512");
+    }
+  }, []);
+
+  const getProviderName = useCallback((p: AIProvider) => {
+    if (p === "gemini") return "Gemini";
+    if (p === "groq") return "Groq";
+    return "Mistral";
+  }, []);
 
   useEffect(() => {
     const pending = sessionStorage.getItem("pending_adapted_cv");
@@ -164,6 +208,7 @@ export default function AdaptPage() {
         setActiveRightTab("cv");
         setStatus("success");
         setStatusMessage(t("status_success_cv", { provider: "Gemini" }));
+        setStatusDetails(null);
       } catch (e) {
         console.error("Failed to parse pending adapted CV", e);
       } finally {
@@ -178,18 +223,21 @@ export default function AdaptPage() {
     setIsAdapted(false);
     setStatus("idle");
     setStatusMessage("");
+    setStatusDetails(null);
   }, [selectedProfile, locale, getInitialCV, t]);
 
   const handleAdaptCV = useCallback(async () => {
     if (!jobDescription.trim() || jobDescription.trim().length < 20) {
       setStatus("error");
       setStatusMessage(t("error_empty"));
+      setStatusDetails(null);
       return;
     }
     setStatus("loading");
     setLoadingType("cv");
     setActiveRightTab("cv");
     setStatusMessage(t("status_loading_cv"));
+    setStatusDetails(null);
 
     const jobLang = detectLanguage(jobDescription);
     const hasLangMismatch = jobLang !== locale;
@@ -208,9 +256,12 @@ export default function AdaptPage() {
       const res = await fetch("/api/adapt-cv", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ jobDescription: jobDescription.trim(), cvData: sourceCV, provider }),
+        body: JSON.stringify({ jobDescription: jobDescription.trim(), cvData: sourceCV, provider, model }),
       });
-      if (!res.ok) { const err = await res.json(); throw new Error(err.error || `Error ${res.status}`); }
+      if (!res.ok) {
+        const errData = await res.json();
+        throw errData;
+      }
       const data = await res.json();
 
       if (hasLangMismatch) {
@@ -226,45 +277,56 @@ export default function AdaptPage() {
         setIsAdapted(true);
         setActiveRightTab("cv");
         setStatus("success");
-        setStatusMessage(t("status_success_cv", { provider: data.provider === "gemini" ? "Gemini" : "Groq" }));
+        setStatusMessage(t("status_success_cv", { provider: getProviderName(data.provider) }));
       }
-    } catch (err) {
+    } catch (err: any) {
       setStatus("error");
-      setStatusMessage(err instanceof Error ? err.message : t("status_error"));
+      const msg = err.error || err.message || t("status_error");
+      const details = err.details || null;
+      setStatusMessage(msg);
+      setStatusDetails(details);
     } finally {
       setLoadingType(null);
     }
-  }, [jobDescription, provider, currentCV, locale, selectedProfile, getInitialCV, t, setActiveRightTab]);
+  }, [jobDescription, provider, model, currentCV, locale, selectedProfile, getInitialCV, t, setActiveRightTab, getProviderName]);
 
   const handleGenerateLetter = useCallback(async () => {
     if (!jobDescription.trim() || jobDescription.trim().length < 20) {
       setStatus("error");
       setStatusMessage(t("error_empty"));
+      setStatusDetails(null);
       return;
     }
     setStatus("loading");
     setLoadingType("letter");
     setActiveRightTab("letter");
     setStatusMessage(t("status_loading_letter"));
+    setStatusDetails(null);
     try {
       const res = await fetch("/api/generate-cover-letter", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ jobDescription: jobDescription.trim(), cvData: currentCV, provider }),
+        body: JSON.stringify({ jobDescription: jobDescription.trim(), cvData: currentCV, provider, model }),
       });
-      if (!res.ok) { const err = await res.json(); throw new Error(err.error || `Error ${res.status}`); }
+      if (!res.ok) {
+        const errData = await res.json();
+        throw errData;
+      }
       const data = await res.json();
       setCoverLetterData(data.coverLetter);
       setActiveRightTab("letter");
       setStatus("success");
-      setStatusMessage(t("status_success_letter", { provider: data.provider === "gemini" ? "Gemini" : "Groq" }));
-    } catch (err) {
+      setStatusMessage(t("status_success_letter", { provider: getProviderName(data.provider) }));
+    } catch (err: any) {
       setStatus("error");
-      setStatusMessage(err instanceof Error ? err.message : t("status_error"));
+      const msg = err.error || err.message || t("status_error");
+      const details = err.details || null;
+      setStatusMessage(msg);
+      setStatusDetails(details);
     } finally {
       setLoadingType(null);
     }
-  }, [jobDescription, provider, currentCV, t, setActiveRightTab]);
+  }, [jobDescription, provider, model, currentCV, t, setActiveRightTab, getProviderName]);
 
   const handleProfileChange = useCallback((profile: "omar" | "chaima") => {
     setSelectedProfile(profile);
@@ -275,6 +337,7 @@ export default function AdaptPage() {
     setCoverLetterData(null);
     setStatus("idle");
     setStatusMessage("");
+    setStatusDetails(null);
     setSelectedTemplate(profile === "omar" ? "default" : "chaima");
   }, [locale, getInitialCV]);
 
@@ -286,6 +349,7 @@ export default function AdaptPage() {
     setCoverLetterData(null);
     setStatus("idle");
     setStatusMessage("");
+    setStatusDetails(null);
   }, [selectedProfile, locale, getInitialCV]);
 
   // ─── Render the left panel content based on active tab ───
@@ -312,7 +376,7 @@ export default function AdaptPage() {
                 variant={provider === "gemini" ? "default" : "outline"}
                 size="sm"
                 className="flex-1"
-                onClick={() => setProvider("gemini")}
+                onClick={() => handleProviderChange("gemini")}
                 disabled={status === "loading"}
               >
                 {t("btn_gemini")}
@@ -321,11 +385,40 @@ export default function AdaptPage() {
                 variant={provider === "groq" ? "default" : "outline"}
                 size="sm"
                 className="flex-1"
-                onClick={() => setProvider("groq")}
+                onClick={() => handleProviderChange("groq")}
                 disabled={status === "loading"}
               >
                 {t("btn_groq")}
               </Button>
+              <Button
+                variant={provider === "mistral" ? "default" : "outline"}
+                size="sm"
+                className="flex-1"
+                onClick={() => handleProviderChange("mistral")}
+                disabled={status === "loading"}
+              >
+                {t("btn_mistral")}
+              </Button>
+            </div>
+
+            <div className="flex flex-col gap-1.5 animate-in fade-in slide-in-from-top-1 duration-200">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground pl-0.5">
+                {t("label_model")}
+              </span>
+              <Select value={model} onValueChange={(val) => val && setModel(val)} disabled={status === "loading"}>
+                <SelectTrigger className="w-full h-9 rounded-lg border border-border bg-muted/40 hover:bg-muted/60 transition-colors">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-popover border border-border shadow-md rounded-lg p-1">
+                  <SelectGroup>
+                    {PROVIDER_MODELS[provider].map((m) => (
+                      <SelectItem key={m.id} value={m.id} className="cursor-pointer">
+                        {m.name}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
@@ -356,15 +449,30 @@ export default function AdaptPage() {
             )}
 
             {status !== "idle" && statusMessage && (
-              <div className={`flex items-center gap-3 p-3 rounded-lg text-sm font-medium border ${
+              <div className={`flex flex-col gap-2 p-3 rounded-lg text-sm border animate-in fade-in slide-in-from-top-1 duration-200 ${
                 status === "loading" ? "bg-primary/5 border-primary/15 text-primary"
                 : status === "success" ? "bg-success/10 border-success/20 text-success"
                 : "bg-destructive/5 border-destructive/20 text-destructive"
               }`}>
-                {status === "loading" && <Loader2 size={15} className="animate-spin shrink-0" />}
-                {status === "success" && <CheckCircle2 size={15} className="shrink-0" />}
-                {status === "error" && <AlertCircle size={15} className="shrink-0" />}
-                <span>{statusMessage}</span>
+                <div className="flex items-center gap-3 font-medium">
+                  {status === "loading" && <Loader2 size={15} className="animate-spin shrink-0" />}
+                  {status === "success" && <CheckCircle2 size={15} className="shrink-0" />}
+                  {status === "error" && <AlertCircle size={15} className="shrink-0" />}
+                  <span>{statusMessage}</span>
+                </div>
+                {status === "error" && statusDetails && (
+                  <div className="pl-6 text-xs text-destructive/80 leading-relaxed border-t border-destructive/10 pt-1.5 mt-0.5 animate-in fade-in duration-300">
+                    {Array.isArray(statusDetails) ? (
+                      <ul className="list-disc pl-4 flex flex-col gap-1">
+                        {statusDetails.map((detail, idx) => (
+                          <li key={idx}>{detail}</li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p>{statusDetails}</p>
+                    )}
+                  </div>
+                )}
               </div>
             )}
           </div>
