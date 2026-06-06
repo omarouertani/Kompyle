@@ -1,0 +1,35 @@
+{
+  "Header": {
+    "title": "Kompyle",
+    "badge": "Premium",
+    "toggle_theme": "Changer le thème",
+    "switch_language": "Changer de langue"
+  },
+  "LeftPanel": {
+    "tab_ai": "IA",
+    "tab_cv": "Éditer CV",
+    "tab_letter": "Éditer Lettre",
+    "title": "Description du poste visé",
+    "subtitle": "Collez l'offre d'emploi ci-dessous pour adapter votre CV ou générer une lettre de motivation.",
+    "placeholder": "Collez ici la description complète du poste…",
+    "btn_gemini": "Gemini Flash",
+    "btn_groq": "Groq Llama",
+    "btn_adapt": "Adapter CV",
+    "btn_letter": "Créer Lettre",
+    "btn_reset": "Tout réinitialiser",
+    "error_empty": "Veuillez coller une description de poste d'au moins 20 caractères.",
+    "status_loading_cv": "L'IA adapte votre CV…",
+    "status_loading_letter": "L'IA rédige votre lettre de motivation…",
+    "status_success_cv": "CV adapté avec succès via {provider}",
+    "status_success_letter": "Lettre générée avec succès via {provider}",
+    "status_error": "Erreur inattendue."
+  },
+  "RightPanel": {
+    "tab_cv": "Aperçu CV",
+    "tab_letter": "Lettre de Motivation"
+  },
+  "Loading": {
+    "cv": "Chargement du moteur CV…",
+    "letter": "Chargement du moteur Lettre…"
+  }
+}

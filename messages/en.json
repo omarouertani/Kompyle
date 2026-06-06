@@ -1,0 +1,35 @@
+{
+  "Header": {
+    "title": "Kompyle",
+    "badge": "Premium",
+    "toggle_theme": "Toggle theme",
+    "switch_language": "Switch language"
+  },
+  "LeftPanel": {
+    "tab_ai": "AI",
+    "tab_cv": "Edit CV",
+    "tab_letter": "Edit Letter",
+    "title": "Target Job Description",
+    "subtitle": "Paste the job offer below to adapt your CV or generate a cover letter.",
+    "placeholder": "Paste the full job description here...",
+    "btn_gemini": "Gemini Flash",
+    "btn_groq": "Groq Llama",
+    "btn_adapt": "Adapt CV",
+    "btn_letter": "Create Letter",
+    "btn_reset": "Reset All",
+    "error_empty": "Please paste a job description of at least 20 characters.",
+    "status_loading_cv": "AI is adapting your CV...",
+    "status_loading_letter": "AI is writing your cover letter...",
+    "status_success_cv": "CV successfully adapted via {provider}",
+    "status_success_letter": "Cover letter generated successfully via {provider}",
+    "status_error": "Unexpected error."
+  },
+  "RightPanel": {
+    "tab_cv": "CV Preview",
+    "tab_letter": "Cover Letter"
+  },
+  "Loading": {
+    "cv": "Loading CV engine...",
+    "letter": "Loading Letter engine..."
+  }
+}

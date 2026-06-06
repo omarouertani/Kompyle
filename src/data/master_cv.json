@@ -1,0 +1,118 @@
+{
+  "personalInfo": {
+    "firstName": "Alexandre",
+    "lastName": "Dupont",
+    "title": "Ingénieur Full-Stack Senior",
+    "email": "alexandre.dupont@email.com",
+    "phone": "+33 6 12 34 56 78",
+    "location": "Paris, France",
+    "linkedin": "linkedin.com/in/alexandre-dupont",
+    "portfolio": "alexandredupont.dev",
+    "summary": "Ingénieur Full-Stack avec 7 ans d'expérience dans la conception et le développement d'applications web performantes et scalables. Expert en React, Node.js et architectures cloud. Passionné par l'optimisation des performances et les bonnes pratiques de développement. Expérience significative en méthodologies Agile et en leadership technique d'équipes pluridisciplinaires."
+  },
+  "experiences": [
+    {
+      "company": "TechVision SAS",
+      "role": "Lead Développeur Full-Stack",
+      "startDate": "Janvier 2022",
+      "endDate": "Présent",
+      "location": "Paris, France",
+      "bullets": [
+        "Architecturé et développé une plateforme SaaS B2B de gestion de données traitant plus de 2 millions de requêtes par jour, en utilisant Next.js, TypeScript et PostgreSQL.",
+        "Dirigé une équipe de 5 développeurs en méthodologie Agile/Scrum, assurant la livraison de 12 sprints consécutifs dans les délais.",
+        "Mis en place une architecture microservices avec Docker et Kubernetes, réduisant les temps de déploiement de 60%.",
+        "Conçu et implémenté un système de cache distribué avec Redis, améliorant les temps de réponse API de 45%.",
+        "Instauré des pratiques CI/CD avec GitHub Actions, atteignant une couverture de tests de 92%."
+      ]
+    },
+    {
+      "company": "DataFlow Technologies",
+      "role": "Développeur Full-Stack",
+      "startDate": "Mars 2019",
+      "endDate": "Décembre 2021",
+      "location": "Lyon, France",
+      "bullets": [
+        "Développé des applications web réactives avec React et Redux, servant plus de 50 000 utilisateurs actifs mensuels.",
+        "Conçu et maintenu des API RESTful avec Node.js et Express, intégrant des services tiers (Stripe, SendGrid, AWS S3).",
+        "Optimisé les performances front-end, réduisant le temps de chargement initial de 3,2s à 1,1s grâce au code splitting et au lazy loading.",
+        "Participé à la migration d'une application monolithique vers une architecture microservices, diminuant les coûts d'infrastructure de 35%.",
+        "Mentoré 3 développeurs juniors, contribuant à leur montée en compétences techniques."
+      ]
+    },
+    {
+      "company": "WebCraft Agency",
+      "role": "Développeur Front-End",
+      "startDate": "Septembre 2017",
+      "endDate": "Février 2019",
+      "location": "Bordeaux, France",
+      "bullets": [
+        "Créé des interfaces utilisateur modernes et responsives pour 15+ clients, en utilisant React, HTML5, CSS3 et JavaScript ES6+.",
+        "Implémenté des animations fluides et des transitions avec Framer Motion et CSS, améliorant l'engagement utilisateur de 25%.",
+        "Collaboré étroitement avec les designers UX/UI pour traduire les maquettes Figma en composants réutilisables.",
+        "Mis en place des tests unitaires et d'intégration avec Jest et React Testing Library, garantissant la qualité du code."
+      ]
+    }
+  ],
+  "education": [
+    {
+      "institution": "École Nationale Supérieure d'Informatique (ENSI)",
+      "degree": "Diplôme d'Ingénieur",
+      "field": "Génie Logiciel et Systèmes d'Information",
+      "startDate": "2014",
+      "endDate": "2017"
+    },
+    {
+      "institution": "Université Paris-Saclay",
+      "degree": "DUT Informatique",
+      "field": "Développement et Administration de Systèmes",
+      "startDate": "2012",
+      "endDate": "2014"
+    }
+  ],
+  "skills": {
+    "technical": [
+      "JavaScript / TypeScript",
+      "React / Next.js",
+      "Node.js / Express",
+      "Python / Django",
+      "PostgreSQL / MongoDB",
+      "Redis / RabbitMQ",
+      "Docker / Kubernetes",
+      "AWS (EC2, S3, Lambda, RDS)",
+      "Git / GitHub Actions",
+      "REST API / GraphQL",
+      "Tailwind CSS / Styled Components",
+      "Jest / Cypress"
+    ],
+    "languages": [
+      "Français — Langue maternelle",
+      "Anglais — Courant (C1)",
+      "Espagnol — Intermédiaire (B1)"
+    ],
+    "soft": [
+      "Leadership technique",
+      "Méthodologies Agile / Scrum",
+      "Communication technique",
+      "Mentorat",
+      "Résolution de problèmes complexes",
+      "Gestion de projet"
+    ]
+  },
+  "certifications": [
+    {
+      "name": "AWS Certified Solutions Architect – Associate",
+      "issuer": "Amazon Web Services",
+      "date": "2023"
+    },
+    {
+      "name": "Professional Scrum Master I (PSM I)",
+      "issuer": "Scrum.org",
+      "date": "2022"
+    },
+    {
+      "name": "Meta Front-End Developer Professional Certificate",
+      "issuer": "Meta / Coursera",
+      "date": "2021"
+    }
+  ]
+}
