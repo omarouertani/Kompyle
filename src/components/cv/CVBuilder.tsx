@@ -247,6 +247,84 @@ export default function CVBuilder({ data, onChange }: CVBuilderProps) {
               onChange={(e) => updatePersonalInfo("portfolio", e.target.value)}
             />
           </div>
+          
+          {/* Uploader de photo de profil */}
+          <div className="flex flex-col gap-2 col-span-2 border border-border/60 rounded-lg p-3 bg-muted/10 mt-1">
+            <Label className="font-semibold text-xs text-muted-foreground uppercase">Photo de profil</Label>
+            <div className="flex items-center gap-4 mt-1">
+              {data.personalInfo.photo ? (
+                <div className="relative size-14 rounded-full overflow-hidden border border-border bg-card shadow-sm shrink-0">
+                  <img src={data.personalInfo.photo} alt="Avatar" className="size-full object-cover" />
+                  <button
+                    type="button"
+                    onClick={() => updatePersonalInfo("photo", "")}
+                    className="absolute inset-0 bg-black/60 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center text-white text-[10px] font-medium"
+                  >
+                    Supprimer
+                  </button>
+                </div>
+              ) : (
+                <div className="size-14 rounded-full border border-dashed border-border/80 bg-muted/30 flex items-center justify-center text-muted-foreground/40 shrink-0">
+                  <User size={20} />
+                </div>
+              )}
+              <div className="flex flex-col gap-1.5 flex-1">
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      const reader = new FileReader();
+                      reader.onloadend = () => {
+                        updatePersonalInfo("photo", reader.result as string);
+                      };
+                      reader.readAsDataURL(file);
+                    }
+                  }}
+                  className="hidden"
+                  id="avatar-upload-input"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="w-fit"
+                  onClick={() => document.getElementById("avatar-upload-input")?.click()}
+                >
+                  Choisir une photo
+                </Button>
+                <p className="text-[10px] text-muted-foreground">Format PNG ou JPG recommandé.</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <Label>Date de naissance</Label>
+            <Input
+              value={data.personalInfo.birthDate ?? ""}
+              placeholder="ex : 10/02/2001"
+              onChange={(e) => updatePersonalInfo("birthDate", e.target.value)}
+            />
+          </div>
+          
+          <div className="flex flex-col gap-2 col-span-2">
+            <Label>Certifications (séparées par des virgules)</Label>
+            <Input
+              value={data.personalInfo.certifications ?? ""}
+              placeholder="ex : CCNA 1, CCNA 2, ITIL"
+              onChange={(e) => updatePersonalInfo("certifications", e.target.value)}
+            />
+          </div>
+
+          <div className="flex flex-col gap-2 col-span-2">
+            <Label>Centres d'intérêt (séparés par des points · ou virgules)</Label>
+            <Input
+              value={data.personalInfo.interests ?? ""}
+              placeholder="ex : Peinture Amatrice · Passion pour la lecture"
+              onChange={(e) => updatePersonalInfo("interests", e.target.value)}
+            />
+          </div>
         </div>
       </section>
 

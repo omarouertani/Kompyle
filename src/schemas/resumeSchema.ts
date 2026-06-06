@@ -22,6 +22,10 @@ export const personalInfoSchema = z.object({
   linkedin: z.string().describe("LinkedIn (immuable)."),
   portfolio: z.string().optional().describe("Portfolio (immuable, optionnel)."),
   summary: z.string().describe("Résumé de profil (adaptable)."),
+  photo: z.string().optional().describe("Photo de profil en base64 ou URL (immuable, optionnel)."),
+  birthDate: z.string().optional().describe("Date de naissance (immuable, optionnel)."),
+  certifications: z.string().optional().describe("Certifications (immuable, optionnel)."),
+  interests: z.string().optional().describe("Centres d'intérêt (immuable, optionnel)."),
 });
 
 export const skillGroupSchema = z.object({
@@ -64,9 +68,28 @@ export const layoutPageSchema = z.object({
   sidebar: z.array(z.string()),
 });
 
+export const cvThemeSchema = z.object({
+  primaryColor: z.string().optional(),
+  textColor: z.string().optional(),
+  sidebarBg: z.string().optional(),
+  fontSize: z.number().optional(),
+  headingSize: z.number().optional(),
+  sectionMargin: z.number().optional(),
+  lineHeight: z.number().optional(),
+});
+
+export const elementPositionSchema = z.object({
+  x: z.number(),
+  y: z.number(),
+  w: z.number().optional(),
+});
+
 export const cvLayoutSchema = z.object({
   sidebarWidth: z.number().optional(),
   pages: z.array(layoutPageSchema),
+  theme: cvThemeSchema.optional(),
+  absolutePositions: z.record(z.string(), elementPositionSchema).optional(),
+  useAbsolutePositioning: z.boolean().optional(),
 });
 
 export const resumeSchema = z.object({

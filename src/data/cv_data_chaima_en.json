@@ -1,0 +1,104 @@
+{
+  "personalInfo": {
+    "name": "CHAIMA DKHIL",
+    "role": "Systems, Networks and Virtualization Engineer",
+    "techLine": "FTTH · Automation · Scripting (Python/VBA) · Network Architectures · Virtualization",
+    "email": "contact.dkhil.chaima@gmail.com",
+    "phone": "+216 56 563 762",
+    "location": "Bizerte, Tunisia",
+    "linkedin": "linkedin.com/in/chaimadkhil-0396ab242/",
+    "portfolio": "",
+    "summary": "Young systems and networks engineer, with a first experience in automation and IT environment. Interested in process analysis and performance optimization.",
+    "birthDate": "10/02/2001",
+    "certifications": "Cisco Networking Academy : CCNA 1, CCNA 2 and CCNA 3",
+    "interests": "Amateur Painting · Passion for Reading · Interest in Cooking"
+  },
+  "skills": [
+    {
+      "category": "Technical Skills",
+      "items": "FTTH architecture basics, RPA and smart automation, Python and VBA scripting, Process modeling (UML), Requirement formalization & specifications, Mobile network architectures (2G to 5G/6G) knowledge, Telecom infrastructure basics, Network data analysis, Network KPI interpretation"
+    },
+    {
+      "category": "Tools & Technologies",
+      "items": "Java, C++, Python, Selenium, UiPath, Spring Boot, Angular, UML, Scrum, LaTeX"
+    }
+  ],
+  "spokenLanguages": [
+    "Arabic — Native",
+    "French — Bilingual",
+    "English — Fluent"
+  ],
+  "education": [
+    {
+      "degree": "Professional Master's in Systems, Networks and Virtualization Expert",
+      "institution": "Faculty of Sciences of Bizerte (2023 to 2025)"
+    },
+    {
+      "degree": "Bachelor's in Software Engineering and Information Systems",
+      "institution": "Faculty of Sciences of Bizerte (2020 to 2023)"
+    },
+    {
+      "degree": "Mathematics Baccalaureate",
+      "institution": "Ousema Chakroun High School, Ras Jebel (2020)"
+    }
+  ],
+  "experiences": [
+    {
+      "title": "Junior FTTH Consultant",
+      "org": "AMARIS CONSULTING – Orange France Client",
+      "date": "Feb/Aug 2025",
+      "bullets": [
+        "Analysis of data and processes related to after-sales service (SAV) activities.",
+        "Contribution to the optimization of operational performance.",
+        "Design and development of an intelligent automation solution for process optimization and operational performance improvement.",
+        "Tools & Technologies: Python, Selenium, RPA, AI."
+      ]
+    },
+    {
+      "title": "Systems and Networks Expert Intern",
+      "org": "PWC TAC",
+      "date": "Jul/Aug 2024",
+      "bullets": [
+        "Automation of Excel files processing via VBA.",
+        "Contribution to the deployment of applications on user workstations.",
+        "Participation in setting up a NAS for data storage and sharing.",
+        "Tools & Technologies: Sage, VBA, Excel, NAS."
+      ]
+    },
+    {
+      "title": "Developer Intern",
+      "org": "SINOORFI",
+      "date": "Feb/May 2023",
+      "bullets": [
+        "Development of an internal project and resource tracking application, with secured user access management via Active Directory.",
+        "Tools & Technologies: SpringBoot, Angular, Active Directory."
+      ]
+    },
+    {
+      "title": "IT Department Intern",
+      "org": "TEXTILE PRINT AND EMBROIDER",
+      "date": "Jul 2021",
+      "bullets": [
+        "Discovery of IT procedures in an industrial environment.",
+        "Participation in the management of digital production flows.",
+        "Contribution to processing graphic documents for projects.",
+        "Tools & Technologies: Divalto, Adobe illustrator, Adobe Photoshop."
+      ]
+    }
+  ],
+  "projects": [],
+  "layout": {
+    "sidebarWidth": 185,
+    "pages": [
+      {
+        "sidebar": ["contact", "skills", "languages", "certifications", "interests"],
+        "main": ["summary", "experience", "education"]
+      }
+    ],
+    "theme": {
+      "primaryColor": "#fbbf24",
+      "textColor": "#27272a",
+      "sidebarBg": "#f4f4f5"
+    }
+  }
+}

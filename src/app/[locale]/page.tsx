@@ -1,14 +1,17 @@
 "use client";
 
-import React, { useState, useCallback, useRef } from "react";
+import React, { useState, useCallback, useRef, useEffect } from "react";
 import dynamic from "next/dynamic";
-import cvDataRaw from "@/data/cv_data.json";
+import cvDataEnRaw from "@/data/cv_data_en.json";
+import cvDataFrRaw from "@/data/cv_data_fr.json";
+import cvDataChaimaEnRaw from "@/data/cv_data_chaima_en.json";
+import cvDataChaimaFrRaw from "@/data/cv_data_chaima_fr.json";
 import type { CVData, AIProvider, CoverLetterData } from "@/types/cv";
 import { v4 as uuidv4 } from "uuid";
 import CVBuilder from "@/components/cv/CVBuilder";
 import CoverLetterBuilder from "@/components/cv/CoverLetterBuilder";
 import { defaultLayout } from "@/lib/cv-layout";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import Header from "@/components/Header";
 import {
   Sparkles,
@@ -63,12 +66,41 @@ const injectIds = (data: any): CVData => ({
   ...data,
   skills: data.skills.map((s: any) => ({ ...s, id: s.id || uuidv4() })),
   experiences: data.experiences.map((e: any) => ({ ...e, id: e.id || uuidv4() })),
-  projects: data.projects.map((p: any) => ({ ...p, id: p.id || uuidv4() })),
+  projects: (data.projects || []).map((p: any) => ({ ...p, id: p.id || uuidv4() })),
   education: data.education.map((ed: any) => ({ ...ed, id: ed.id || uuidv4() })),
   layout: data.layout ?? defaultLayout(),
 });
 
-const initialData = injectIds(cvDataRaw);
+const initialDataEn = injectIds(cvDataEnRaw);
+const initialDataFr = injectIds(cvDataFrRaw);
+const initialDataChaimaEn = injectIds(cvDataChaimaEnRaw);
+const initialDataChaimaFr = injectIds(cvDataChaimaFrRaw);
+
+function detectLanguage(text: string): "fr" | "en" {
+  const frenchWords = [" de ", " la ", " le ", " et ", " pour ", " dans ", " en ", " une ", " des ", " est ", " avec ", " plus ", " sur ", " par "];
+  const englishWords = [" of ", " the ", " and ", " for ", " in ", " a ", " with ", " is ", " to ", " on ", " at ", " more ", " by "];
+  
+  let frCount = 0;
+  let enCount = 0;
+  
+  const lowerText = text.toLowerCase();
+  for (const word of frenchWords) {
+    let pos = 0;
+    while ((pos = lowerText.indexOf(word, pos)) !== -1) {
+      frCount++;
+      pos += word.length;
+    }
+  }
+  for (const word of englishWords) {
+    let pos = 0;
+    while ((pos = lowerText.indexOf(word, pos)) !== -1) {
+      enCount++;
+      pos += word.length;
+    }
+  }
+  
+  return frCount >= enCount ? "fr" : "en";
+}
 
 const initialCoverLetter: CoverLetterData = {
   recipientName: "",
@@ -87,14 +119,26 @@ const initialCoverLetter: CoverLetterData = {
 export default function AdaptPage() {
   const t = useTranslations("LeftPanel");
   const tr = useTranslations("RightPanel");
+  const locale = useLocale();
 
   const [activeLeftTab, setActiveLeftTab] = useState<LeftTab>("ai");
   const [activeRightTab, setActiveRightTab] = useState<RightTab>("cv");
   
+  const [selectedProfile, setSelectedProfile] = useState<"omar" | "chaima">("omar");
+  const [selectedTemplate, setSelectedTemplate] = useState<"default" | "chaima">("default");
+  
   const [jobDescription, setJobDescription] = useState("");
   const [provider, setProvider] = useState<AIProvider>("gemini");
+
+  const getInitialCV = useCallback((profile: "omar" | "chaima", lang: string) => {
+    if (profile === "omar") {
+      return lang === "fr" ? initialDataFr : initialDataEn;
+    } else {
+      return lang === "fr" ? initialDataChaimaFr : initialDataChaimaEn;
+    }
+  }, []);
   
-  const [currentCV, setCurrentCV] = useState<CVData>(initialData);
+  const [currentCV, setCurrentCV] = useState<CVData>(() => getInitialCV("omar", locale));
   const [originalCV, setOriginalCV] = useState<CVData | null>(null);
   const [isAdapted, setIsAdapted] = useState(false);
   
@@ -105,6 +149,36 @@ export default function AdaptPage() {
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
+  useEffect(() => {
+    const pending = sessionStorage.getItem("pending_adapted_cv");
+    if (pending) {
+      try {
+        const { adaptedCV, originalCV, jobDescription: savedJobDesc, profile } = JSON.parse(pending);
+        setCurrentCV(adaptedCV);
+        setOriginalCV(originalCV);
+        setIsAdapted(true);
+        setJobDescription(savedJobDesc);
+        setSelectedProfile(profile);
+        setSelectedTemplate(profile === "omar" ? "default" : "chaima");
+        setActiveRightTab("cv");
+        setStatus("success");
+        setStatusMessage(t("status_success_cv", { provider: "Gemini" }));
+      } catch (e) {
+        console.error("Failed to parse pending adapted CV", e);
+      } finally {
+        sessionStorage.removeItem("pending_adapted_cv");
+      }
+      return;
+    }
+
+    const data = getInitialCV(selectedProfile, locale);
+    setCurrentCV(data);
+    setOriginalCV(null);
+    setIsAdapted(false);
+    setStatus("idle");
+    setStatusMessage("");
+  }, [selectedProfile, locale, getInitialCV, t]);
+
   const handleAdaptCV = useCallback(async () => {
     if (!jobDescription.trim() || jobDescription.trim().length < 20) {
       setStatus("error");
@@ -113,25 +187,49 @@ export default function AdaptPage() {
     }
     setStatus("loading");
     setStatusMessage(t("status_loading_cv"));
-    setOriginalCV(currentCV);
+
+    const jobLang = detectLanguage(jobDescription);
+    const hasLangMismatch = jobLang !== locale;
+
+    let sourceCV = currentCV;
+    let originalSourceCV = currentCV;
+
+    if (hasLangMismatch) {
+      sourceCV = getInitialCV(selectedProfile, jobLang);
+      originalSourceCV = sourceCV;
+    } else {
+      setOriginalCV(currentCV);
+    }
+
     try {
       const res = await fetch("/api/adapt-cv", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ jobDescription: jobDescription.trim(), cvData: currentCV, provider }),
+        body: JSON.stringify({ jobDescription: jobDescription.trim(), cvData: sourceCV, provider }),
       });
       if (!res.ok) { const err = await res.json(); throw new Error(err.error || `Error ${res.status}`); }
       const data = await res.json();
-      setCurrentCV(data.adaptedCV);
-      setIsAdapted(true);
-      setActiveRightTab("cv");
-      setStatus("success");
-      setStatusMessage(t("status_success_cv", { provider: data.provider === "gemini" ? "Gemini" : "Groq" }));
+
+      if (hasLangMismatch) {
+        sessionStorage.setItem("pending_adapted_cv", JSON.stringify({
+          adaptedCV: data.adaptedCV,
+          originalCV: originalSourceCV,
+          jobDescription: jobDescription.trim(),
+          profile: selectedProfile,
+        }));
+        window.location.href = `/${jobLang}`;
+      } else {
+        setCurrentCV(data.adaptedCV);
+        setIsAdapted(true);
+        setActiveRightTab("cv");
+        setStatus("success");
+        setStatusMessage(t("status_success_cv", { provider: data.provider === "gemini" ? "Gemini" : "Groq" }));
+      }
     } catch (err) {
       setStatus("error");
       setStatusMessage(err instanceof Error ? err.message : t("status_error"));
     }
-  }, [jobDescription, provider, currentCV, t]);
+  }, [jobDescription, provider, currentCV, locale, selectedProfile, getInitialCV, t]);
 
   const handleGenerateLetter = useCallback(async () => {
     if (!jobDescription.trim() || jobDescription.trim().length < 20) {
@@ -159,14 +257,27 @@ export default function AdaptPage() {
     }
   }, [jobDescription, provider, currentCV, t]);
 
-  const handleReset = useCallback(() => {
-    setCurrentCV(initialData);
+  const handleProfileChange = useCallback((profile: "omar" | "chaima") => {
+    setSelectedProfile(profile);
+    const data = getInitialCV(profile, locale);
+    setCurrentCV(data);
     setOriginalCV(null);
     setIsAdapted(false);
     setCoverLetterData(null);
     setStatus("idle");
     setStatusMessage("");
-  }, []);
+    setSelectedTemplate(profile === "omar" ? "default" : "chaima");
+  }, [locale, getInitialCV]);
+
+  const handleReset = useCallback(() => {
+    const data = getInitialCV(selectedProfile, locale);
+    setCurrentCV(data);
+    setOriginalCV(null);
+    setIsAdapted(false);
+    setCoverLetterData(null);
+    setStatus("idle");
+    setStatusMessage("");
+  }, [selectedProfile, locale, getInitialCV]);
 
   // ─── Render the left panel content based on active tab ───
   const renderLeftContent = () => {
@@ -282,7 +393,30 @@ export default function AdaptPage() {
       >
         {/* ── Left Panel ── */}
         <Sidebar side="left" variant="sidebar" className="border-r border-border !top-14 !h-[calc(100svh-3.5rem)]">
-          <SidebarHeader className="px-3 pt-3 pb-2 border-b border-border shrink-0 bg-sidebar">
+          <SidebarHeader className="px-3 pt-3 pb-2 border-b border-border shrink-0 bg-sidebar flex flex-col gap-2.5">
+            {/* Profil switcher */}
+            <div className="flex items-center justify-between px-1 bg-muted/40 rounded-lg p-1 border border-border/40">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground pl-1.5">Profil actif :</span>
+              <div className="flex gap-1">
+                <Button
+                  variant={selectedProfile === "omar" ? "default" : "ghost"}
+                  size="xs"
+                  className={cn("h-6 px-3 text-xs font-semibold rounded-md transition-all", selectedProfile === "omar" ? "shadow-sm" : "text-muted-foreground hover:text-foreground")}
+                  onClick={() => handleProfileChange("omar")}
+                >
+                  Omar
+                </Button>
+                <Button
+                  variant={selectedProfile === "chaima" ? "default" : "ghost"}
+                  size="xs"
+                  className={cn("h-6 px-3 text-xs font-semibold rounded-md transition-all", selectedProfile === "chaima" ? "shadow-sm" : "text-muted-foreground hover:text-foreground")}
+                  onClick={() => handleProfileChange("chaima")}
+                >
+                  Chaima
+                </Button>
+              </div>
+            </div>
+
             <Tabs value={activeLeftTab} onValueChange={(v) => setActiveLeftTab(v as LeftTab)}>
               <TabsList className="w-full h-10">
                 <TabsTrigger value="ai" className="flex-1 gap-1.5">
@@ -337,7 +471,13 @@ export default function AdaptPage() {
             {/* Preview content */}
             <div className="flex-1 overflow-hidden p-5 flex flex-col">
               {activeRightTab === "cv" ? (
-                <CVPreview data={currentCV} originalData={isAdapted ? originalCV : null} />
+                <CVPreview
+                  data={currentCV}
+                  onChange={setCurrentCV}
+                  originalData={isAdapted ? originalCV : null}
+                  template={selectedTemplate}
+                  onTemplateChange={setSelectedTemplate}
+                />
               ) : (
                 <CoverLetterPreview
                   data={coverLetterData || initialCoverLetter}

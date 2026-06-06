@@ -239,6 +239,10 @@ Adapt this CV to maximize the candidate's chances for this role. Return only the
     adaptedCV.personalInfo.location = cvData.personalInfo.location;
     adaptedCV.personalInfo.linkedin = cvData.personalInfo.linkedin;
     adaptedCV.personalInfo.portfolio = cvData.personalInfo.portfolio;
+    adaptedCV.personalInfo.photo = cvData.personalInfo.photo;
+    adaptedCV.personalInfo.birthDate = cvData.personalInfo.birthDate;
+    adaptedCV.personalInfo.certifications = cvData.personalInfo.certifications;
+    adaptedCV.personalInfo.interests = cvData.personalInfo.interests;
     adaptedCV.education = cvData.education;
     adaptedCV.spokenLanguages = cvData.spokenLanguages;
     adaptedCV.layout = cvData.layout; // user-controlled layout, never from the AI
