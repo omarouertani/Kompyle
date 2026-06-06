@@ -1,0 +1,1072 @@
+import React from "react";
+import {
+  Document,
+  StyleSheet,
+  Page,
+  View,
+  Text,
+  Link,
+  KeepTogether,
+} from "@/components/pdf-primitives";
+import { Svg, Circle, Path, Image } from "@react-pdf/renderer";
+import { registerPdfFont, ACTIVE_PDF_FONT } from "@/utils/pdf-fonts";
+import type { CVData, CVTheme } from "@/types/cv";
+import { defaultLayout, getDefaultPositions, getDefaultPhotoPosition } from "@/lib/cv-layout";
+import { diffWords } from "diff";
+
+// Register default fonts
+registerPdfFont(ACTIVE_PDF_FONT);
+
+const wrapText = (text: string, chars = "/\\-@\\.") => {
+  if (!text) return "";
+  const zwsp = String.fromCharCode(0x200b); // zero-width space
+  const regex = new RegExp(`([${chars}])`, "g");
+  return text.replace(regex, "$1" + zwsp);
+};
+
+const formatUrl = (url: string) => {
+  if (!url) return "";
+  return url.startsWith("http") ? url : `https://${url}`;
+};
+
+const displayUrl = (url: string, isLinkedIn = false) => {
+  if (!url) return "";
+  let clean = url.replace(/^(https?:\/\/)?(www\.)?/, "");
+  if (isLinkedIn) {
+    clean = clean.replace(/^linkedin\.com\/in\//i, "");
+  }
+  if (clean.endsWith("/")) clean = clean.slice(0, -1);
+  return clean;
+};
+
+// ─── Diff Component ─────────────────────────────────────────────────────────
+const DiffText = ({
+  oldText,
+  newText,
+  style,
+}: {
+  oldText?: string;
+  newText: string;
+  style?: any;
+}) => {
+  if (oldText === undefined || oldText === newText) {
+    return <Text style={style}>{newText}</Text>;
+  }
+
+  const chunks = diffWords(oldText, newText);
+  return (
+    <Text style={style}>
+      {chunks.map((chunk, i) => {
+        if (chunk.added) {
+          return (
+            <Text key={i} style={{ color: "green" }}>
+              [+ {chunk.value}]
+            </Text>
+          );
+        }
+        if (chunk.removed) {
+          return (
+            <Text
+              key={i}
+              style={{
+                color: "red",
+                textDecoration: "line-through",
+              }}
+            >
+              [- {chunk.value}]
+            </Text>
+          );
+        }
+        return <Text key={i}>{chunk.value}</Text>;
+      })}
+    </Text>
+  );
+};
+
+// ─── Dynamic Styles Generator ────────────────────────────────────────────────
+const getStyles = (theme?: CVTheme, sidebarWidth = 165) => {
+  const primaryColor = theme?.primaryColor || "#fbbf24";
+  const textColor = theme?.textColor || "#27272a";
+  const sidebarBg = theme?.sidebarBg || "#f4f4f5";
+
+  // Dynamic typography & spacing
+  const baseFontSize = theme?.fontSize !== undefined ? theme.fontSize : 9.5;
+  const headingFontSize = theme?.headingSize !== undefined ? theme.headingSize : 11;
+  const sectionMarginBottom = theme?.sectionMargin !== undefined ? theme.sectionMargin : 12;
+  const lh = theme?.lineHeight !== undefined ? theme.lineHeight : 1.25;
+
+  return StyleSheet.create({
+    page: {
+      paddingTop: 0,
+      paddingBottom: 0,
+      paddingLeft: 0,
+      paddingRight: 0,
+      flexDirection: "row",
+      height: "100%",
+    },
+    body: {
+      flexDirection: "row",
+      width: "100%",
+      height: "100%",
+    },
+    sidebar: {
+      width: sidebarWidth,
+      backgroundColor: sidebarBg,
+      paddingTop: 20,
+      paddingBottom: 20,
+      paddingLeft: 12,
+      paddingRight: 12,
+      height: "100%",
+      borderRightWidth: 1,
+      borderRightColor: "#e4e4e7",
+    },
+    main: {
+      flex: 1,
+      backgroundColor: "#ffffff",
+      paddingTop: 20,
+      paddingBottom: 20,
+      paddingLeft: 20,
+      paddingRight: 20,
+      height: "100%",
+    },
+
+    /* ---------- Avatar ---------- */
+    avatarContainer: {
+      alignItems: "center",
+      marginBottom: 16,
+    },
+    avatarCircle: {
+      width: 65,
+      height: 65,
+      borderRadius: 32.5,
+      borderWidth: 1.5,
+      borderColor: primaryColor,
+      overflow: "hidden",
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: "#e4e4e7",
+    },
+    avatarImage: {
+      width: "100%",
+      height: "100%",
+      objectFit: "cover",
+    },
+
+    /* ---------- Header ---------- */
+    header: {
+      marginBottom: 12,
+      borderBottomWidth: 1.5,
+      borderBottomColor: primaryColor,
+      paddingBottom: 6,
+    },
+    h1: {
+      fontSize: 22,
+      fontWeight: "bold",
+      letterSpacing: -0.5,
+      color: "#18181b",
+      lineHeight: 1.25,
+      textTransform: "uppercase",
+    },
+    role: {
+      fontSize: 11,
+      fontWeight: "bold",
+      color: primaryColor,
+      marginTop: 2,
+      letterSpacing: 0.5,
+      textTransform: "uppercase",
+      lineHeight: 1.2,
+    },
+    techLine: {
+      fontSize: 8.5,
+      color: "#71717a",
+      marginTop: 3,
+    },
+
+    /* ---------- Section Headers ---------- */
+    h2Sidebar: {
+      fontSize: headingFontSize - 1.5,
+      fontWeight: "bold",
+      letterSpacing: 0.8,
+      textTransform: "uppercase",
+      color: "#18181b",
+      marginBottom: 6,
+      paddingBottom: 2,
+      borderBottomWidth: 1.5,
+      borderBottomColor: primaryColor,
+      lineHeight: 1.15,
+    },
+    h2Main: {
+      fontSize: headingFontSize,
+      fontWeight: "bold",
+      letterSpacing: 0.8,
+      textTransform: "uppercase",
+      color: "#18181b",
+      marginBottom: 6,
+      paddingBottom: 2,
+      borderBottomWidth: 1.5,
+      borderBottomColor: primaryColor,
+      lineHeight: 1.15,
+    },
+
+    /* ---------- Sections ---------- */
+    section: {
+      marginBottom: sectionMarginBottom,
+    },
+    sectionLast: {
+      marginBottom: 0,
+    },
+
+    /* ---------- Contact ---------- */
+    contactItem: {
+      marginBottom: 5,
+    },
+    contactLabel: {
+      fontSize: 7,
+      letterSpacing: 0.5,
+      textTransform: "uppercase",
+      color: "#71717a",
+      marginBottom: 1,
+    },
+    contactValue: {
+      fontSize: baseFontSize - 0.5,
+      color: textColor,
+      lineHeight: lh,
+    },
+    contactLink: {
+      fontSize: baseFontSize - 0.5,
+      color: textColor,
+      lineHeight: lh,
+    },
+
+    /* ---------- Skills (Tags) ---------- */
+    skillGroup: {
+      marginBottom: 6,
+    },
+    skillCat: {
+      fontWeight: "bold",
+      fontSize: baseFontSize - 0.5,
+      color: "#27272a",
+      marginBottom: 2.5,
+    },
+    skillsContainer: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: 3,
+    },
+    skillTag: {
+      backgroundColor: "#ffffff",
+      borderWidth: 0.75,
+      borderColor: "#e4e4e7",
+      borderLeftWidth: 2,
+      borderLeftColor: primaryColor,
+      paddingVertical: 2,
+      paddingHorizontal: 4,
+      borderRadius: 2,
+      marginBottom: 2.5,
+      marginRight: 2.5,
+    },
+    skillTagText: {
+      fontSize: baseFontSize - 1.5,
+      color: "#3f3f46",
+    },
+
+    /* ---------- Languages & Certifications ---------- */
+    langItem: {
+      flexDirection: "row",
+      alignItems: "center",
+      marginBottom: 3.5,
+    },
+    langDot: {
+      width: 3.5,
+      height: 3.5,
+      borderRadius: 1.75,
+      backgroundColor: primaryColor,
+      marginRight: 5,
+    },
+    langText: {
+      fontSize: baseFontSize - 0.5,
+      color: textColor,
+    },
+
+    /* ---------- Summary ---------- */
+    summary: {
+      textAlign: "justify",
+      fontSize: baseFontSize + 1,
+      lineHeight: lh,
+      color: "#3f3f46",
+    },
+
+    /* ---------- Experiences ---------- */
+    entry: {
+      marginBottom: 8,
+    },
+    entryLast: {
+      marginBottom: 0,
+    },
+    entryHead: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "flex-start",
+      marginBottom: 3,
+    },
+    entryHeadLeft: {
+      flex: 1,
+      paddingRight: 10,
+      lineHeight: 1.15,
+    },
+    entryTitle: {
+      fontWeight: "bold",
+      fontSize: baseFontSize + 0.5,
+      color: "#18181b",
+    },
+    entryOrg: {
+      fontWeight: "bold",
+      color: "#71717a",
+      fontSize: baseFontSize + 0.5,
+    },
+    entryDateWrap: {
+      flexShrink: 0,
+      paddingTop: 1,
+    },
+    entryDate: {
+      fontSize: baseFontSize - 1,
+      color: "#71717a",
+    },
+
+    /* ---------- Bullets ---------- */
+    bulletList: {
+      marginTop: 1,
+    },
+    bulletRow: {
+      flexDirection: "row",
+      marginBottom: 2,
+      alignItems: "flex-start",
+    },
+    bulletMarker: {
+      width: 8,
+      fontSize: 10,
+      color: primaryColor,
+      lineHeight: 1.2,
+    },
+    bulletText: {
+      flex: 1,
+      fontSize: baseFontSize,
+      lineHeight: lh,
+      textAlign: "justify",
+      color: "#3f3f46",
+    },
+
+    /* ---------- Education ---------- */
+    eduBlock: {
+      marginBottom: 6,
+    },
+    eduDegree: {
+      fontSize: baseFontSize + 0.5,
+      fontWeight: "bold",
+      color: "#18181b",
+      lineHeight: lh,
+    },
+    eduInstitution: {
+      fontSize: baseFontSize - 0.5,
+      color: "#71717a",
+      marginTop: 1,
+    },
+
+    /* ---------- Projects ---------- */
+    projTitle: {
+      fontWeight: "bold",
+      fontSize: baseFontSize + 0.5,
+      color: "#18181b",
+      marginBottom: 1,
+    },
+    projDesc: {
+      fontSize: baseFontSize,
+      color: "#3f3f46",
+      marginBottom: 1,
+      lineHeight: lh,
+      textAlign: "justify",
+    },
+    projStack: {
+      color: "#71717a",
+      fontSize: baseFontSize - 1,
+    },
+    projStackBold: {
+      fontWeight: "bold",
+      color: "#27272a",
+    },
+  });
+};
+
+type SectionRenderer = (
+  data: CVData,
+  isSidebar: boolean,
+  styles: any,
+  originalData?: CVData,
+  part?: "title" | "content" | "item",
+  itemIndex?: number
+) => React.ReactNode;
+
+const renderContact: SectionRenderer = (data, isSidebar, styles, originalData, part) => {
+  const { personalInfo } = data;
+  const h2Style = isSidebar ? styles.h2Sidebar : styles.h2Main;
+  const showTitle = !part || part === "title";
+  const showContent = !part || part === "content";
+
+  return (
+    <>
+      {showTitle && <Text style={h2Style}>Contact</Text>}
+
+      {showContent && (
+        <>
+          {personalInfo.birthDate && (
+            <KeepTogether style={styles.contactItem}>
+              <Text style={styles.contactLabel}>Naissance</Text>
+              <Text style={styles.contactValue}>{personalInfo.birthDate}</Text>
+            </KeepTogether>
+          )}
+
+          <KeepTogether style={styles.contactItem}>
+            <Text style={styles.contactLabel}>Email</Text>
+            <Link src={`mailto:${personalInfo.email}`} style={styles.contactLink}>
+              {wrapText(personalInfo.email)}
+            </Link>
+          </KeepTogether>
+
+          <KeepTogether style={styles.contactItem}>
+            <Text style={styles.contactLabel}>Téléphone</Text>
+            <Text style={styles.contactValue}>{personalInfo.phone}</Text>
+          </KeepTogether>
+
+          <KeepTogether style={styles.contactItem}>
+            <Text style={styles.contactLabel}>Adresse</Text>
+            <Text style={styles.contactValue}>{personalInfo.location}</Text>
+          </KeepTogether>
+
+          <KeepTogether style={styles.contactItem}>
+            <Text style={styles.contactLabel}>LinkedIn</Text>
+            <Link src={formatUrl(personalInfo.linkedin)} style={styles.contactLink}>
+              {wrapText(displayUrl(personalInfo.linkedin, true))}
+            </Link>
+          </KeepTogether>
+
+          {personalInfo.portfolio && (
+            <KeepTogether style={styles.contactItem}>
+              <Text style={styles.contactLabel}>Portfolio</Text>
+              <Link src={formatUrl(personalInfo.portfolio)} style={styles.contactLink}>
+                {wrapText(displayUrl(personalInfo.portfolio))}
+              </Link>
+            </KeepTogether>
+          )}
+        </>
+      )}
+    </>
+  );
+};
+
+const renderSkills: SectionRenderer = (data, isSidebar, styles, originalData, part, itemIndex) => {
+  const { skills } = data;
+  const h2Style = isSidebar ? styles.h2Sidebar : styles.h2Main;
+  if (part === "title") {
+    return <Text style={h2Style}>Compétences</Text>;
+  }
+  if (part === "item") {
+    const i = itemIndex ?? 0;
+    const group = skills[i];
+    if (!group) return null;
+    const itemsArray = group.items.split(",").map((item) => item.trim()).filter(Boolean);
+    return (
+      <KeepTogether key={group.id ?? i} style={styles.skillGroup}>
+        <Text style={styles.skillCat}>{group.category}</Text>
+        <View style={styles.skillsContainer}>
+          {itemsArray.map((item, idx) => (
+            <View key={idx} style={styles.skillTag}>
+              <Text style={styles.skillTagText}>{item}</Text>
+            </View>
+          ))}
+        </View>
+      </KeepTogether>
+    );
+  }
+  return (
+    <>
+      <Text style={h2Style}>Compétences</Text>
+      {skills.map((group, i) => {
+        const itemsArray = group.items.split(",").map((item) => item.trim()).filter(Boolean);
+        return (
+          <KeepTogether key={group.id ?? i} style={styles.skillGroup}>
+            <Text style={styles.skillCat}>{group.category}</Text>
+            <View style={styles.skillsContainer}>
+              {itemsArray.map((item, idx) => (
+                <View key={idx} style={styles.skillTag}>
+                  <Text style={styles.skillTagText}>{item}</Text>
+                </View>
+              ))}
+            </View>
+          </KeepTogether>
+        );
+      })}
+    </>
+  );
+};
+
+const renderLanguages: SectionRenderer = (data, isSidebar, styles, originalData, part) => {
+  const { spokenLanguages } = data;
+  const h2Style = isSidebar ? styles.h2Sidebar : styles.h2Main;
+  const showTitle = !part || part === "title";
+  const showContent = !part || part === "content";
+
+  return (
+    <>
+      {showTitle && <Text style={h2Style}>Langues</Text>}
+      {showContent && (
+        <View>
+          {spokenLanguages.map((lang, i) => (
+            <View key={i} style={styles.langItem}>
+              <View style={styles.langDot} />
+              <Text style={styles.langText}>{lang}</Text>
+            </View>
+          ))}
+        </View>
+      )}
+    </>
+  );
+};
+
+const renderCertifications: SectionRenderer = (data, isSidebar, styles, originalData, part) => {
+  const { personalInfo } = data;
+  if (!personalInfo.certifications) return null;
+  const h2Style = isSidebar ? styles.h2Sidebar : styles.h2Main;
+  const showTitle = !part || part === "title";
+  const showContent = !part || part === "content";
+
+  return (
+    <>
+      {showTitle && <Text style={h2Style}>Certifications</Text>}
+      {showContent && (
+        <View>
+          {personalInfo.certifications.split(",").map((cert, i) => (
+            <View key={i} style={styles.langItem}>
+              <View style={styles.langDot} />
+              <Text style={styles.langText}>{cert.trim()}</Text>
+            </View>
+          ))}
+        </View>
+      )}
+    </>
+  );
+};
+
+const renderInterests: SectionRenderer = (data, isSidebar, styles, originalData, part) => {
+  const { personalInfo } = data;
+  if (!personalInfo.interests) return null;
+  const h2Style = isSidebar ? styles.h2Sidebar : styles.h2Main;
+  const items = personalInfo.interests.split(/[·,]/).map(x => x.trim()).filter(Boolean);
+  const showTitle = !part || part === "title";
+  const showContent = !part || part === "content";
+
+  return (
+    <>
+      {showTitle && <Text style={h2Style}>Intérêts</Text>}
+      {showContent && (
+        <View style={styles.skillsContainer}>
+          {items.map((item, i) => (
+            <View key={i} style={styles.skillTag}>
+              <Text style={styles.skillTagText}>{item}</Text>
+            </View>
+          ))}
+        </View>
+      )}
+    </>
+  );
+};
+
+const renderSummary: SectionRenderer = (data, isSidebar, styles, originalData, part) => {
+  const { personalInfo } = data;
+  const h2Style = isSidebar ? styles.h2Sidebar : styles.h2Main;
+  const showTitle = !part || part === "title";
+  const showContent = !part || part === "content";
+
+  return (
+    <>
+      {showTitle && <Text style={h2Style}>Profil</Text>}
+      {showContent && (
+        <DiffText
+          oldText={originalData?.personalInfo.summary}
+          newText={personalInfo.summary}
+          style={styles.summary}
+        />
+      )}
+    </>
+  );
+};
+
+const renderExperience: SectionRenderer = (data, isSidebar, styles, originalData, part, itemIndex) => {
+  const { experiences } = data;
+  const h2Style = isSidebar ? styles.h2Sidebar : styles.h2Main;
+  if (part === "title") {
+    return <Text style={h2Style}>Expériences Professionnelles</Text>;
+  }
+  if (part === "item") {
+    const i = itemIndex ?? 0;
+    const exp = experiences[i];
+    if (!exp) return null;
+    return (
+      <View
+        key={exp.id ?? i}
+        break={exp.forcePageBreak}
+        style={[
+          styles.entry,
+          i === experiences.length - 1 ? styles.entryLast : {},
+          exp.customMarginBottom !== undefined ? { marginBottom: exp.customMarginBottom } : {},
+        ]}
+      >
+        <KeepTogether style={styles.entryHead}>
+          <View style={styles.entryHeadLeft}>
+            <Text>
+              <Text style={styles.entryTitle}>{exp.title}</Text>
+              <Text> — </Text>
+              <Text style={styles.entryOrg}>{exp.org}</Text>
+            </Text>
+          </View>
+          <View style={styles.entryDateWrap}>
+            <Text style={styles.entryDate}>{exp.date}</Text>
+          </View>
+        </KeepTogether>
+
+        <View style={styles.bulletList}>
+          {exp.bullets.map((bullet, j) => (
+            <View
+              key={j}
+              style={[
+                styles.bulletRow,
+                j === exp.bullets.length - 1 ? { marginBottom: 0 } : {},
+              ]}
+            >
+              <Text style={styles.bulletMarker}>•</Text>
+              <DiffText
+                oldText={originalData?.experiences[i]?.bullets[j]}
+                newText={bullet}
+                style={styles.bulletText}
+              />
+            </View>
+          ))}
+        </View>
+      </View>
+    );
+  }
+  return (
+    <>
+      <Text style={h2Style}>Expériences Professionnelles</Text>
+      {experiences.map((exp, i) => (
+        <View
+          key={exp.id ?? i}
+          break={exp.forcePageBreak}
+          style={[
+            styles.entry,
+            i === experiences.length - 1 ? styles.entryLast : {},
+            exp.customMarginBottom !== undefined ? { marginBottom: exp.customMarginBottom } : {},
+          ]}
+        >
+          <KeepTogether style={styles.entryHead}>
+            <View style={styles.entryHeadLeft}>
+              <Text>
+                <Text style={styles.entryTitle}>{exp.title}</Text>
+                <Text> — </Text>
+                <Text style={styles.entryOrg}>{exp.org}</Text>
+              </Text>
+            </View>
+            <View style={styles.entryDateWrap}>
+              <Text style={styles.entryDate}>{exp.date}</Text>
+            </View>
+          </KeepTogether>
+
+          <View style={styles.bulletList}>
+            {exp.bullets.map((bullet, j) => (
+              <View
+                key={j}
+                style={[
+                  styles.bulletRow,
+                  j === exp.bullets.length - 1 ? { marginBottom: 0 } : {},
+                ]}
+              >
+                <Text style={styles.bulletMarker}>•</Text>
+                <DiffText
+                  oldText={originalData?.experiences[i]?.bullets[j]}
+                  newText={bullet}
+                  style={styles.bulletText}
+                />
+              </View>
+            ))}
+          </View>
+        </View>
+      ))}
+    </>
+  );
+};
+
+const renderEducation: SectionRenderer = (data, isSidebar, styles, originalData, part, itemIndex) => {
+  const { education } = data;
+  const h2Style = isSidebar ? styles.h2Sidebar : styles.h2Main;
+  if (part === "title") {
+    return <Text style={h2Style}>Formation</Text>;
+  }
+  if (part === "item") {
+    const i = itemIndex ?? 0;
+    const edu = education[i];
+    if (!edu) return null;
+    return (
+      <KeepTogether
+        key={edu.id ?? i}
+        break={edu.forcePageBreak}
+        style={[
+          styles.eduBlock,
+          edu.customMarginBottom !== undefined ? { marginBottom: edu.customMarginBottom } : {},
+        ]}
+      >
+        <Text style={styles.eduDegree}>{edu.degree}</Text>
+        <Text style={styles.eduInstitution}>{edu.institution}</Text>
+      </KeepTogether>
+    );
+  }
+  return (
+    <>
+      <Text style={h2Style}>Formation</Text>
+      {education.map((edu, i) => (
+        <KeepTogether
+          key={edu.id ?? i}
+          break={edu.forcePageBreak}
+          style={[
+            styles.eduBlock,
+            edu.customMarginBottom !== undefined ? { marginBottom: edu.customMarginBottom } : {},
+          ]}
+        >
+          <Text style={styles.eduDegree}>{edu.degree}</Text>
+          <Text style={styles.eduInstitution}>{edu.institution}</Text>
+        </KeepTogether>
+      ))}
+    </>
+  );
+};
+
+const renderProjects: SectionRenderer = (data, isSidebar, styles, originalData, part, itemIndex) => {
+  const { projects } = data;
+  const h2Style = isSidebar ? styles.h2Sidebar : styles.h2Main;
+  if (!projects || projects.length === 0) return null;
+  if (part === "title") {
+    return <Text style={h2Style}>Projets</Text>;
+  }
+  if (part === "item") {
+    const i = itemIndex ?? 0;
+    const proj = projects[i];
+    if (!proj) return null;
+    return (
+      <View
+        key={proj.id ?? i}
+        break={proj.forcePageBreak}
+        style={[
+          styles.entry,
+          i === projects.length - 1 ? styles.entryLast : {},
+          proj.customMarginBottom !== undefined ? { marginBottom: proj.customMarginBottom } : {},
+        ]}
+      >
+        <Text style={styles.projTitle}>{proj.title}</Text>
+        <DiffText
+          oldText={originalData?.projects[i]?.description}
+          newText={proj.description}
+          style={styles.projDesc}
+        />
+        {proj.stack && (
+          <Text style={styles.projStack}>
+            <Text style={styles.projStackBold}>Stack: </Text>
+            <Text>{proj.stack}</Text>
+          </Text>
+        )}
+      </View>
+    );
+  }
+  return (
+    <>
+      <Text style={h2Style}>Projets</Text>
+      {projects.map((proj, i) => (
+        <View
+          key={proj.id ?? i}
+          break={proj.forcePageBreak}
+          style={[
+            styles.entry,
+            i === projects.length - 1 ? styles.entryLast : {},
+            proj.customMarginBottom !== undefined ? { marginBottom: proj.customMarginBottom } : {},
+          ]}
+        >
+          <Text style={styles.projTitle}>{proj.title}</Text>
+          <DiffText
+            oldText={originalData?.projects[i]?.description}
+            newText={proj.description}
+            style={styles.projDesc}
+          />
+          {proj.stack && (
+            <Text style={styles.projStack}>
+              <Text style={styles.projStackBold}>Stack: </Text>
+              <Text>{proj.stack}</Text>
+            </Text>
+          )}
+        </View>
+      ))}
+    </>
+  );
+};
+
+const SECTION_RENDERERS: Record<string, SectionRenderer> = {
+  contact: renderContact,
+  skills: renderSkills,
+  languages: renderLanguages,
+  education: renderEducation,
+  summary: renderSummary,
+  experience: renderExperience,
+  projects: renderProjects,
+  certifications: renderCertifications,
+  interests: renderInterests,
+};
+
+const renderColumn = (
+  ids: string[],
+  data: CVData,
+  isSidebar: boolean,
+  styles: any,
+  originalData?: CVData
+) => {
+  const known = ids.filter((id) => SECTION_RENDERERS[id]);
+  return known.map((id, i) => {
+    // Gracefully handle empty render
+    const rendered = SECTION_RENDERERS[id](data, isSidebar, styles, originalData);
+    if (!rendered) return null;
+
+    return (
+      <View key={id} style={i === known.length - 1 ? styles.sectionLast : styles.section}>
+        {rendered}
+      </View>
+    );
+  });
+};
+
+interface CVTemplateChaimaProps {
+  data: CVData;
+  originalData?: CVData;
+}
+
+const CVTemplateChaima: React.FC<CVTemplateChaimaProps> = ({ data, originalData }) => {
+  const { personalInfo } = data;
+  const layout = data.layout ?? defaultLayout();
+  const sidebarWidth = layout.sidebarWidth ?? 175;
+  const styles = getStyles(layout.theme, sidebarWidth);
+
+  const useAbsolute = layout.useAbsolutePositioning || false;
+  const absolutePositions = layout.absolutePositions || getDefaultPositions("chaima", data);
+
+  const getSectionBlockIds = (sectionId: string): string[] => {
+    switch (sectionId) {
+      case "contact": return ["title_contact", "content_contact"];
+      case "summary": return ["title_summary", "content_summary"];
+      case "languages": return ["title_languages", "content_languages"];
+      case "certifications": return ["title_certifications", "content_certifications"];
+      case "interests": return ["title_interests", "content_interests"];
+      case "skills": return ["title_skills", ...data.skills.map((_, i) => `skill_${i}`)];
+      case "education": return ["title_education", ...data.education.map((_, i) => `education_${i}`)];
+      case "experience": return ["title_experience", ...data.experiences.map((_, i) => `experience_${i}`)];
+      case "projects": return ["title_projects", ...data.projects.map((_, i) => `project_${i}`)];
+      default: return [];
+    }
+  };
+
+  const renderAbsoluteBlock = (blockId: string, isSidebar: boolean) => {
+    const defaultPositions = getDefaultPositions("chaima", data);
+    const pos = absolutePositions[blockId] || defaultPositions[blockId];
+    if (!pos) return null;
+
+    let rendered: React.ReactNode = null;
+    if (blockId.startsWith("title_")) {
+      const sectionId = blockId.substring(6);
+      rendered = SECTION_RENDERERS[sectionId] ? SECTION_RENDERERS[sectionId](data, isSidebar, styles, originalData, "title") : null;
+    } else if (blockId === "content_contact") {
+      rendered = renderContact(data, isSidebar, styles, originalData, "content");
+    } else if (blockId.startsWith("skill_")) {
+      const match = blockId.match(/^skill_(\d+)$/);
+      if (match) {
+        const idx = parseInt(match[1]);
+        rendered = renderSkills(data, isSidebar, styles, originalData, "item", idx);
+      }
+    } else if (blockId === "content_languages") {
+      rendered = renderLanguages(data, isSidebar, styles, originalData, "content");
+    } else if (blockId.startsWith("education_")) {
+      const match = blockId.match(/^education_(\d+)$/);
+      if (match) {
+        const idx = parseInt(match[1]);
+        rendered = renderEducation(data, isSidebar, styles, originalData, "item", idx);
+      }
+    } else if (blockId === "content_summary") {
+      rendered = renderSummary(data, isSidebar, styles, originalData, "content");
+    } else if (blockId.startsWith("experience_")) {
+      const match = blockId.match(/^experience_(\d+)$/);
+      if (match) {
+        const idx = parseInt(match[1]);
+        rendered = renderExperience(data, isSidebar, styles, originalData, "item", idx);
+      }
+    } else if (blockId.startsWith("project_")) {
+      const match = blockId.match(/^project_(\d+)$/);
+      if (match) {
+        const idx = parseInt(match[1]);
+        rendered = renderProjects(data, isSidebar, styles, originalData, "item", idx);
+      }
+    } else if (blockId === "content_certifications") {
+      rendered = renderCertifications(data, isSidebar, styles, originalData, "content");
+    } else if (blockId === "content_interests") {
+      rendered = renderInterests(data, isSidebar, styles, originalData, "content");
+    }
+
+    if (!rendered) return null;
+
+    return (
+      <View key={blockId} style={{ position: "absolute", left: pos.x, top: pos.y, width: pos.w }}>
+        {rendered}
+      </View>
+    );
+  };
+
+  const renderAbsoluteHeaderAndPhoto = (pageIndex: number) => {
+    if (pageIndex !== 0) return null;
+
+    const photoPos = absolutePositions.photo || getDefaultPhotoPosition("chaima", sidebarWidth);
+    const namePos = absolutePositions.name || { x: 200, y: 20, w: 370 };
+    const rolePos = absolutePositions.role || { x: 200, y: 48, w: 370 };
+    const techPos = absolutePositions.techLine || { x: 200, y: 66, w: 370 };
+
+    return (
+      <>
+        {/* Photo */}
+        <View style={{ position: "absolute", left: photoPos.x, top: photoPos.y, width: photoPos.w ?? 65, alignItems: "center" }}>
+          <View style={[styles.avatarCircle, { width: photoPos.w ?? 65, height: photoPos.w ?? 65, borderRadius: (photoPos.w ?? 65) / 2 }]}>
+            {personalInfo.photo ? (
+              <Image src={personalInfo.photo} style={styles.avatarImage} />
+            ) : (
+              <Svg viewBox="0 0 100 100" style={{ width: "100%", height: "100%" }}>
+                <Circle cx="50" cy="50" r="48" fill="#cbd5e1" />
+                <Circle cx="50" cy="40" r="18" fill="#475569" />
+                <Path
+                  d="M 22,82 C 22,65 34,58 50,58 C 66,58 78,65 78,82 C 78,85 75,85 50,85 C 25,85 22,85 22,82 Z"
+                  fill="#475569"
+                />
+              </Svg>
+            )}
+          </View>
+        </View>
+
+        {/* Name */}
+        <View style={{ position: "absolute", left: namePos.x, top: namePos.y, width: namePos.w }}>
+          <Text style={styles.h1}>{personalInfo.name}</Text>
+        </View>
+
+        {/* Role */}
+        <View style={{ position: "absolute", left: rolePos.x, top: rolePos.y, width: rolePos.w }}>
+          <Text style={styles.role}>{personalInfo.role}</Text>
+        </View>
+
+        {/* Tech Line */}
+        {personalInfo.techLine && (
+          <View style={{ position: "absolute", left: techPos.x, top: techPos.y, width: techPos.w }}>
+            <DiffText
+              oldText={originalData?.personalInfo.techLine}
+              newText={personalInfo.techLine}
+              style={styles.techLine}
+            />
+          </View>
+        )}
+      </>
+    );
+  };
+
+  return (
+    <Document
+      title={`${personalInfo.name} — ${personalInfo.role} (CV)`}
+      author={personalInfo.name}
+      subject={personalInfo.role}
+    >
+      {layout.pages.map((page, pageIndex) => {
+        const hasSidebar = page.sidebar.some((id) => SECTION_RENDERERS[id]);
+
+        if (useAbsolute) {
+          const sidebarBgStyle = {
+            position: "absolute" as const,
+            left: 0,
+            top: 0,
+            width: sidebarWidth,
+            height: "100%",
+            backgroundColor: styles.sidebar.backgroundColor,
+            borderRightWidth: 1,
+            borderRightColor: "#e4e4e7",
+          };
+
+          return (
+            <Page key={pageIndex} size="A4" style={[styles.page, { padding: 0 }]}>
+              {hasSidebar && <View style={sidebarBgStyle} />}
+              {renderAbsoluteHeaderAndPhoto(pageIndex)}
+              {page.sidebar.flatMap((id) => getSectionBlockIds(id)).map((blockId) => renderAbsoluteBlock(blockId, true))}
+              {page.main.flatMap((id) => getSectionBlockIds(id)).map((blockId) => renderAbsoluteBlock(blockId, false))}
+            </Page>
+          );
+        }
+
+        return (
+          <Page key={pageIndex} size="A4" style={styles.page}>
+            <View style={styles.body}>
+              {hasSidebar && (
+                <View style={styles.sidebar}>
+                  {/* Photo de profil (uniquement sur la 1re page) */}
+                  {pageIndex === 0 && (
+                    <View style={styles.avatarContainer}>
+                      <View style={styles.avatarCircle}>
+                        {personalInfo.photo ? (
+                          <Image src={personalInfo.photo} style={styles.avatarImage} />
+                        ) : (
+                          <Svg viewBox="0 0 100 100" style={{ width: "100%", height: "100%" }}>
+                            <Circle cx="50" cy="50" r="48" fill="#cbd5e1" />
+                            <Circle cx="50" cy="40" r="18" fill="#475569" />
+                            <Path
+                              d="M 22,82 C 22,65 34,58 50,58 C 66,58 78,65 78,82 C 78,85 75,85 50,85 C 25,85 22,85 22,82 Z"
+                              fill="#475569"
+                            />
+                          </Svg>
+                        )}
+                      </View>
+                    </View>
+                  )}
+
+                  {renderColumn(page.sidebar, data, true, styles, originalData)}
+                </View>
+              )}
+
+              <View style={styles.main}>
+                {/* Header (nom / rôle / techLine) : uniquement sur la 1re page dans la colonne main */}
+                {pageIndex === 0 && (
+                  <View style={styles.header}>
+                    <Text style={styles.h1}>{personalInfo.name}</Text>
+                    <Text style={styles.role}>{personalInfo.role}</Text>
+                    {personalInfo.techLine && (
+                      <DiffText
+                        oldText={originalData?.personalInfo.techLine}
+                        newText={personalInfo.techLine}
+                        style={styles.techLine}
+                      />
+                    )}
+                  </View>
+                )}
+
+                {renderColumn(page.main, data, false, styles, originalData)}
+              </View>
+            </View>
+          </Page>
+        );
+      })}
+    </Document>
+  );
+};
+
+export default CVTemplateChaima;

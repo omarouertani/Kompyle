@@ -12,6 +12,10 @@ export interface PersonalInfo {
   linkedin: string;
   portfolio?: string;
   summary: string;
+  photo?: string;          // Photo de profil (Base64 ou URL)
+  birthDate?: string;      // Date de naissance
+  certifications?: string; // Certifications
+  interests?: string;      // Centres d'intérêt
 }
 
 export interface SkillGroup {
@@ -57,7 +61,9 @@ export type SectionId =
   | "contact"
   | "skills"
   | "languages"
-  | "education";
+  | "education"
+  | "certifications"
+  | "interests";
 
 // Une page = un <Page> PDF, avec deux colonnes pilotées par des IDs de section.
 export interface LayoutPage {
@@ -65,9 +71,28 @@ export interface LayoutPage {
   sidebar: string[];
 }
 
+export interface CVTheme {
+  primaryColor?: string; // Couleur principale (titres, accents, puces)
+  textColor?: string;    // Couleur du texte principal
+  sidebarBg?: string;    // Couleur de fond de la barre latérale
+  fontSize?: number;     // Taille du texte de base (pt)
+  headingSize?: number;  // Taille des titres (pt)
+  sectionMargin?: number;// Espacement entre les sections (pt)
+  lineHeight?: number;   // Hauteur de ligne (interligne)
+}
+
+export interface ElementPosition {
+  x: number;
+  y: number;
+  w?: number;
+}
+
 export interface CVLayout {
   sidebarWidth?: number; // largeur de la colonne latérale, en points (défaut 165)
   pages: LayoutPage[];
+  theme?: CVTheme;       // Thème de couleurs personnalisé
+  absolutePositions?: Record<string, ElementPosition>; // Canva-style absolute coordinates
+  useAbsolutePositioning?: boolean; // toggle to enable Canva absolute layout
 }
 
 export interface CVData {

@@ -1,0 +1,82 @@
+{
+  "personalInfo": {
+    "name": "Omar Ouertani",
+    "role": "Développeur Fullstack",
+    "techLine": "TypeScript · NestJS · Next.js · Java/Spring Boot · Automatisation IA",
+    "email": "omarouertani.contact@gmail.com",
+    "phone": "+216 93 988 292",
+    "location": "Bizerte, Tunisie",
+    "linkedin": "linkedin.com/in/omar-ouertani-515786175",
+    "portfolio": "omarouertani.site",
+    "summary": "Développeur fullstack expérimenté spécialisé dans les applications d'entreprise (banque/assurance). Performant sur Java/Spring Boot et l'écosystème moderne TypeScript (NestJS, Next.js, monorepo). Conçoit des produits SaaS IA et des flux d'automatisation (n8n, Make). Trilingue, à l'aise en équipes multiculturelles et à distance."
+  },
+  "skills": [
+    { "category": "Langages", "items": "Java, TypeScript, JavaScript, Dart, SQL" },
+    { "category": "Frameworks & Librairies", "items": "Spring Boot, NestJS, Angular, React, Next.js, Flutter, Tailwind CSS" },
+    { "category": "Bases de données & BaaS", "items": "PostgreSQL, MongoDB, Supabase" },
+    { "category": "Architecture", "items": "Microservices, REST APIs, Event-Driven, JWT/OAuth, Monorepo" },
+    { "category": "DevOps & Cloud", "items": "Docker, Kubernetes, CI/CD, GitHub Actions, Jenkins, Vercel, Render" },
+    { "category": "Automatisation & Supervision", "items": "n8n, Make, Webhooks, Gemini API, Prometheus, OpenTelemetry" },
+    { "category": "Outils & Collaboration", "items": "Git (GitHub, GitLab), Jira, ServiceNow, Notion, Agile/Scrum" }
+  ],
+  "spokenLanguages": [
+    "Anglais — Avancé",
+    "Français — C1 (Certifié TCF)",
+    "Arabe — Langue maternelle"
+  ],
+  "education": [
+    {
+      "degree": "Licence en Génie Logiciel & Systèmes d'Information",
+      "institution": "Faculté des Sciences de Bizerte, Tunisie — 2023"
+    }
+  ],
+  "experiences": [
+    {
+      "title": "Développeur Logiciel & Support Applicatif",
+      "org": "Adactim (Client : Allianz Assurance)",
+      "date": "Nov 2024 – Déc 2025",
+      "bullets": [
+        "Évolutions d'un portail de courtage d'assurance en production, en collaboration avec les équipes Java.",
+        "Résolution d'incidents de production (analyse de causes racines) et coordination des correctifs via Jira et ServiceNow.",
+        "Direction de la migration du portail de SharePoint vers la plateforme Alex avec adoption fluide des workflows.",
+        "Conception de tableaux de bord opérationnels et clients de suivi des erreurs et de l'efficacité des résolutions."
+      ]
+    },
+    {
+      "title": "Développeur Java",
+      "org": "Vermeg (Secteur Bancaire)",
+      "date": "Déc 2023 – Août 2024",
+      "bullets": [
+        "Développement et maintenance d'applications bancaires d'entreprise sous Java et Spring Boot.",
+        "Implémentation de fonctionnalités métiers avec le framework d'entreprise Palmyra.",
+        "Conception de requêtes SQL et flux de traitement de données pour les opérations bancaires principales.",
+        "Collaboration active au sein d'une équipe agile pluridisciplinaire."
+      ]
+    },
+    {
+      "title": "Stagiaire Développeur Fullstack",
+      "org": "Sinorfi",
+      "date": "Jan 2023 – Juin 2023",
+      "bullets": [
+        "Création d'une application de suivi de projet (Spring Boot + Angular) avec authentification Active Directory."
+      ]
+    }
+  ],
+  "projects": [
+    {
+      "title": "Prometheus-DUERP — Plateforme SaaS de Gestion des Risques (prometheus-duerp.com)",
+      "description": "SaaS microservices pour l'évaluation des risques professionnels et la conformité (DUERP). Multi-tenant, rapports PDF automatisés, paiement Stripe.",
+      "stack": "NestJS, React, PostgreSQL, Supabase, Stripe"
+    },
+    {
+      "title": "MagiCollect — Gestion Documentaire & Vérification IA (magicdoc-collect.com)",
+      "description": "SaaS de collecte et vérification de documents par l'IA (Gemini API). Multi-tenant, permissions granulaires, messagerie d'équipe temps réel.",
+      "stack": "React, Supabase, Stripe, Gemini API, Vercel"
+    },
+    {
+      "title": "Flux d'automatisation — Moteurs d'intégration de niveau production",
+      "description": "Déploiement de 6+ flux d'automatisation (n8n, Make) : facturation Stripe, capture de leads, tunnels webinaires, bot Telegram et multidiffusion.",
+      "stack": "n8n, Make, Telegram API, Stripe"
+    }
+  ]
+}

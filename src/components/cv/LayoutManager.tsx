@@ -18,7 +18,7 @@ import {
   useSortable,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import type { CVData, LayoutPage, SectionId } from "@/types/cv";
+import type { CVData, LayoutPage, SectionId, CVTheme } from "@/types/cv";
 import { defaultLayout, emptyLayoutPage, ALL_SECTION_IDS, SECTION_LABELS } from "@/lib/cv-layout";
 import { GripVertical, ArrowLeftRight, EyeOff, Plus, Trash2, LayoutPanelLeft, FilePlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -248,6 +248,169 @@ export default function LayoutManager({
           </div>
         </div>
       )}
+
+      {/* ── Personnalisation du Thème ── */}
+      <div className="mt-8 pt-6 border-t border-border">
+        {(() => {
+          const theme = layout.theme || {};
+          const updateTheme = (updatedTheme: Partial<CVTheme>) => {
+            onChange({
+              ...data,
+              layout: {
+                ...layout,
+                theme: {
+                  ...theme,
+                  ...updatedTheme,
+                },
+              },
+            });
+          };
+
+          return (
+            <>
+              <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-1.5">
+                <span>Thème & Spécifications</span>
+              </h3>
+              
+              {/* Presets */}
+              <div className="flex flex-wrap gap-2 mb-4">
+                {[
+                  { name: "Or Chaima", primary: "#fbbf24", sidebarBg: "#f4f4f5", textColor: "#27272a" },
+                  { name: "Bleu Corporate", primary: "#2563eb", sidebarBg: "#f8fafc", textColor: "#1e293b" },
+                  { name: "Vert Émeraude", primary: "#059669", sidebarBg: "#f0fdf4", textColor: "#0f5132" },
+                  { name: "Rouge Rubis", primary: "#dc2626", sidebarBg: "#fef2f2", textColor: "#7f1d1d" },
+                  { name: "Sombre Minimal", primary: "#18181b", sidebarBg: "#fafafa", textColor: "#27272a" },
+                ].map((preset) => (
+                  <button
+                    key={preset.name}
+                    type="button"
+                    className="flex items-center gap-1.5 px-2 py-1 text-xs rounded-md border border-border bg-card hover:bg-muted/50 transition-colors"
+                    onClick={() => {
+                      updateTheme({
+                        primaryColor: preset.primary,
+                        sidebarBg: preset.sidebarBg,
+                        textColor: preset.textColor,
+                      });
+                    }}
+                  >
+                    <span className="size-2.5 rounded-full border border-border/40 shrink-0" style={{ backgroundColor: preset.primary }} />
+                    <span className="text-[11px] text-muted-foreground">{preset.name}</span>
+                  </button>
+                ))}
+              </div>
+
+              {/* Custom Pickers */}
+              <div className="grid grid-cols-3 gap-4 mb-5">
+                <div className="flex flex-col gap-1">
+                  <span className="text-[10px] font-semibold text-muted-foreground uppercase">Accent</span>
+                  <div className="flex items-center gap-1.5">
+                    <input
+                      type="color"
+                      value={theme.primaryColor || "#fbbf24"}
+                      onChange={(e) => updateTheme({ primaryColor: e.target.value })}
+                      className="size-7 rounded cursor-pointer border border-border bg-transparent p-0"
+                    />
+                    <span className="text-[10px] font-mono text-muted-foreground truncate">{theme.primaryColor || "#fbbf24"}</span>
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <span className="text-[10px] font-semibold text-muted-foreground uppercase">Fond</span>
+                  <div className="flex items-center gap-1.5">
+                    <input
+                      type="color"
+                      value={theme.sidebarBg || "#f4f4f5"}
+                      onChange={(e) => updateTheme({ sidebarBg: e.target.value })}
+                      className="size-7 rounded cursor-pointer border border-border bg-transparent p-0"
+                    />
+                    <span className="text-[10px] font-mono text-muted-foreground truncate">{theme.sidebarBg || "#f4f4f5"}</span>
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <span className="text-[10px] font-semibold text-muted-foreground uppercase">Texte</span>
+                  <div className="flex items-center gap-1.5">
+                    <input
+                      type="color"
+                      value={theme.textColor || "#27272a"}
+                      onChange={(e) => updateTheme({ textColor: e.target.value })}
+                      className="size-7 rounded cursor-pointer border border-border bg-transparent p-0"
+                    />
+                    <span className="text-[10px] font-mono text-muted-foreground truncate">{theme.textColor || "#27272a"}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Sliders de dimensions */}
+              <div className="space-y-4 border-t border-border/40 pt-4">
+                <div className="flex flex-col gap-1.5">
+                  <div className="flex justify-between items-center text-[10px] font-semibold text-muted-foreground uppercase">
+                    <span>Taille du texte</span>
+                    <span className="font-mono text-xs text-foreground">{theme.fontSize !== undefined ? theme.fontSize : 10} pt</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="8"
+                    max="14"
+                    step="0.5"
+                    value={theme.fontSize !== undefined ? theme.fontSize : 10}
+                    onChange={(e) => updateTheme({ fontSize: Number(e.target.value) })}
+                    className="w-full accent-primary cursor-ew-resize bg-muted h-1.5 rounded-lg"
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <div className="flex justify-between items-center text-[10px] font-semibold text-muted-foreground uppercase">
+                    <span>Taille des titres</span>
+                    <span className="font-mono text-xs text-foreground">{theme.headingSize !== undefined ? theme.headingSize : 12} pt</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="9"
+                    max="18"
+                    step="0.5"
+                    value={theme.headingSize !== undefined ? theme.headingSize : 12}
+                    onChange={(e) => updateTheme({ headingSize: Number(e.target.value) })}
+                    className="w-full accent-primary cursor-ew-resize bg-muted h-1.5 rounded-lg"
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <div className="flex justify-between items-center text-[10px] font-semibold text-muted-foreground uppercase">
+                    <span>Espacement des sections</span>
+                    <span className="font-mono text-xs text-foreground">{theme.sectionMargin !== undefined ? theme.sectionMargin : 12} pt</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="4"
+                    max="24"
+                    step="1"
+                    value={theme.sectionMargin !== undefined ? theme.sectionMargin : 12}
+                    onChange={(e) => updateTheme({ sectionMargin: Number(e.target.value) })}
+                    className="w-full accent-primary cursor-ew-resize bg-muted h-1.5 rounded-lg"
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <div className="flex justify-between items-center text-[10px] font-semibold text-muted-foreground uppercase">
+                    <span>Hauteur de ligne</span>
+                    <span className="font-mono text-xs text-foreground">{theme.lineHeight !== undefined ? theme.lineHeight : 1.25}</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="1.0"
+                    max="1.6"
+                    step="0.05"
+                    value={theme.lineHeight !== undefined ? theme.lineHeight : 1.25}
+                    onChange={(e) => updateTheme({ lineHeight: Number(e.target.value) })}
+                    className="w-full accent-primary cursor-ew-resize bg-muted h-1.5 rounded-lg"
+                  />
+                </div>
+              </div>
+            </>
+          );
+        })()}
+      </div>
     </section>
   );
 }
