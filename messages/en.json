@@ -14,6 +14,8 @@
     "placeholder": "Paste the full job description here...",
     "btn_gemini": "Gemini Flash",
     "btn_groq": "Groq Llama",
+    "btn_mistral": "Mistral Large",
+    "label_model": "Model",
     "btn_adapt": "Adapt CV",
     "btn_letter": "Create Letter",
     "btn_reset": "Reset All",

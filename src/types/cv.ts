@@ -107,12 +107,13 @@ export interface CVData {
 
 // ─── API Types ──────────────────────────────────────────────────────────────
 
-export type AIProvider = "gemini" | "groq";
+export type AIProvider = "gemini" | "groq" | "mistral";
 
 export interface AdaptCVRequest {
   jobDescription: string;
   cvData: CVData;
   provider?: AIProvider;
+  model?: string;
 }
 
 export interface AdaptCVResponse {
@@ -142,6 +143,7 @@ export interface GenerateCoverLetterRequest {
   jobDescription: string;
   cvData: CVData;
   provider?: AIProvider;
+  model?: string;
 }
 
 export interface GenerateCoverLetterResponse {

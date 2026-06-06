@@ -14,6 +14,8 @@
     "placeholder": "Collez ici la description complète du poste…",
     "btn_gemini": "Gemini Flash",
     "btn_groq": "Groq Llama",
+    "btn_mistral": "Mistral Large",
+    "label_model": "Modèle",
     "btn_adapt": "Adapter CV",
     "btn_letter": "Créer Lettre",
     "btn_reset": "Tout réinitialiser",
