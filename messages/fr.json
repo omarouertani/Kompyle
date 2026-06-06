@@ -31,5 +31,18 @@
   "Loading": {
     "cv": "Chargement du moteur CV…",
     "letter": "Chargement du moteur Lettre…"
+  },
+  "AIAdapt": {
+    "scanning": "Scan du document en cours...",
+    "cv_step1": "Analyse de la description de poste...",
+    "cv_step2": "Ajustement du profil professionnel...",
+    "cv_step3": "Optimisation des compétences techniques...",
+    "cv_step4": "Adaptation des expériences...",
+    "cv_step5": "Finalisation de la mise en page...",
+    "letter_step1": "Analyse du ton de l'entreprise...",
+    "letter_step2": "Rédaction de l'accroche...",
+    "letter_step3": "Valorisation des compétences clés...",
+    "letter_step4": "Formulation des salutations...",
+    "letter_step5": "Finalisation de la lettre..."
   }
 }

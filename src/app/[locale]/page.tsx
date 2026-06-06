@@ -146,6 +146,7 @@ export default function AdaptPage() {
 
   const [status, setStatus] = useState<Status>("idle");
   const [statusMessage, setStatusMessage] = useState("");
+  const [loadingType, setLoadingType] = useState<"cv" | "letter" | null>(null);
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
@@ -186,6 +187,8 @@ export default function AdaptPage() {
       return;
     }
     setStatus("loading");
+    setLoadingType("cv");
+    setActiveRightTab("cv");
     setStatusMessage(t("status_loading_cv"));
 
     const jobLang = detectLanguage(jobDescription);
@@ -228,8 +231,10 @@ export default function AdaptPage() {
     } catch (err) {
       setStatus("error");
       setStatusMessage(err instanceof Error ? err.message : t("status_error"));
+    } finally {
+      setLoadingType(null);
     }
-  }, [jobDescription, provider, currentCV, locale, selectedProfile, getInitialCV, t]);
+  }, [jobDescription, provider, currentCV, locale, selectedProfile, getInitialCV, t, setActiveRightTab]);
 
   const handleGenerateLetter = useCallback(async () => {
     if (!jobDescription.trim() || jobDescription.trim().length < 20) {
@@ -238,6 +243,8 @@ export default function AdaptPage() {
       return;
     }
     setStatus("loading");
+    setLoadingType("letter");
+    setActiveRightTab("letter");
     setStatusMessage(t("status_loading_letter"));
     try {
       const res = await fetch("/api/generate-cover-letter", {
@@ -254,8 +261,10 @@ export default function AdaptPage() {
     } catch (err) {
       setStatus("error");
       setStatusMessage(err instanceof Error ? err.message : t("status_error"));
+    } finally {
+      setLoadingType(null);
     }
-  }, [jobDescription, provider, currentCV, t]);
+  }, [jobDescription, provider, currentCV, t, setActiveRightTab]);
 
   const handleProfileChange = useCallback((profile: "omar" | "chaima") => {
     setSelectedProfile(profile);
@@ -477,11 +486,13 @@ export default function AdaptPage() {
                   originalData={isAdapted ? originalCV : null}
                   template={selectedTemplate}
                   onTemplateChange={setSelectedTemplate}
+                  isAdapting={loadingType === "cv"}
                 />
               ) : (
                 <CoverLetterPreview
                   data={coverLetterData || initialCoverLetter}
                   personalInfo={currentCV.personalInfo}
+                  isAdapting={loadingType === "letter"}
                 />
               )}
             </div>
