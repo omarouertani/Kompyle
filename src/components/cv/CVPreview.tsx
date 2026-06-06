@@ -5,6 +5,7 @@ import { PDFViewer, PDFDownloadLink } from "@react-pdf/renderer";
 import CVTemplate from "./CVTemplate";
 import CVTemplateChaima from "./CVTemplateChaima";
 import CVInteractiveCanvas from "./CVInteractiveCanvas";
+import AIAdaptOverlay from "./AIAdaptOverlay";
 import type { CVData } from "@/types/cv";
 import { Download, Loader2, LayoutPanelLeft } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -16,6 +17,7 @@ interface CVPreviewProps {
   originalData?: CVData | null;
   template: "default" | "chaima";
   onTemplateChange: (template: "default" | "chaima") => void;
+  isAdapting?: boolean;
 }
 
 export default function CVPreview({
@@ -24,6 +26,7 @@ export default function CVPreview({
   originalData,
   template,
   onTemplateChange,
+  isAdapting = false,
 }: CVPreviewProps) {
   const [sideBySide, setSideBySide] = useState(true);
   const [mounted, setMounted] = useState(false);
@@ -123,11 +126,59 @@ export default function CVPreview({
       </div>
 
       {/* Preview Viewers (Canvas vs PDF) */}
-      <div className="flex-1 flex flex-col overflow-hidden min-h-0">
-        {mounted && mode === "canvas" && (
-          <div className="flex-1 flex gap-5 overflow-hidden min-h-0">
-            {originalData && sideBySide ? (
-              <>
+      <div className="flex-1 flex flex-col overflow-hidden min-h-0 relative">
+        <div className={cn("flex-1 flex flex-col overflow-hidden min-h-0 transition-all duration-500", isAdapting && "blur-[5px] scale-[0.99] opacity-40 pointer-events-none")}>
+          {mounted && mode === "canvas" && (
+            <div className="flex-1 flex gap-5 overflow-hidden min-h-0">
+              {originalData && sideBySide ? (
+                <>
+                  <div className="flex-1 flex flex-col gap-2 min-h-0">
+                    <div className="text-sm font-medium text-muted-foreground text-center">
+                      CV Original
+                    </div>
+                    <div className="flex-1 rounded-lg overflow-hidden border border-border bg-card shadow-sm min-h-0">
+                      <PDFViewer
+                        key={`orig-${template}`}
+                        width="100%"
+                        height="100%"
+                        showToolbar={false}
+                        className="border-none w-full h-full"
+                      >
+                        <ActiveTemplate data={originalData} />
+                      </PDFViewer>
+                    </div>
+                  </div>
+                  
+                  <div className="flex-1 flex flex-col gap-2 min-h-0">
+                    <div className="text-sm font-medium text-success text-center shrink-0">
+                      CV Adapté (Édition Visuelle)
+                    </div>
+                    <div className="flex-1 rounded-lg overflow-hidden border border-border bg-card shadow-sm min-h-0 flex flex-col">
+                      <CVInteractiveCanvas
+                        data={data}
+                        onChange={handleCanvasChange}
+                        template={template}
+                        originalData={originalData}
+                      />
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <div className="flex-1 rounded-lg overflow-hidden border border-border bg-card shadow-sm min-h-0 flex flex-col">
+                  <CVInteractiveCanvas
+                    data={data}
+                    onChange={handleCanvasChange}
+                    template={template}
+                    originalData={originalData}
+                  />
+                </div>
+              )}
+            </div>
+          )}
+
+          {mounted && mode === "pdf" && (
+            <div className="flex-1 flex gap-5 overflow-hidden min-h-0">
+              {originalData && sideBySide && (
                 <div className="flex-1 flex flex-col gap-2 min-h-0">
                   <div className="text-sm font-medium text-muted-foreground text-center">
                     CV Original
@@ -144,75 +195,30 @@ export default function CVPreview({
                     </PDFViewer>
                   </div>
                 </div>
-                
-                <div className="flex-1 flex flex-col gap-2 min-h-0">
-                  <div className="text-sm font-medium text-success text-center shrink-0">
-                    CV Adapté (Édition Visuelle)
-                  </div>
-                  <div className="flex-1 rounded-lg overflow-hidden border border-border bg-card shadow-sm min-h-0 flex flex-col">
-                    <CVInteractiveCanvas
-                      data={data}
-                      onChange={handleCanvasChange}
-                      template={template}
-                      originalData={originalData}
-                    />
-                  </div>
-                </div>
-              </>
-            ) : (
-              <div className="flex-1 rounded-lg overflow-hidden border border-border bg-card shadow-sm min-h-0 flex flex-col">
-                <CVInteractiveCanvas
-                  data={data}
-                  onChange={handleCanvasChange}
-                  template={template}
-                  originalData={originalData}
-                />
-              </div>
-            )}
-          </div>
-        )}
-
-        {mounted && mode === "pdf" && (
-          <div className="flex-1 flex gap-5 overflow-hidden min-h-0">
-            {originalData && sideBySide && (
+              )}
+              
               <div className="flex-1 flex flex-col gap-2 min-h-0">
-                <div className="text-sm font-medium text-muted-foreground text-center">
-                  CV Original
-                </div>
+                {originalData && sideBySide && (
+                  <div className="text-sm font-medium text-success text-center">
+                    CV Adapté (Modifications surlignées)
+                  </div>
+                )}
                 <div className="flex-1 rounded-lg overflow-hidden border border-border bg-card shadow-sm min-h-0">
                   <PDFViewer
-                    key={`orig-${template}`}
+                    key={`adap-${template}-${data.experiences.map((e) => e.id).join(",")}-${data.projects.map((p) => p.id).join(",")}-${data.skills.map((s) => s.id).join(",")}-${data.education.map((e) => e.id).join(",")}-${data.spokenLanguages.join(",")}-${JSON.stringify(data.layout)}`}
                     width="100%"
                     height="100%"
                     showToolbar={false}
                     className="border-none w-full h-full"
                   >
-                    <ActiveTemplate data={originalData} />
+                    <ActiveTemplate data={data} originalData={(sideBySide && originalData) ? originalData : undefined} />
                   </PDFViewer>
                 </div>
               </div>
-            )}
-            
-            <div className="flex-1 flex flex-col gap-2 min-h-0">
-              {originalData && sideBySide && (
-                <div className="text-sm font-medium text-success text-center">
-                  CV Adapté (Modifications surlignées)
-                </div>
-              )}
-              <div className="flex-1 rounded-lg overflow-hidden border border-border bg-card shadow-sm min-h-0">
-                <PDFViewer
-                  key={`adap-${template}-${data.experiences.map((e) => e.id).join(",")}-${data.projects.map((p) => p.id).join(",")}-${data.skills.map((s) => s.id).join(",")}-${data.education.map((e) => e.id).join(",")}-${data.spokenLanguages.join(",")}-${JSON.stringify(data.layout)}`}
-                  width="100%"
-                  height="100%"
-                  showToolbar={false}
-                  className="border-none w-full h-full"
-                >
-                  <ActiveTemplate data={data} originalData={(sideBySide && originalData) ? originalData : undefined} />
-                </PDFViewer>
-              </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
+        {isAdapting && <AIAdaptOverlay type="cv" />}
       </div>
     </div>
   );

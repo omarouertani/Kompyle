@@ -31,5 +31,18 @@
   "Loading": {
     "cv": "Loading CV engine...",
     "letter": "Loading Letter engine..."
+  },
+  "AIAdapt": {
+    "scanning": "Scanning document...",
+    "cv_step1": "Analyzing job description...",
+    "cv_step2": "Aligning professional profile...",
+    "cv_step3": "Optimizing technical skills...",
+    "cv_step4": "Adapting professional experiences...",
+    "cv_step5": "Polishing layout and structure...",
+    "letter_step1": "Analyzing target company tone...",
+    "letter_step2": "Writing introduction hook...",
+    "letter_step3": "Highlighting relevant experiences...",
+    "letter_step4": "Formatting professional salutations...",
+    "letter_step5": "Finalizing cover letter layout..."
   }
 }
