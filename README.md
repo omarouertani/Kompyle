@@ -21,6 +21,7 @@
     <img src="https://img.shields.io/badge/Groq--Llama-Active-f55036?style=flat-square" alt="Groq Llama Integration" />
     <img src="https://img.shields.io/badge/Mistral--AI-Active-ff6000?style=flat-square" alt="Mistral AI Integration" />
     <img src="https://img.shields.io/badge/i18n-FR%20%7C%20EN-green?style=flat-square" alt="Internationalization" />
+    <img src="https://img.shields.io/badge/license-MIT-green?style=flat-square" alt="MIT License" />
   </p>
 </div>
 
@@ -35,14 +36,13 @@ Construit sur des principes de rigueur et d'absence totale d'hallucinations, Kom
 ## 📖 Table des Matières
 
 1. [✨ Fonctionnalités](#-fonctionnalités)
-2. [🖼️ Aperçu des Templates & Interface](#️-aperçu-des-templates--interface)
-3. [⚙️ Comment fonctionne l'application ?](#️-comment-fonctionne-lapplication-)
-4. [🛠️ Stack Technique](#️-stack-technique)
-5. [📁 Structure du Projet](#-structure-du-projet)
-6. [🔑 Configuration des APIs & Environnement](#-configuration-des-apis--environnement)
-7. [💿 Démarrage Rapide (Installation Locale)](#-démarrage-rapide-installation-locale)
-8. [🐳 Déploiement avec Docker](#-déploiement-avec-docker)
-9. [📄 Licence](#-licence)
+2. [⚙️ Comment fonctionne l'application ?](#️-comment-fonctionne-lapplication-)
+3. [🛠️ Stack Technique](#️-stack-technique)
+4. [📁 Structure du Projet](#-structure-du-projet)
+5. [🔑 Configuration des APIs & Environnement](#-configuration-des-apis--environnement)
+6. [💿 Démarrage Rapide (Installation Locale)](#-démarrage-rapide-installation-locale)
+7. [🐳 Déploiement avec Docker](#-déploiement-avec-docker)
+8. [📄 Licence](#-licence)
 
 ---
 
@@ -67,25 +67,6 @@ Construit sur des principes de rigueur et d'absence totale d'hallucinations, Kom
 - **A4 Strict** : Prévisualisation des pages avec délimitation de saut de page pour une mise en page soignée.
 - **Multi-langues** : Détection automatique de la langue de l'offre (FR/EN) et traduction de l'interface via `next-intl`.
 - **Export PDF Haute Définition** : Rendu vectoriel via `@react-pdf/renderer` avec nommage professionnel de fichier.
-
----
-
-## 🖼️ Aperçu des Templates & Interface
-
-L'application prend en charge plusieurs types de profils et de modèles esthétiques que vous pouvez switcher instantanément.
-
-<table width="100%">
-  <tr>
-    <td align="center" width="50%">
-      <img src="public/images/Kompyle1.png" alt="Kompyle Éditeur Visuel" width="100%" style="border-radius:6px; border:1px solid #e4e4e7;" />
-      <br /><sub><b>Interface Principale & Éditeur de CV (Canvas Classique)</b></sub>
-    </td>
-    <td align="center" width="50%">
-      <img src="public/images/kompyle2.png" alt="Kompyle Modèle Moderne" width="100%" style="border-radius:6px; border:1px solid #e4e4e7;" />
-      <br /><sub><b>Interface en Mode Moderne (Template Chaima)</b></sub>
-    </td>
-  </tr>
-</table>
 
 ---
 
@@ -232,4 +213,4 @@ docker run -p 3000:3000 \
 
 ## 📄 Licence
 
-Ce projet est la propriété exclusive de son créateur. Toute reproduction ou distribution commerciale sans accord écrit préalable est interdite.
+Ce projet est sous licence MIT. Pour plus de détails, veuillez consulter le fichier [LICENSE](file:///c:/Users/oouer/Projects/Kompyle/LICENSE) à la racine du projet.
