@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import type { CVData, CVTheme, Experience, Project, Education, SkillGroup, SectionId } from "@/types/cv";
-import { defaultLayout, emptyLayoutPage, ALL_SECTION_IDS, getDefaultPositions, getDefaultPhotoPosition, estimateAbsolutePageHeightPt } from "@/lib/cv-layout";
+import { defaultLayout, emptyLayoutPage, ALL_SECTION_IDS, getDefaultPositions, getDefaultPhotoPosition, estimateAbsolutePageHeightPt, getSectionBlockIds, getParentSectionId } from "@/lib/cv-layout";
 import { cn } from "@/lib/utils";
 import {
   CVPageScaleWrapper,
@@ -22,6 +22,7 @@ import {
   Sparkles,
   FilePlus,
 } from "lucide-react";
+import { CanvasSectionHeading } from "./canvas-section-heading";
 
 interface CVInteractiveCanvasProps {
   data: CVData;
@@ -563,25 +564,7 @@ export default function CVInteractiveCanvas({
     const { personalInfo } = data;
     return (
       <div className="flex flex-col gap-1.5 text-left w-full">
-        <h2 
-          className="font-bold border-b border-zinc-300 uppercase tracking-wide group/h2 select-none relative flex items-center" 
-          data-block-id="title_contact"
-          style={{ 
-            fontSize: toPx(headingFontSize), 
-            color: primaryColor, 
-            borderBottomColor: primaryColor,
-            marginBottom: "6px",
-            paddingBottom: "2px",
-            lineHeight: 1.15
-          }}
-        >
-          Contact
-          <span className="opacity-0 group-hover/h2:opacity-100 absolute left-full ml-2 flex items-center bg-background border rounded px-1 py-0.5 text-[10px] font-normal tracking-normal text-muted-foreground z-30 select-none">
-            <button type="button" onClick={() => updateThemeValue({ headingSize: Math.max(9, headingFontSize - 0.5) })} className="p-0.5 hover:bg-muted rounded"><Minus size={10}/></button>
-            <span className="mx-1">{headingFontSize}pt</span>
-            <button type="button" onClick={() => updateThemeValue({ headingSize: Math.min(18, headingFontSize + 0.5) })} className="p-0.5 hover:bg-muted rounded"><Plus size={10}/></button>
-          </span>
-        </h2>
+        <CanvasSectionHeading title="Contact" blockId="title_contact" headingFontSize={headingFontSize} primaryColor={primaryColor} onFontSizeChange={(s) => updateThemeValue({ headingSize: s })} />
         
         <div className="flex flex-col gap-1" data-block-id="content_contact">
           <div className="flex flex-col">
@@ -639,25 +622,7 @@ export default function CVInteractiveCanvas({
   const renderSkillsHtml = () => {
     return (
       <div className="flex flex-col gap-1.5 text-left w-full">
-        <h2 
-          className="font-bold border-b border-zinc-300 uppercase tracking-wide group/h2 select-none relative flex items-center" 
-          data-block-id="title_skills"
-          style={{ 
-            fontSize: toPx(headingFontSize), 
-            color: primaryColor, 
-            borderBottomColor: primaryColor,
-            marginBottom: "6px",
-            paddingBottom: "2px",
-            lineHeight: 1.15
-          }}
-        >
-          Compétences
-          <span className="opacity-0 group-hover/h2:opacity-100 absolute left-full ml-2 flex items-center bg-background border rounded px-1 py-0.5 text-[10px] font-normal tracking-normal text-muted-foreground z-30 select-none">
-            <button type="button" onClick={() => updateThemeValue({ headingSize: Math.max(9, headingFontSize - 0.5) })} className="p-0.5 hover:bg-muted rounded"><Minus size={10}/></button>
-            <span className="mx-1">{headingFontSize}pt</span>
-            <button type="button" onClick={() => updateThemeValue({ headingSize: Math.min(18, headingFontSize + 0.5) })} className="p-0.5 hover:bg-muted rounded"><Plus size={10}/></button>
-          </span>
-        </h2>
+        <CanvasSectionHeading title="Compétences" blockId="title_skills" headingFontSize={headingFontSize} primaryColor={primaryColor} onFontSizeChange={(s) => updateThemeValue({ headingSize: s })} />
 
         <div className="flex flex-col gap-2">
           {data.skills.map((group, i) => (
@@ -686,25 +651,7 @@ export default function CVInteractiveCanvas({
   const renderLanguagesHtml = () => {
     return (
       <div className="flex flex-col gap-1.5 text-left w-full">
-        <h2 
-          className="font-bold border-b border-zinc-300 uppercase tracking-wide group/h2 select-none relative flex items-center" 
-          data-block-id="title_languages"
-          style={{ 
-            fontSize: toPx(headingFontSize), 
-            color: primaryColor, 
-            borderBottomColor: primaryColor,
-            marginBottom: "6px",
-            paddingBottom: "2px",
-            lineHeight: 1.15
-          }}
-        >
-          Langues
-          <span className="opacity-0 group-hover/h2:opacity-100 absolute left-full ml-2 flex items-center bg-background border rounded px-1 py-0.5 text-[10px] font-normal tracking-normal text-muted-foreground z-30 select-none">
-            <button type="button" onClick={() => updateThemeValue({ headingSize: Math.max(9, headingFontSize - 0.5) })} className="p-0.5 hover:bg-muted rounded"><Minus size={10}/></button>
-            <span className="mx-1">{headingFontSize}pt</span>
-            <button type="button" onClick={() => updateThemeValue({ headingSize: Math.min(18, headingFontSize + 0.5) })} className="p-0.5 hover:bg-muted rounded"><Plus size={10}/></button>
-          </span>
-        </h2>
+        <CanvasSectionHeading title="Langues" blockId="title_languages" headingFontSize={headingFontSize} primaryColor={primaryColor} onFontSizeChange={(s) => updateThemeValue({ headingSize: s })} />
 
         <div className="flex flex-col gap-1" data-block-id="content_languages">
           {data.spokenLanguages.map((lang, i) => (
@@ -725,25 +672,7 @@ export default function CVInteractiveCanvas({
   const renderEducationHtml = () => {
     return (
       <div className="flex flex-col gap-1.5 text-left w-full">
-        <h2 
-          className="font-bold border-b border-zinc-300 uppercase tracking-wide group/h2 select-none relative flex items-center" 
-          data-block-id="title_education"
-          style={{ 
-            fontSize: toPx(headingFontSize), 
-            color: primaryColor, 
-            borderBottomColor: primaryColor,
-            marginBottom: "6px",
-            paddingBottom: "2px",
-            lineHeight: 1.15
-          }}
-        >
-          Formation
-          <span className="opacity-0 group-hover/h2:opacity-100 absolute left-full ml-2 flex items-center bg-background border rounded px-1 py-0.5 text-[10px] font-normal tracking-normal text-muted-foreground z-30 select-none">
-            <button type="button" onClick={() => updateThemeValue({ headingSize: Math.max(9, headingFontSize - 0.5) })} className="p-0.5 hover:bg-muted rounded"><Minus size={10}/></button>
-            <span className="mx-1">{headingFontSize}pt</span>
-            <button type="button" onClick={() => updateThemeValue({ headingSize: Math.min(18, headingFontSize + 0.5) })} className="p-0.5 hover:bg-muted rounded"><Plus size={10}/></button>
-          </span>
-        </h2>
+        <CanvasSectionHeading title="Formation" blockId="title_education" headingFontSize={headingFontSize} primaryColor={primaryColor} onFontSizeChange={(s) => updateThemeValue({ headingSize: s })} />
 
         <div className="flex flex-col gap-3">
           {data.education.map((edu, i) => (
@@ -784,25 +713,7 @@ export default function CVInteractiveCanvas({
   const renderSummaryHtml = () => {
     return (
       <div className="flex flex-col gap-1.5 text-left w-full">
-        <h2 
-          className="font-bold border-b border-zinc-300 uppercase tracking-wide group/h2 select-none relative flex items-center" 
-          data-block-id="title_summary"
-          style={{ 
-            fontSize: toPx(headingFontSize), 
-            color: primaryColor, 
-            borderBottomColor: primaryColor,
-            marginBottom: "6px",
-            paddingBottom: "2px",
-            lineHeight: 1.15
-          }}
-        >
-          Résumé Professionnel
-          <span className="opacity-0 group-hover/h2:opacity-100 absolute left-full ml-2 flex items-center bg-background border rounded px-1 py-0.5 text-[10px] font-normal tracking-normal text-muted-foreground z-30 select-none">
-            <button type="button" onClick={() => updateThemeValue({ headingSize: Math.max(9, headingFontSize - 0.5) })} className="p-0.5 hover:bg-muted rounded"><Minus size={10}/></button>
-            <span className="mx-1">{headingFontSize}pt</span>
-            <button type="button" onClick={() => updateThemeValue({ headingSize: Math.min(18, headingFontSize + 0.5) })} className="p-0.5 hover:bg-muted rounded"><Plus size={10}/></button>
-          </span>
-        </h2>
+        <CanvasSectionHeading title="Résumé Professionnel" blockId="title_summary" headingFontSize={headingFontSize} primaryColor={primaryColor} onFontSizeChange={(s) => updateThemeValue({ headingSize: s })} />
 
         <div data-block-id="content_summary" className="w-full">
           <EditableText 
@@ -821,25 +732,7 @@ export default function CVInteractiveCanvas({
   const renderExperienceHtml = () => {
     return (
       <div className="flex flex-col gap-1.5 text-left w-full">
-        <h2 
-          className="font-bold border-b border-zinc-300 uppercase tracking-wide group/h2 select-none relative flex items-center" 
-          data-block-id="title_experience"
-          style={{ 
-            fontSize: toPx(headingFontSize), 
-            color: primaryColor, 
-            borderBottomColor: primaryColor,
-            marginBottom: "6px",
-            paddingBottom: "2px",
-            lineHeight: 1.15
-          }}
-        >
-          Expérience Professionnelle
-          <span className="opacity-0 group-hover/h2:opacity-100 absolute left-full ml-2 flex items-center bg-background border rounded px-1 py-0.5 text-[10px] font-normal tracking-normal text-muted-foreground z-30 select-none">
-            <button type="button" onClick={() => updateThemeValue({ headingSize: Math.max(9, headingFontSize - 0.5) })} className="p-0.5 hover:bg-muted rounded"><Minus size={10}/></button>
-            <span className="mx-1">{headingFontSize}pt</span>
-            <button type="button" onClick={() => updateThemeValue({ headingSize: Math.min(18, headingFontSize + 0.5) })} className="p-0.5 hover:bg-muted rounded"><Plus size={10}/></button>
-          </span>
-        </h2>
+        <CanvasSectionHeading title="Expérience Professionnelle" blockId="title_experience" headingFontSize={headingFontSize} primaryColor={primaryColor} onFontSizeChange={(s) => updateThemeValue({ headingSize: s })} />
 
         <div className="flex flex-col gap-3.5">
           {data.experiences.map((exp, expIdx) => (
@@ -926,25 +819,7 @@ export default function CVInteractiveCanvas({
   const renderProjectsHtml = () => {
     return (
       <div className="flex flex-col gap-1.5 text-left w-full">
-        <h2 
-          className="font-bold border-b border-zinc-300 uppercase tracking-wide group/h2 select-none relative flex items-center" 
-          data-block-id="title_projects"
-          style={{ 
-            fontSize: toPx(headingFontSize), 
-            color: primaryColor, 
-            borderBottomColor: primaryColor,
-            marginBottom: "6px",
-            paddingBottom: "2px",
-            lineHeight: 1.15
-          }}
-        >
-          Projets
-          <span className="opacity-0 group-hover/h2:opacity-100 absolute left-full ml-2 flex items-center bg-background border rounded px-1 py-0.5 text-[10px] font-normal tracking-normal text-muted-foreground z-30 select-none">
-            <button type="button" onClick={() => updateThemeValue({ headingSize: Math.max(9, headingFontSize - 0.5) })} className="p-0.5 hover:bg-muted rounded"><Minus size={10}/></button>
-            <span className="mx-1">{headingFontSize}pt</span>
-            <button type="button" onClick={() => updateThemeValue({ headingSize: Math.min(18, headingFontSize + 0.5) })} className="p-0.5 hover:bg-muted rounded"><Plus size={10}/></button>
-          </span>
-        </h2>
+        <CanvasSectionHeading title="Projets" blockId="title_projects" headingFontSize={headingFontSize} primaryColor={primaryColor} onFontSizeChange={(s) => updateThemeValue({ headingSize: s })} />
 
         <div className="flex flex-col gap-3.5">
           {data.projects.map((proj, i) => (
@@ -996,25 +871,7 @@ export default function CVInteractiveCanvas({
 
   const renderCertificationsHtml = () => (
     <div className="flex flex-col gap-1.5 text-left w-full">
-      <h2
-        className="font-bold border-b border-zinc-300 uppercase tracking-wide group/h2 select-none relative flex items-center"
-        data-block-id="title_certifications"
-        style={{
-          fontSize: toPx(headingFontSize),
-          color: primaryColor,
-          borderBottomColor: primaryColor,
-          marginBottom: "6px",
-          paddingBottom: "2px",
-          lineHeight: 1.15,
-        }}
-      >
-        Certifications
-        <span className="opacity-0 group-hover/h2:opacity-100 absolute left-full ml-2 flex items-center bg-background border rounded px-1 py-0.5 text-[10px] font-normal tracking-normal text-muted-foreground z-30 select-none">
-          <button type="button" onClick={() => updateThemeValue({ headingSize: Math.max(9, headingFontSize - 0.5) })} className="p-0.5 hover:bg-muted rounded"><Minus size={10} /></button>
-          <span className="mx-1">{headingFontSize}pt</span>
-          <button type="button" onClick={() => updateThemeValue({ headingSize: Math.min(18, headingFontSize + 0.5) })} className="p-0.5 hover:bg-muted rounded"><Plus size={10} /></button>
-        </span>
-      </h2>
+      <CanvasSectionHeading title="Certifications" blockId="title_certifications" headingFontSize={headingFontSize} primaryColor={primaryColor} onFontSizeChange={(s) => updateThemeValue({ headingSize: s })} />
 
       <div data-block-id="content_certifications">
         <EditableText
@@ -1031,25 +888,7 @@ export default function CVInteractiveCanvas({
 
   const renderInterestsHtml = () => (
     <div className="flex flex-col gap-1.5 text-left w-full">
-      <h2
-        className="font-bold border-b border-zinc-300 uppercase tracking-wide group/h2 select-none relative flex items-center"
-        data-block-id="title_interests"
-        style={{
-          fontSize: toPx(headingFontSize),
-          color: primaryColor,
-          borderBottomColor: primaryColor,
-          marginBottom: "6px",
-          paddingBottom: "2px",
-          lineHeight: 1.15,
-        }}
-      >
-        Intérêts
-        <span className="opacity-0 group-hover/h2:opacity-100 absolute left-full ml-2 flex items-center bg-background border rounded px-1 py-0.5 text-[10px] font-normal tracking-normal text-muted-foreground z-30 select-none">
-          <button type="button" onClick={() => updateThemeValue({ headingSize: Math.max(9, headingFontSize - 0.5) })} className="p-0.5 hover:bg-muted rounded"><Minus size={10} /></button>
-          <span className="mx-1">{headingFontSize}pt</span>
-          <button type="button" onClick={() => updateThemeValue({ headingSize: Math.min(18, headingFontSize + 0.5) })} className="p-0.5 hover:bg-muted rounded"><Plus size={10} /></button>
-        </span>
-      </h2>
+      <CanvasSectionHeading title="Intérêts" blockId="title_interests" headingFontSize={headingFontSize} primaryColor={primaryColor} onFontSizeChange={(s) => updateThemeValue({ headingSize: s })} />
 
       <div data-block-id="content_interests">
         <EditableText
@@ -1325,54 +1164,13 @@ export default function CVInteractiveCanvas({
             estimateAbsolutePageHeightPt(mergedAbsolutePositions, data) * PT_TO_PX;
           const pageZoom = layout.useAbsolutePositioning ? zoom : 1;
 
-        const getSectionBlockIds = (sectionId: string): string[] => {
-          switch (sectionId) {
-            case "contact": return ["title_contact", "content_contact"];
-            case "summary": return ["title_summary", "content_summary"];
-            case "languages": return ["title_languages", "content_languages"];
-            case "certifications": return ["title_certifications", "content_certifications"];
-            case "interests": return ["title_interests", "content_interests"];
-            case "skills": return ["title_skills", ...data.skills.map((_, i) => `skill_${i}`)];
-            case "education": return ["title_education", ...data.education.map((_, i) => `education_${i}`)];
-            case "experience": return ["title_experience", ...data.experiences.map((_, i) => `experience_${i}`)];
-            case "projects": return ["title_projects", ...data.projects.map((_, i) => `project_${i}`)];
-            default: return [];
-          }
-        };
-
-        const getParentSectionId = (blockId: string): string => {
-          if (blockId.startsWith("title_")) return blockId.substring(6);
-          if (blockId.startsWith("content_")) return blockId.substring(8);
-          if (blockId.startsWith("skill_")) return "skills";
-          if (blockId.startsWith("experience_")) return "experience";
-          if (blockId.startsWith("education_")) return "education";
-          if (blockId.startsWith("project_")) return "projects";
-          return blockId;
-        };
 
         const getAbsoluteBlockRenderer = (blockId: string): React.ReactNode => {
           const headingSizeVal = headingFontSize;
           const { personalInfo } = data;
 
           const renderTitle = (title: string, sectionId: string) => (
-            <h2 
-              className="font-bold border-b border-zinc-300 uppercase tracking-wide group/h2 select-none relative flex items-center w-full" 
-              style={{ 
-                fontSize: toPx(headingSizeVal), 
-                color: primaryColor, 
-                borderBottomColor: primaryColor,
-                marginBottom: "4px",
-                paddingBottom: "2px",
-                lineHeight: 1.15
-              }}
-            >
-              {title}
-              <span className="opacity-0 group-hover/h2:opacity-100 absolute left-full ml-2 flex items-center bg-background border rounded px-1 py-0.5 text-[10px] font-normal tracking-normal text-muted-foreground z-30 select-none">
-                <button type="button" onClick={() => updateThemeValue({ headingSize: Math.max(9, headingSizeVal - 0.5) })} className="p-0.5 hover:bg-muted rounded"><Minus size={10}/></button>
-                <span className="mx-1">{headingSizeVal}pt</span>
-                <button type="button" onClick={() => updateThemeValue({ headingSize: Math.min(18, headingSizeVal + 0.5) })} className="p-0.5 hover:bg-muted rounded"><Plus size={10}/></button>
-              </span>
-            </h2>
+            <CanvasSectionHeading title={title} blockId={`title_${sectionId}`} headingFontSize={headingSizeVal} primaryColor={primaryColor} onFontSizeChange={(s) => updateThemeValue({ headingSize: s })} />
           );
 
           if (blockId.startsWith("title_")) {
@@ -1848,14 +1646,14 @@ export default function CVInteractiveCanvas({
                 {renderAbsoluteHeaderAndPhoto()}
 
                 {/* Decomposed Draggable Sidebar Sections */}
-                {page.sidebar.flatMap(sectionId => getSectionBlockIds(sectionId)).map(blockId => {
+                {page.sidebar.flatMap(sectionId => getSectionBlockIds(sectionId, data)).map(blockId => {
                   const blockContent = getAbsoluteBlockRenderer(blockId);
                   if (!blockContent) return null;
                   return renderAbsoluteBlock(blockId, blockContent);
                 })}
 
                 {/* Decomposed Draggable Main Sections */}
-                {page.main.flatMap(sectionId => getSectionBlockIds(sectionId)).map(blockId => {
+                {page.main.flatMap(sectionId => getSectionBlockIds(sectionId, data)).map(blockId => {
                   const blockContent = getAbsoluteBlockRenderer(blockId);
                   if (!blockContent) return null;
                   return renderAbsoluteBlock(blockId, blockContent);

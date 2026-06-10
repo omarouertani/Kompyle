@@ -7,6 +7,12 @@
       "skillPath": "skills/next-best-practices/SKILL.md",
       "computedHash": "f4678aef4ffc10a5ea64a91e57abe5a5081af813b06d58d565caf3e8ef56e26c"
     },
+    "nextjs-code-review": {
+      "source": "giuseppe-trisciuoglio/developer-kit",
+      "sourceType": "github",
+      "skillPath": "plugins/developer-kit-typescript/skills/nextjs-code-review/SKILL.md",
+      "computedHash": "69a2aa27e15438d6c380f0ba0f97b6e770f7f27a1b4e139a5989f84c69223a57"
+    },
     "shadcn": {
       "source": "shadcn/ui",
       "sourceType": "github",

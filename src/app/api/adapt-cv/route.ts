@@ -1,10 +1,10 @@
 import { NextRequest } from "next/server";
-import { GoogleGenAI } from "@google/genai";
-import Groq from "groq-sdk";
 import type { AdaptCVRequest, AdaptCVResponse, CVData, AIProvider } from "@/types/cv";
 import { z } from "zod";
 import { resumeSchema, formatZodIssues } from "@/schemas/resumeSchema";
 import { extractAndValidate } from "@/utils/ai-helpers";
+import { callWithFallback } from "@/lib/ai-orchestrator";
+import { checkRateLimit } from "@/lib/rate-limiter";
 
 // ─── System Prompt ──────────────────────────────────────────────────────────
 
@@ -79,91 +79,22 @@ ${issues.map((issue) => `- ${issue}`).join("\n")}
 Return ONLY a corrected raw JSON object that fixes these errors and fully respects the schema and all rules above. No markdown, no commentary.`;
 }
 
-// ─── AI Provider Adapters ───────────────────────────────────────────────────
-
-async function callGemini(userPrompt: string, model: string = "gemini-2.5-flash"): Promise<string> {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) throw new Error("GEMINI_API_KEY is not set in environment variables.");
-
-  const ai = new GoogleGenAI({ apiKey });
-
-  const response = await ai.models.generateContent({
-    model,
-    contents: userPrompt,
-    config: {
-      systemInstruction: SYSTEM_PROMPT,
-      temperature: 0.3,
-      responseMimeType: "application/json",
-    },
-  });
-
-  const text = response.text;
-  if (!text) throw new Error("Gemini returned an empty response.");
-  return text;
-}
-
-async function callGroq(userPrompt: string, model: string = "llama-3.3-70b-versatile"): Promise<string> {
-  const apiKey = process.env.GROQ_API_KEY;
-  if (!apiKey) throw new Error("GROQ_API_KEY is not set in environment variables.");
-
-  const groq = new Groq({ apiKey });
-
-  const response = await groq.chat.completions.create({
-    model,
-    messages: [
-      { role: "system", content: SYSTEM_PROMPT },
-      { role: "user", content: userPrompt },
-    ],
-    temperature: 0.3,
-    response_format: { type: "json_object" },
-    max_tokens: 4096,
-  });
-
-  const text = response.choices[0]?.message?.content;
-  if (!text) throw new Error("Groq returned an empty response.");
-  return text;
-}
-
-async function callMistral(userPrompt: string, model: string = "mistral-large-2512"): Promise<string> {
-  const apiKey = process.env.MISTRAL_API_KEY;
-  if (!apiKey) throw new Error("MISTRAL_API_KEY is not set in environment variables.");
-
-  const response = await fetch("https://api.mistral.ai/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model,
-      messages: [
-        { role: "system", content: SYSTEM_PROMPT },
-        { role: "user", content: userPrompt },
-      ],
-      temperature: 0.3,
-      response_format: { type: "json_object" },
-    }),
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Mistral API error: ${response.status} ${response.statusText} - ${errorText}`);
-  }
-
-  const data = await response.json();
-  const text = data.choices?.[0]?.message?.content;
-  if (!text) throw new Error("Mistral returned an empty response.");
-  return text;
-}
-
 // ─── Route Handler ──────────────────────────────────────────────────────────
 
 export async function POST(request: NextRequest) {
   try {
+    const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+    const rateCheck = checkRateLimit(ip);
+    if (!rateCheck.allowed) {
+      return Response.json(
+        { error: "Too many requests. Please try again later." },
+        { status: 429, headers: { "Retry-After": String(Math.ceil((rateCheck.retryAfterMs ?? 60000) / 1000)) } }
+      );
+    }
+
     const body = (await request.json()) as AdaptCVRequest;
     const { jobDescription, cvData, provider = "gemini", model } = body;
 
-    // Input validation
     if (!jobDescription || typeof jobDescription !== "string" || jobDescription.trim().length < 20) {
       return Response.json(
         { error: "The job description must contain at least 20 characters." },
@@ -197,70 +128,32 @@ ${JSON.stringify(cvForAi, null, 2)}
 
 Adapt this CV to maximize the candidate's chances for this role. Return only the modified JSON.`;
 
-    // Call the selected AI provider
-    let rawResponse = "";
-    let usedProvider: AIProvider | null = null;
-    let lastError: any = null;
-
-    const providersToTry: AIProvider[] = [provider];
-    const otherProviders: AIProvider[] = ["gemini", "groq", "mistral"];
-    for (const p of otherProviders) {
-      if (!providersToTry.includes(p)) {
-        providersToTry.push(p);
-      }
-    }
-
-    for (const p of providersToTry) {
-      try {
-        if (p === "groq") {
-          const modelToUse = (provider === "groq" && model) ? model : "llama-3.3-70b-versatile";
-          rawResponse = await callGroq(userPrompt, modelToUse);
-        } else if (p === "mistral") {
-          const modelToUse = (provider === "mistral" && model) ? model : "mistral-large-2512";
-          rawResponse = await callMistral(userPrompt, modelToUse);
-        } else {
-          const modelToUse = (provider === "gemini" && model) ? model : "gemini-2.5-flash";
-          rawResponse = await callGemini(userPrompt, modelToUse);
-        }
-        usedProvider = p;
-        break; // success
-      } catch (err) {
-        console.warn(`Provider ${p} failed, trying next fallback...`, err);
-        lastError = err;
-      }
-    }
-
-    if (!usedProvider) {
+    // Call the selected AI provider with fallback
+    let result;
+    try {
+      result = await callWithFallback(SYSTEM_PROMPT, userPrompt, provider, model);
+    } catch (err) {
       console.error("All AI providers failed.");
       return Response.json(
         {
           error: "All AI providers failed. Check your API keys and configuration.",
-          details: lastError instanceof Error ? lastError.message : "Unknown error",
+          details: err instanceof Error ? err.message : "Unknown error",
         },
         { status: 502 }
       );
     }
 
-    // Extract + repair + validate the AI output (bulletproof), with one
-    // self-healing retry that feeds the validation errors back to the model.
+    const { text: rawResponse, provider: usedProvider } = result;
+
+    // Extract + repair + validate the AI output with self-healing retry
     let validation = extractAndValidate(rawResponse, resumeSchema);
 
     if (!validation.success) {
       console.warn("Adapted CV failed validation, retrying with self-correction...", validation.issues);
       try {
         const correctionPrompt = buildCorrectionPrompt(userPrompt, validation.issues);
-        let retryText: string;
-        if (usedProvider === "groq") {
-          const modelToUse = (provider === "groq" && model) ? model : "llama-3.3-70b-versatile";
-          retryText = await callGroq(correctionPrompt, modelToUse);
-        } else if (usedProvider === "mistral") {
-          const modelToUse = (provider === "mistral" && model) ? model : "mistral-large-2512";
-          retryText = await callMistral(correctionPrompt, modelToUse);
-        } else {
-          const modelToUse = (provider === "gemini" && model) ? model : "gemini-2.5-flash";
-          retryText = await callGemini(correctionPrompt, modelToUse);
-        }
-        validation = extractAndValidate(retryText, resumeSchema);
+        const retryResult = await callWithFallback(SYSTEM_PROMPT, correctionPrompt, usedProvider, model);
+        validation = extractAndValidate(retryResult.text, resumeSchema);
       } catch (retryError) {
         console.error("Self-correction retry failed:", retryError);
       }
