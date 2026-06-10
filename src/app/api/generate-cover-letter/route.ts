@@ -1,14 +1,15 @@
-import { NextResponse } from "next/server";
-import { GoogleGenAI } from "@google/genai";
-import Groq from "groq-sdk";
-import type { GenerateCoverLetterRequest, CoverLetterData, AIProvider } from "@/types/cv";
+import { NextRequest, NextResponse } from "next/server";
+import type { GenerateCoverLetterRequest, CoverLetterData } from "@/types/cv";
+import { resumeSchema, formatZodIssues } from "@/schemas/resumeSchema";
+import { callWithFallback } from "@/lib/ai-orchestrator";
+import { checkRateLimit } from "@/lib/rate-limiter";
 
-const SYSTEM_PROMPT = `Tu es un expert en recrutement de haut niveau. 
+const SYSTEM_PROMPT = `Tu es un expert en recrutement de haut niveau.
 Ta mission est de rédiger une lettre de motivation (Cover Letter) professionnelle et percutante en te basant sur le CV du candidat et la description de l'offre d'emploi.
 
 Règles de rédaction (CRITICAL) :
 1. Le ton doit être professionnel, persuasif, et direct (pas de remplissage inutile).
-2. Utilise une structure classique : 
+2. Utilise une structure classique :
    - Paragraphe 1 : L'accroche (pourquoi cette entreprise, quel poste).
    - Paragraphe 2 : L'adéquation (comment les expériences du CV répondent aux besoins de l'offre).
    - Paragraphe 3 : La projection (ce que le candidat va apporter).
@@ -20,7 +21,7 @@ Règles de rédaction (CRITICAL) :
 7. L'objet (subject) doit être clair (ex: "Candidature pour le poste de...").
 8. La signature (signOff) doit être professionnelle (ex: "Cordialement,", "Sincerely,").
 
-Tu dois OBLIGATOIREMENT retourner la réponse au format JSON strictement valide, sans aucun bloc markdown ni texte avant ou après. 
+Tu dois OBLIGATOIREMENT retourner la réponse au format JSON strictement valide, sans aucun bloc markdown ni texte avant ou après.
 
 Structure JSON requise :
 {
@@ -34,84 +35,40 @@ Structure JSON requise :
   "signOff": "string"
 }`;
 
-async function callGemini(userPrompt: string, model: string = "gemini-2.5-flash"): Promise<string> {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) throw new Error("GEMINI_API_KEY is not set.");
-  const ai = new GoogleGenAI({ apiKey });
-  const response = await ai.models.generateContent({
-    model,
-    contents: [{ role: "user", parts: [{ text: SYSTEM_PROMPT + "\n\n" + userPrompt }] }],
-    config: {
-      temperature: 0.5,
-      responseMimeType: "application/json",
-    },
-  });
-  const text = response.text;
-  if (!text) throw new Error("Gemini returned an empty response.");
-  return text;
-}
-
-async function callGroq(userPrompt: string, model: string = "llama-3.3-70b-versatile"): Promise<string> {
-  const apiKey = process.env.GROQ_API_KEY;
-  if (!apiKey) throw new Error("GROQ_API_KEY is not set.");
-  const groq = new Groq({ apiKey });
-  const response = await groq.chat.completions.create({
-    model,
-    messages: [
-      { role: "system", content: SYSTEM_PROMPT },
-      { role: "user", content: userPrompt }
-    ],
-    temperature: 0.5,
-    response_format: { type: "json_object" },
-  });
-  const text = response.choices[0]?.message?.content;
-  if (!text) throw new Error("Groq returned an empty response.");
-  return text;
-}
-
-async function callMistral(userPrompt: string, model: string = "mistral-large-2512"): Promise<string> {
-  const apiKey = process.env.MISTRAL_API_KEY;
-  if (!apiKey) throw new Error("MISTRAL_API_KEY is not set.");
-
-  const response = await fetch("https://api.mistral.ai/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model,
-      messages: [
-        { role: "system", content: SYSTEM_PROMPT },
-        { role: "user", content: userPrompt }
-      ],
-      temperature: 0.5,
-      response_format: { type: "json_object" },
-    }),
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Mistral API error: ${response.status} ${response.statusText} - ${errorText}`);
-  }
-
-  const data = await response.json();
-  const text = data.choices?.[0]?.message?.content;
-  if (!text) throw new Error("Mistral returned an empty response.");
-  return text;
-}
-
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
+    const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+    const rateCheck = checkRateLimit(ip);
+    if (!rateCheck.allowed) {
+      return NextResponse.json(
+        { error: "Too many requests. Please try again later." },
+        { status: 429, headers: { "Retry-After": String(Math.ceil((rateCheck.retryAfterMs ?? 60000) / 1000)) } }
+      );
+    }
+
     const body = (await req.json()) as GenerateCoverLetterRequest;
     const { jobDescription, cvData, provider = "gemini", model } = body;
 
-    if (!jobDescription || !cvData) {
+    if (!jobDescription || typeof jobDescription !== "string" || jobDescription.trim().length < 20) {
       return NextResponse.json(
-        { error: "Description du poste et données du CV requises." },
+        { error: "The job description must contain at least 20 characters." },
         { status: 400 }
       );
     }
+
+    const inputValidation = resumeSchema.safeParse(cvData);
+    if (!inputValidation.success) {
+      return NextResponse.json(
+        {
+          error: "The CV data is invalid or incomplete.",
+          details: formatZodIssues(inputValidation.error).join(" · "),
+        },
+        { status: 400 }
+      );
+    }
+
+    // Strip layout before sending to AI
+    const { layout: _layout, ...cvForAi } = cvData;
 
     const todayDate = new Date().toLocaleDateString('fr-FR', {
       year: 'numeric',
@@ -126,46 +83,12 @@ Date du jour: ${todayDate}
 ${jobDescription}
 
 === DONNÉES DU CV ===
-${JSON.stringify(cvData, null, 2)}
+${JSON.stringify(cvForAi, null, 2)}
     `;
 
-    let rawResponse = "";
-    let actualProvider: AIProvider | null = null;
-    let lastError: any = null;
+    const result = await callWithFallback(SYSTEM_PROMPT, userPrompt, provider, model);
 
-    const providersToTry: AIProvider[] = [provider];
-    const otherProviders: AIProvider[] = ["gemini", "groq", "mistral"];
-    for (const p of otherProviders) {
-      if (!providersToTry.includes(p)) {
-        providersToTry.push(p);
-      }
-    }
-
-    for (const p of providersToTry) {
-      try {
-        if (p === "groq") {
-          const modelToUse = (provider === "groq" && model) ? model : "llama-3.3-70b-versatile";
-          rawResponse = await callGroq(userPrompt, modelToUse);
-        } else if (p === "mistral") {
-          const modelToUse = (provider === "mistral" && model) ? model : "mistral-large-2512";
-          rawResponse = await callMistral(userPrompt, modelToUse);
-        } else {
-          const modelToUse = (provider === "gemini" && model) ? model : "gemini-2.5-flash";
-          rawResponse = await callGemini(userPrompt, modelToUse);
-        }
-        actualProvider = p;
-        break;
-      } catch (err) {
-        console.warn(`Provider ${p} failed for Cover Letter, trying next fallback...`, err);
-        lastError = err;
-      }
-    }
-
-    if (!actualProvider) {
-      throw new Error(`All AI providers failed. Last error: ${lastError instanceof Error ? lastError.message : "Unknown error"}`);
-    }
-
-    const cleaned = rawResponse
+    const cleaned = result.text
       .replace(/^```(?:json)?\s*/i, "")
       .replace(/\s*```\s*$/i, "")
       .trim();
@@ -174,7 +97,7 @@ ${JSON.stringify(cvData, null, 2)}
 
     return NextResponse.json({
       coverLetter: coverLetterData,
-      provider: actualProvider,
+      provider: result.provider,
     });
   } catch (error: any) {
     console.error("Cover Letter Generation Error:", error);

@@ -11,77 +11,10 @@ import {
 import { Svg, Circle, Path, Image } from "@react-pdf/renderer";
 import { registerPdfFont, ACTIVE_PDF_FONT } from "@/utils/pdf-fonts";
 import type { CVData, CVTheme } from "@/types/cv";
-import { defaultLayout, getDefaultPositions, getDefaultPhotoPosition } from "@/lib/cv-layout";
-import { diffWords } from "diff";
+import { defaultLayout, getDefaultPositions, getDefaultPhotoPosition, getSectionBlockIds } from "@/lib/cv-layout";
+import { wrapText, formatUrl, displayUrl, DiffText } from "@/utils/pdf-text-utils";
 
-// Register default fonts
 registerPdfFont(ACTIVE_PDF_FONT);
-
-const wrapText = (text: string, chars = "/\\-@\\.") => {
-  if (!text) return "";
-  const zwsp = String.fromCharCode(0x200b); // zero-width space
-  const regex = new RegExp(`([${chars}])`, "g");
-  return text.replace(regex, "$1" + zwsp);
-};
-
-const formatUrl = (url: string) => {
-  if (!url) return "";
-  return url.startsWith("http") ? url : `https://${url}`;
-};
-
-const displayUrl = (url: string, isLinkedIn = false) => {
-  if (!url) return "";
-  let clean = url.replace(/^(https?:\/\/)?(www\.)?/, "");
-  if (isLinkedIn) {
-    clean = clean.replace(/^linkedin\.com\/in\//i, "");
-  }
-  if (clean.endsWith("/")) clean = clean.slice(0, -1);
-  return clean;
-};
-
-// ─── Diff Component ─────────────────────────────────────────────────────────
-const DiffText = ({
-  oldText,
-  newText,
-  style,
-}: {
-  oldText?: string;
-  newText: string;
-  style?: any;
-}) => {
-  if (oldText === undefined || oldText === newText) {
-    return <Text style={style}>{newText}</Text>;
-  }
-
-  const chunks = diffWords(oldText, newText);
-  return (
-    <Text style={style}>
-      {chunks.map((chunk, i) => {
-        if (chunk.added) {
-          return (
-            <Text key={i} style={{ color: "green" }}>
-              [+ {chunk.value}]
-            </Text>
-          );
-        }
-        if (chunk.removed) {
-          return (
-            <Text
-              key={i}
-              style={{
-                color: "red",
-                textDecoration: "line-through",
-              }}
-            >
-              [- {chunk.value}]
-            </Text>
-          );
-        }
-        return <Text key={i}>{chunk.value}</Text>;
-      })}
-    </Text>
-  );
-};
 
 // ─── Dynamic Styles Generator ────────────────────────────────────────────────
 const getStyles = (theme?: CVTheme, sidebarWidth = 165) => {
@@ -862,20 +795,6 @@ const CVTemplateChaima: React.FC<CVTemplateChaimaProps> = ({ data, originalData 
   const useAbsolute = layout.useAbsolutePositioning || false;
   const absolutePositions = layout.absolutePositions || getDefaultPositions("chaima", data);
 
-  const getSectionBlockIds = (sectionId: string): string[] => {
-    switch (sectionId) {
-      case "contact": return ["title_contact", "content_contact"];
-      case "summary": return ["title_summary", "content_summary"];
-      case "languages": return ["title_languages", "content_languages"];
-      case "certifications": return ["title_certifications", "content_certifications"];
-      case "interests": return ["title_interests", "content_interests"];
-      case "skills": return ["title_skills", ...data.skills.map((_, i) => `skill_${i}`)];
-      case "education": return ["title_education", ...data.education.map((_, i) => `education_${i}`)];
-      case "experience": return ["title_experience", ...data.experiences.map((_, i) => `experience_${i}`)];
-      case "projects": return ["title_projects", ...data.projects.map((_, i) => `project_${i}`)];
-      default: return [];
-    }
-  };
 
   const renderAbsoluteBlock = (blockId: string, isSidebar: boolean) => {
     const defaultPositions = getDefaultPositions("chaima", data);
@@ -1008,8 +927,8 @@ const CVTemplateChaima: React.FC<CVTemplateChaimaProps> = ({ data, originalData 
             <Page key={pageIndex} size="A4" style={[styles.page, { padding: 0 }]}>
               {hasSidebar && <View style={sidebarBgStyle} />}
               {renderAbsoluteHeaderAndPhoto(pageIndex)}
-              {page.sidebar.flatMap((id) => getSectionBlockIds(id)).map((blockId) => renderAbsoluteBlock(blockId, true))}
-              {page.main.flatMap((id) => getSectionBlockIds(id)).map((blockId) => renderAbsoluteBlock(blockId, false))}
+              {page.sidebar.flatMap((id) => getSectionBlockIds(id, data)).map((blockId) => renderAbsoluteBlock(blockId, true))}
+              {page.main.flatMap((id) => getSectionBlockIds(id, data)).map((blockId) => renderAbsoluteBlock(blockId, false))}
             </Page>
           );
         }

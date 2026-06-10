@@ -1,4 +1,4 @@
-import type { CVLayout, LayoutPage, SectionId } from "@/types/cv";
+import type { CVData, CVLayout, LayoutPage, SectionId } from "@/types/cv";
 
 /**
  * Métadonnées des sections "built-in" + layout par défaut.
@@ -303,4 +303,29 @@ export function getDefaultPositions(template: "default" | "chaima", data?: any):
       title_projects: { x: 212, y: 550, w: 360 },
     };
   }
+}
+
+export function getSectionBlockIds(sectionId: string, data: CVData): string[] {
+  switch (sectionId) {
+    case "contact": return ["title_contact", "content_contact"];
+    case "summary": return ["title_summary", "content_summary"];
+    case "languages": return ["title_languages", "content_languages"];
+    case "certifications": return ["title_certifications", "content_certifications"];
+    case "interests": return ["title_interests", "content_interests"];
+    case "skills": return ["title_skills", ...data.skills.map((_, i) => `skill_${i}`)];
+    case "education": return ["title_education", ...data.education.map((_, i) => `education_${i}`)];
+    case "experience": return ["title_experience", ...data.experiences.map((_, i) => `experience_${i}`)];
+    case "projects": return ["title_projects", ...data.projects.map((_, i) => `project_${i}`)];
+    default: return [];
+  }
+}
+
+export function getParentSectionId(blockId: string): string {
+  if (blockId.startsWith("title_")) return blockId.substring(6);
+  if (blockId.startsWith("content_")) return blockId.substring(8);
+  if (blockId.startsWith("skill_")) return "skills";
+  if (blockId.startsWith("experience_")) return "experience";
+  if (blockId.startsWith("education_")) return "education";
+  if (blockId.startsWith("project_")) return "projects";
+  return blockId;
 }
