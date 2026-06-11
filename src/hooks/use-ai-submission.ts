@@ -36,12 +36,11 @@ interface UseAISubmissionDeps {
   model: string;
   currentCV: CVData;
   locale: string;
-  selectedProfile: "omar" | "chaima";
-  getInitialCV: (profile: "omar" | "chaima", lang: string) => CVData;
+  selectedProfile: string;
+  getInitialCV: (profile: string, lang: string) => CVData;
   getProviderName: (p: AIProvider) => string;
-  setCurrentCV: (cv: CVData) => void;
-  setOriginalCV: (cv: CVData | null) => void;
-  setIsAdapted: (v: boolean) => void;
+  /** Enregistre l'adaptation comme copie liée au profil (l'original reste intact). */
+  applyAdaptation: (cv: CVData) => Promise<void>;
   setCoverLetterData: (d: CoverLetterData | null) => void;
   setActiveRightTab: (tab: "cv" | "letter") => void;
   setStatus: (s: Status) => void;
@@ -55,7 +54,7 @@ export function useAISubmission(deps: UseAISubmissionDeps) {
   const {
     jobDescription, provider, model, currentCV, locale, selectedProfile,
     getInitialCV, getProviderName,
-    setCurrentCV, setOriginalCV, setIsAdapted, setCoverLetterData,
+    applyAdaptation, setCoverLetterData,
     setActiveRightTab, setStatus, setStatusMessage, setStatusDetails, setLoadingType, t,
   } = deps;
 
@@ -81,8 +80,6 @@ export function useAISubmission(deps: UseAISubmissionDeps) {
     if (hasLangMismatch) {
       sourceCV = getInitialCV(selectedProfile, jobLang);
       originalSourceCV = sourceCV;
-    } else {
-      setOriginalCV(currentCV);
     }
 
     try {
@@ -106,22 +103,20 @@ export function useAISubmission(deps: UseAISubmissionDeps) {
         }));
         window.location.href = `/${jobLang}`;
       } else {
-        setCurrentCV(data.adaptedCV);
-        setIsAdapted(true);
+        await applyAdaptation(data.adaptedCV);
         setActiveRightTab("cv");
         setStatus("success");
         setStatusMessage(t("status_success_cv", { provider: getProviderName(data.provider) }));
       }
-    } catch (err: any) {
+    } catch (err) {
       setStatus("error");
-      const msg = err.error || err.message || t("status_error");
-      const details = err.details || null;
-      setStatusMessage(msg);
-      setStatusDetails(details);
+      const e = err as { error?: string; message?: string; details?: string | string[] };
+      setStatusMessage(e.error || e.message || t("status_error"));
+      setStatusDetails(e.details || null);
     } finally {
       setLoadingType(null);
     }
-  }, [jobDescription, provider, model, currentCV, locale, selectedProfile, getInitialCV, t, setActiveRightTab, getProviderName, setCurrentCV, setOriginalCV, setIsAdapted, setStatus, setStatusMessage, setStatusDetails, setLoadingType]);
+  }, [jobDescription, provider, model, currentCV, locale, selectedProfile, getInitialCV, t, setActiveRightTab, getProviderName, applyAdaptation, setStatus, setStatusMessage, setStatusDetails, setLoadingType]);
 
   const handleGenerateLetter = useCallback(async () => {
     if (!jobDescription.trim() || jobDescription.trim().length < 20) {
@@ -150,12 +145,11 @@ export function useAISubmission(deps: UseAISubmissionDeps) {
       setActiveRightTab("letter");
       setStatus("success");
       setStatusMessage(t("status_success_letter", { provider: getProviderName(data.provider) }));
-    } catch (err: any) {
+    } catch (err) {
       setStatus("error");
-      const msg = err.error || err.message || t("status_error");
-      const details = err.details || null;
-      setStatusMessage(msg);
-      setStatusDetails(details);
+      const e = err as { error?: string; message?: string; details?: string | string[] };
+      setStatusMessage(e.error || e.message || t("status_error"));
+      setStatusDetails(e.details || null);
     } finally {
       setLoadingType(null);
     }

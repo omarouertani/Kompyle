@@ -82,6 +82,7 @@ export const elementPositionSchema = z.object({
   x: z.number(),
   y: z.number(),
   w: z.number().optional(),
+  h: z.number().optional(),
 });
 
 export const cvLayoutSchema = z.object({
@@ -99,6 +100,10 @@ export const resumeSchema = z.object({
   education: z.array(educationSchema).min(1, "Au moins une formation est requise."),
   experiences: z.array(experienceSchema).min(1, "Au moins une expérience est requise."),
   projects: z.array(projectSchema),
+  // Sections libres — pilotées par l'utilisateur, jamais par l'IA.
+  customSections: z
+    .array(z.object({ id: z.string(), title: z.string(), content: z.string() }))
+    .optional(),
   // Mise en page (sections/pages) — pilotée par l'utilisateur, jamais par l'IA.
   layout: cvLayoutSchema.optional(),
 });

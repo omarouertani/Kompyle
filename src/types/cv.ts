@@ -85,6 +85,7 @@ export interface ElementPosition {
   x: number;
   y: number;
   w?: number;
+  h?: number; // hauteur explicite (pt) — sinon auto selon le contenu
 }
 
 export interface CVLayout {
@@ -95,6 +96,14 @@ export interface CVLayout {
   useAbsolutePositioning?: boolean; // toggle to enable Canva absolute layout
 }
 
+/** Section libre créée par l'utilisateur (titre + texte).
+ *  Référencée dans layout.pages via l'id `custom_<id>`. */
+export interface CustomSection {
+  id: string;
+  title: string;
+  content: string;
+}
+
 export interface CVData {
   personalInfo: PersonalInfo;
   skills: SkillGroup[];
@@ -102,6 +111,7 @@ export interface CVData {
   education: Education[];
   experiences: Experience[];
   projects: Project[];
+  customSections?: CustomSection[];
   layout?: CVLayout;
 }
 

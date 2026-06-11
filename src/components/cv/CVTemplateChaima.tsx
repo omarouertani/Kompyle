@@ -802,7 +802,16 @@ const CVTemplateChaima: React.FC<CVTemplateChaimaProps> = ({ data, originalData 
     if (!pos) return null;
 
     let rendered: React.ReactNode = null;
-    if (blockId.startsWith("title_")) {
+    if (blockId.startsWith("title_custom_") || blockId.startsWith("content_custom_")) {
+      const isTitle = blockId.startsWith("title_");
+      const sectionId = blockId.substring(isTitle ? 6 : 8);
+      const cs = data.customSections?.find((c) => `custom_${c.id}` === sectionId);
+      if (cs) {
+        rendered = isTitle
+          ? <Text style={isSidebar ? styles.h2Sidebar : styles.h2Main}>{cs.title}</Text>
+          : <Text style={styles.summary}>{cs.content}</Text>;
+      }
+    } else if (blockId.startsWith("title_")) {
       const sectionId = blockId.substring(6);
       rendered = SECTION_RENDERERS[sectionId] ? SECTION_RENDERERS[sectionId](data, isSidebar, styles, originalData, "title") : null;
     } else if (blockId === "content_contact") {

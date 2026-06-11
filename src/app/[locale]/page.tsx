@@ -18,6 +18,9 @@ import {
   PenTool,
   PanelLeftClose,
   PanelLeftOpen,
+  Save,
+  Check,
+  CloudOff,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -100,9 +103,7 @@ export default function AdaptPage() {
     selectedProfile: profile.selectedProfile,
     getInitialCV: profile.getInitialCV,
     getProviderName: aiConfig.getProviderName,
-    setCurrentCV: profile.setCurrentCV,
-    setOriginalCV: profile.setOriginalCV,
-    setIsAdapted: profile.setIsAdapted,
+    applyAdaptation: profile.applyAdaptation,
     setCoverLetterData: profile.setCoverLetterData,
     setActiveRightTab,
     setStatus: profile.setStatus,
@@ -246,23 +247,59 @@ export default function AdaptPage() {
             <div className="flex items-center justify-between px-1 bg-muted/40 rounded-lg p-1 border border-border/40">
               <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground pl-1.5">Profil actif :</span>
               <div className="flex gap-1">
-                <Button
-                  variant={profile.selectedProfile === "omar" ? "default" : "ghost"}
-                  size="xs"
-                  className={cn("h-6 px-3 text-xs font-semibold rounded-md transition-all", profile.selectedProfile === "omar" ? "shadow-sm" : "text-muted-foreground hover:text-foreground")}
-                  onClick={() => profile.handleProfileChange("omar")}
-                >
-                  Omar
-                </Button>
-                <Button
-                  variant={profile.selectedProfile === "chaima" ? "default" : "ghost"}
-                  size="xs"
-                  className={cn("h-6 px-3 text-xs font-semibold rounded-md transition-all", profile.selectedProfile === "chaima" ? "shadow-sm" : "text-muted-foreground hover:text-foreground")}
-                  onClick={() => profile.handleProfileChange("chaima")}
-                >
-                  Chaima
-                </Button>
+                {(profile.profiles.length > 0
+                  ? [...new Map(profile.profiles.map((p) => [p.slug, p])).values()]
+                  : [{ slug: "omar", name: "Omar" }, { slug: "chaima", name: "Chaima" }]
+                ).map((p) => (
+                  <Button
+                    key={p.slug}
+                    variant={profile.selectedProfile === p.slug ? "default" : "ghost"}
+                    size="xs"
+                    className={cn("h-6 px-3 text-xs font-semibold rounded-md transition-all", profile.selectedProfile === p.slug ? "shadow-sm" : "text-muted-foreground hover:text-foreground")}
+                    onClick={() => profile.handleProfileChange(p.slug)}
+                  >
+                    {p.name.split(" ")[0]}
+                  </Button>
+                ))}
               </div>
+            </div>
+
+            <div className="flex items-center justify-between px-1">
+              <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                {profile.saveStatus === "saving" && (
+                  <>
+                    <Loader2 size={12} className="animate-spin" />
+                    <span>Sauvegarde...</span>
+                  </>
+                )}
+                {profile.saveStatus === "saved" && (
+                  <>
+                    <Check size={12} className="text-emerald-500" />
+                    <span className="text-emerald-500">Sauvegardé</span>
+                  </>
+                )}
+                {profile.saveStatus === "error" && (
+                  <>
+                    <CloudOff size={12} className="text-destructive" />
+                    <span className="text-destructive">Erreur</span>
+                  </>
+                )}
+              </div>
+              <Button
+                variant="ghost"
+                size="xs"
+                className={cn(
+                  "h-6 px-2 text-xs gap-1 rounded-md transition-all",
+                  profile.hasUnsavedChanges
+                    ? "text-primary font-semibold"
+                    : "text-muted-foreground"
+                )}
+                onClick={profile.handleSave}
+                disabled={!profile.hasUnsavedChanges || profile.saveStatus === "saving"}
+              >
+                <Save size={12} />
+                Save
+              </Button>
             </div>
 
             <Tabs value={activeLeftTab} onValueChange={(v) => setActiveLeftTab(v as LeftTab)}>
@@ -324,6 +361,10 @@ export default function AdaptPage() {
                 template={profile.selectedTemplate}
                 onTemplateChange={profile.setSelectedTemplate}
                 isAdapting={profile.loadingType === "cv"}
+                versions={profile.versions}
+                mainProfileId={profile.mainProfileId}
+                currentProfileId={profile.currentProfileId}
+                onVersionChange={profile.selectVersion}
               />
             ) : (
               <CoverLetterPreview

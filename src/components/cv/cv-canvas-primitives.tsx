@@ -13,72 +13,13 @@ export function ptsToPx(pts: number): string {
 
 export type BlockPosition = { x: number; y: number; w: number };
 
-/** Mesure les blocs `[data-block-id]` depuis le rendu colonnes → coordonnées en points PDF. */
-export function measureBlockPositionsFromDOM(
-  pageCount: number,
-  fallback: Record<string, BlockPosition>
-): Record<string, BlockPosition> {
-  const nextPositions: Record<string, BlockPosition> = {};
-
-  for (let pageIndex = 0; pageIndex < pageCount; pageIndex++) {
-    const pageEl = document.querySelector(`.cv-a4-page[data-page-index="${pageIndex}"]`);
-    const contentEl = pageEl?.querySelector("[data-cv-page-content]") as HTMLElement | null;
-    if (!pageEl || !contentEl) continue;
-
-    const contentRect = contentEl.getBoundingClientRect();
-    const scale = contentRect.width / A4_WIDTH_PX;
-    if (!Number.isFinite(scale) || scale <= 0) continue;
-
-    contentEl.querySelectorAll("[data-block-id]").forEach((el) => {
-      const blockId = el.getAttribute("data-block-id");
-      if (!blockId) return;
-
-      const rect = el.getBoundingClientRect();
-      const relativeX = (rect.left - contentRect.left) / scale;
-      const relativeY = (rect.top - contentRect.top) / scale;
-
-      let x = Math.round(relativeX / PT_TO_PX);
-      let y = Math.round(relativeY / PT_TO_PX);
-      let w = Math.max(40, Math.round(rect.width / scale / PT_TO_PX));
-
-      // La photo est centrée dans un conteneur plus large : garder la taille réelle du cercle
-      if (blockId === "photo" && fallback.photo) {
-        w = fallback.photo.w;
-      }
-
-      if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(w)) {
-        const fb = fallback[blockId] ?? { x: 50, y: 100, w: 200 };
-        x = fb.x;
-        y = fb.y;
-        w = fb.w;
-      }
-
-      nextPositions[blockId] = { x, y, w };
-    });
-  }
-
-  if (!nextPositions.photo && fallback.photo) {
-    nextPositions.photo = fallback.photo;
-  }
-
-  for (const key of Object.keys(fallback)) {
-    if (!nextPositions[key]) {
-      nextPositions[key] = fallback[key];
-    }
-  }
-
-  return nextPositions;
-}
-
 interface CVPageScaleWrapperProps {
   children: React.ReactNode;
   zoom?: number;
   pageIndex?: number;
   onScaleChange?: (finalScale: number) => void;
   fitToContainer?: boolean;
-  /** Si true, le contenu peut dépasser la hauteur A4 (mode colonnes éditeur). */
-  allowContentOverflow?: boolean;
-  /** Hauteur minimale forcée du contenu (px, avant scale) — ex. mode absolu. */
+  /** Hauteur minimale forcée du contenu (px, avant scale). */
   minContentHeightPx?: number;
 }
 
@@ -89,15 +30,14 @@ export function CVPageScaleWrapper({
   pageIndex = 0,
   onScaleChange,
   fitToContainer = true,
-  allowContentOverflow = false,
   minContentHeightPx,
 }: CVPageScaleWrapperProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const contentRef = useRef<HTMLDivElement>(null);
   const [baseScale, setBaseScale] = useState(1);
-  const [contentHeightPx, setContentHeightPx] = useState(A4_HEIGHT_PX);
   const onScaleChangeRef = useRef(onScaleChange);
-  onScaleChangeRef.current = onScaleChange;
+  useEffect(() => {
+    onScaleChangeRef.current = onScaleChange;
+  }, [onScaleChange]);
 
   const updateScale = useCallback(() => {
     const el = containerRef.current;
@@ -107,8 +47,7 @@ export function CVPageScaleWrapper({
     const parentWidth = Math.max(200, parent.clientWidth - 32);
     const parentHeight = Math.max(200, parent.clientHeight - 16);
     const scaleW = parentWidth / A4_WIDTH_PX;
-    const allowVerticalGrowth =
-      allowContentOverflow || (minContentHeightPx ?? 0) > A4_HEIGHT_PX;
+    const allowVerticalGrowth = (minContentHeightPx ?? 0) > A4_HEIGHT_PX;
     const scaleH =
       fitToContainer && !allowVerticalGrowth
         ? parentHeight / A4_HEIGHT_PX
@@ -116,23 +55,11 @@ export function CVPageScaleWrapper({
     const nextBase = Math.min(1, scaleW, scaleH);
     setBaseScale(nextBase);
     onScaleChangeRef.current?.(nextBase * zoom);
-  }, [zoom, fitToContainer, allowContentOverflow, minContentHeightPx]);
-
-  const measureContentHeight = useCallback(() => {
-    const floor = Math.max(A4_HEIGHT_PX, minContentHeightPx ?? A4_HEIGHT_PX);
-    const contentEl = contentRef.current;
-    if (!contentEl || !allowContentOverflow) {
-      setContentHeightPx(floor);
-      return;
-    }
-    setContentHeightPx(Math.max(floor, contentEl.scrollHeight));
-  }, [allowContentOverflow, minContentHeightPx]);
+  }, [zoom, fitToContainer, minContentHeightPx]);
 
   useEffect(() => {
     updateScale();
-    measureContentHeight();
-    const el = containerRef.current;
-    const parent = el?.parentElement;
+    const parent = containerRef.current?.parentElement;
     const ro = parent ? new ResizeObserver(updateScale) : null;
     if (parent && ro) ro.observe(parent);
     window.addEventListener("resize", updateScale);
@@ -140,21 +67,10 @@ export function CVPageScaleWrapper({
       ro?.disconnect();
       window.removeEventListener("resize", updateScale);
     };
-  }, [updateScale, measureContentHeight]);
-
-  useEffect(() => {
-    const contentEl = contentRef.current;
-    if (!contentEl || !allowContentOverflow) return;
-    measureContentHeight();
-    const ro = new ResizeObserver(measureContentHeight);
-    ro.observe(contentEl);
-    return () => ro.disconnect();
-  }, [allowContentOverflow, measureContentHeight, minContentHeightPx, children]);
+  }, [updateScale]);
 
   const finalScale = baseScale * zoom;
-  const pageHeightPx = allowContentOverflow
-    ? contentHeightPx
-    : Math.max(A4_HEIGHT_PX, minContentHeightPx ?? A4_HEIGHT_PX);
+  const pageHeightPx = Math.max(A4_HEIGHT_PX, minContentHeightPx ?? A4_HEIGHT_PX);
 
   return (
     <div
@@ -164,33 +80,24 @@ export function CVPageScaleWrapper({
     >
       <div
         data-page-index={pageIndex}
-        className={cn(
-          "shadow-2xl border border-border/60 bg-white text-zinc-900 shrink-0 cv-a4-page relative mx-auto",
-          allowContentOverflow ? "overflow-visible" : "overflow-hidden"
-        )}
+        className="shadow-2xl border border-border/60 bg-white text-zinc-900 shrink-0 cv-a4-page relative mx-auto overflow-hidden"
         style={{
           width: `${A4_WIDTH_PX * finalScale}px`,
-          minHeight: `${A4_HEIGHT_PX * finalScale}px`,
-          height: allowContentOverflow ? `${pageHeightPx * finalScale}px` : `${A4_HEIGHT_PX * finalScale}px`,
+          height: `${pageHeightPx * finalScale}px`,
         }}
       >
         <div
-          ref={contentRef}
           data-cv-page-content
           style={{
             transform: `scale(${finalScale})`,
             transformOrigin: "top left",
             width: `${A4_WIDTH_PX}px`,
-            minHeight: `${A4_HEIGHT_PX}px`,
-            height: allowContentOverflow ? "auto" : `${A4_HEIGHT_PX}px`,
+            minHeight: `${pageHeightPx}px`,
             position: "absolute",
             left: 0,
             top: 0,
           }}
-          className={cn(
-            "w-full",
-            allowContentOverflow ? "overflow-visible" : "overflow-hidden h-full"
-          )}
+          className="w-full overflow-hidden"
         >
           {children}
         </div>

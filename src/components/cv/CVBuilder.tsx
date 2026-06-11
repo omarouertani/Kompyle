@@ -39,7 +39,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
 
 interface CVBuilderProps {
   data: CVData;
@@ -48,12 +47,36 @@ interface CVBuilderProps {
 
 type ListSection = "skills" | "experiences" | "projects" | "education";
 
-const newExperience = (): Experience => ({ id: uuidv4(), title: "", org: "", date: "", bullets: [] });
-const newProject = (): Project => ({ id: uuidv4(), title: "", description: "", stack: "" });
-const newEducation = (): Education => ({ id: uuidv4(), degree: "", institution: "" });
-const newSkill = (): SkillGroup => ({ id: uuidv4(), category: "", items: "" });
+/* ── Champ avec label (évite la répétition Label+Input partout) ── */
+function Field({
+  label,
+  value,
+  onChange,
+  placeholder,
+  multiline = false,
+  rows = 3,
+  className,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+  multiline?: boolean;
+  rows?: number;
+  className?: string;
+}) {
+  return (
+    <div className={`flex flex-col gap-2 ${className ?? ""}`}>
+      <Label>{label}</Label>
+      {multiline ? (
+        <Textarea value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} rows={rows} className="resize-y" />
+      ) : (
+        <Input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} />
+      )}
+    </div>
+  );
+}
 
-/* ── Section heading component for consistent styling ── */
 function SectionHeading({ icon: Icon, children }: { icon: React.ElementType; children: React.ReactNode }) {
   return (
     <h2 className="flex items-center gap-2.5 text-base font-semibold text-foreground mb-5 pb-2.5 border-b border-border">
@@ -71,19 +94,14 @@ function SortableItem({
 }: {
   id: string;
   title: string;
-  onDelete?: () => void;
+  onDelete: () => void;
   children: React.ReactNode;
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id });
 
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-  };
-
   return (
-    <Card ref={setNodeRef} style={style} className="mb-2.5 overflow-hidden">
+    <Card ref={setNodeRef} style={{ transform: CSS.Transform.toString(transform), transition }} className="mb-2.5 overflow-hidden">
       <div className="flex items-center px-3.5 py-2.5 bg-muted/30 group hover:bg-muted/50 transition-colors">
         <div className="cursor-grab text-muted-foreground/50 mr-2.5 group-hover:text-muted-foreground transition-colors" {...attributes} {...listeners}>
           <GripVertical size={16} />
@@ -92,20 +110,18 @@ function SortableItem({
           {title || "Nouvel élément"}
         </div>
         <div className="flex items-center gap-0.5">
-          {onDelete && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="size-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-              onClick={(e) => {
-                e.stopPropagation();
-                onDelete();
-              }}
-              title="Supprimer"
-            >
-              <Trash2 size={14} />
-            </Button>
-          )}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete();
+            }}
+            title="Supprimer"
+          >
+            <Trash2 size={14} />
+          </Button>
           <Button variant="ghost" size="icon" className="size-8 text-muted-foreground" onClick={() => setIsOpen(!isOpen)}>
             {isOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
           </Button>
@@ -116,62 +132,87 @@ function SortableItem({
   );
 }
 
-export default function CVBuilder({ data, onChange }: CVBuilderProps) {
+/* ── Section triable générique : drag-and-drop + suppression + ajout ── */
+function SortableSection<T extends { id?: string }>({
+  icon,
+  heading,
+  items,
+  getTitle,
+  addLabel,
+  onAdd,
+  onReorder,
+  onRemove,
+  renderFields,
+}: {
+  icon: React.ElementType;
+  heading: string;
+  items: T[];
+  getTitle: (item: T) => string;
+  addLabel: string;
+  onAdd: () => void;
+  onReorder: (items: T[]) => void;
+  onRemove: (id: string) => void;
+  renderFields: (item: T) => React.ReactNode;
+}) {
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    })
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
-  const handleDragEnd = (event: DragEndEvent, section: ListSection) => {
+  const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
-
     if (over && active.id !== over.id) {
-      const items = data[section] as { id?: string }[];
       const oldIndex = items.findIndex((i) => i.id === active.id);
       const newIndex = items.findIndex((i) => i.id === over.id);
-
-      onChange({
-        ...data,
-        [section]: arrayMove(items, oldIndex, newIndex),
-      });
+      onReorder(arrayMove(items, oldIndex, newIndex));
     }
   };
 
+  return (
+    <section>
+      <SectionHeading icon={icon}>{heading}</SectionHeading>
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        <SortableContext items={items.map((i) => i.id!)} strategy={verticalListSortingStrategy}>
+          {items.map((item) => (
+            <SortableItem key={item.id} id={item.id!} title={getTitle(item)} onDelete={() => onRemove(item.id!)}>
+              {renderFields(item)}
+            </SortableItem>
+          ))}
+        </SortableContext>
+      </DndContext>
+      <Button
+        variant="outline"
+        className="w-full mt-2 border-dashed border-border/60 text-muted-foreground hover:text-foreground hover:border-border gap-2"
+        onClick={onAdd}
+      >
+        <Plus size={15} /> {addLabel}
+      </Button>
+    </section>
+  );
+}
+
+export default function CVBuilder({ data, onChange }: CVBuilderProps) {
+  const setSection = <T,>(section: ListSection, items: T[]) =>
+    onChange({ ...data, [section]: items });
+
   const updateItem = (section: ListSection, id: string, updates: Record<string, unknown>) => {
     const items = data[section] as { id?: string }[];
-    onChange({
-      ...data,
-      [section]: items.map((item) => (item.id === id ? { ...item, ...updates } : item)),
-    });
+    setSection(section, items.map((item) => (item.id === id ? { ...item, ...updates } : item)));
   };
 
-  const addItem = (section: ListSection, item: Experience | Project | Education | SkillGroup) => {
-    const items = data[section] as unknown[];
-    onChange({ ...data, [section]: [...items, item] });
-  };
-
-  const removeItem = (section: ListSection, id: string) => {
+  const removeItem = (section: ListSection) => (id: string) => {
     const items = data[section] as { id?: string }[];
-    onChange({ ...data, [section]: items.filter((item) => item.id !== id) });
+    setSection(section, items.filter((item) => item.id !== id));
   };
 
-  const updatePersonalInfo = (field: string, value: string) => {
-    onChange({
-      ...data,
-      personalInfo: { ...data.personalInfo, [field]: value },
-    });
-  };
+  const updatePersonalInfo = (field: string, value: string) =>
+    onChange({ ...data, personalInfo: { ...data.personalInfo, [field]: value } });
 
   const updateLanguage = (index: number, value: string) => {
     const next = [...data.spokenLanguages];
     next[index] = value;
     onChange({ ...data, spokenLanguages: next });
   };
-  const addLanguage = () => onChange({ ...data, spokenLanguages: [...data.spokenLanguages, ""] });
-  const removeLanguage = (index: number) =>
-    onChange({ ...data, spokenLanguages: data.spokenLanguages.filter((_, i) => i !== index) });
 
   return (
     <div className="flex flex-col gap-12 pb-12">
@@ -182,78 +223,23 @@ export default function CVBuilder({ data, onChange }: CVBuilderProps) {
       <section>
         <SectionHeading icon={User}>Informations Personnelles</SectionHeading>
         <div className="grid grid-cols-2 gap-5">
-          <div className="flex flex-col gap-2">
-            <Label>Nom complet</Label>
-            <Input
-              value={data.personalInfo.name}
-              onChange={(e) => updatePersonalInfo("name", e.target.value)}
-            />
-          </div>
-          <div className="flex flex-col gap-2">
-            <Label>Titre</Label>
-            <Input
-              value={data.personalInfo.role}
-              onChange={(e) => updatePersonalInfo("role", e.target.value)}
-            />
-          </div>
-          <div className="flex flex-col gap-2 col-span-2">
-            <Label>Technologies clés (sous-titre)</Label>
-            <Input
-              value={data.personalInfo.techLine}
-              onChange={(e) => updatePersonalInfo("techLine", e.target.value)}
-            />
-          </div>
-          <div className="flex flex-col gap-2 col-span-2">
-            <Label>Résumé professionnel</Label>
-            <Textarea
-              value={data.personalInfo.summary}
-              onChange={(e) => updatePersonalInfo("summary", e.target.value)}
-              rows={4}
-              className="resize-y"
-            />
-          </div>
-          <div className="flex flex-col gap-2">
-            <Label>Email</Label>
-            <Input
-              value={data.personalInfo.email}
-              onChange={(e) => updatePersonalInfo("email", e.target.value)}
-            />
-          </div>
-          <div className="flex flex-col gap-2">
-            <Label>Téléphone</Label>
-            <Input
-              value={data.personalInfo.phone}
-              onChange={(e) => updatePersonalInfo("phone", e.target.value)}
-            />
-          </div>
-          <div className="flex flex-col gap-2">
-            <Label>Localisation</Label>
-            <Input
-              value={data.personalInfo.location}
-              onChange={(e) => updatePersonalInfo("location", e.target.value)}
-            />
-          </div>
-          <div className="flex flex-col gap-2">
-            <Label>LinkedIn (URL)</Label>
-            <Input
-              value={data.personalInfo.linkedin}
-              onChange={(e) => updatePersonalInfo("linkedin", e.target.value)}
-            />
-          </div>
-          <div className="flex flex-col gap-2 col-span-2">
-            <Label>Portfolio (URL, optionnel)</Label>
-            <Input
-              value={data.personalInfo.portfolio ?? ""}
-              onChange={(e) => updatePersonalInfo("portfolio", e.target.value)}
-            />
-          </div>
-          
+          <Field label="Nom complet" value={data.personalInfo.name} onChange={(v) => updatePersonalInfo("name", v)} />
+          <Field label="Titre" value={data.personalInfo.role} onChange={(v) => updatePersonalInfo("role", v)} />
+          <Field label="Technologies clés (sous-titre)" value={data.personalInfo.techLine} onChange={(v) => updatePersonalInfo("techLine", v)} className="col-span-2" />
+          <Field label="Résumé professionnel" value={data.personalInfo.summary} onChange={(v) => updatePersonalInfo("summary", v)} multiline rows={4} className="col-span-2" />
+          <Field label="Email" value={data.personalInfo.email} onChange={(v) => updatePersonalInfo("email", v)} />
+          <Field label="Téléphone" value={data.personalInfo.phone} onChange={(v) => updatePersonalInfo("phone", v)} />
+          <Field label="Localisation" value={data.personalInfo.location} onChange={(v) => updatePersonalInfo("location", v)} />
+          <Field label="LinkedIn (URL)" value={data.personalInfo.linkedin} onChange={(v) => updatePersonalInfo("linkedin", v)} />
+          <Field label="Portfolio (URL, optionnel)" value={data.personalInfo.portfolio ?? ""} onChange={(v) => updatePersonalInfo("portfolio", v)} className="col-span-2" />
+
           {/* Uploader de photo de profil */}
           <div className="flex flex-col gap-2 col-span-2 border border-border/60 rounded-lg p-3 bg-muted/10 mt-1">
             <Label className="font-semibold text-xs text-muted-foreground uppercase">Photo de profil</Label>
             <div className="flex items-center gap-4 mt-1">
               {data.personalInfo.photo ? (
                 <div className="relative size-14 rounded-full overflow-hidden border border-border bg-card shadow-sm shrink-0">
+                  {/* eslint-disable-next-line @next/next/no-img-element -- data URL, next/image inadapté */}
                   <img src={data.personalInfo.photo} alt="Avatar" className="size-full object-cover" />
                   <button
                     type="button"
@@ -276,9 +262,7 @@ export default function CVBuilder({ data, onChange }: CVBuilderProps) {
                     const file = e.target.files?.[0];
                     if (file) {
                       const reader = new FileReader();
-                      reader.onloadend = () => {
-                        updatePersonalInfo("photo", reader.result as string);
-                      };
+                      reader.onloadend = () => updatePersonalInfo("photo", reader.result as string);
                       reader.readAsDataURL(file);
                     }
                   }}
@@ -299,82 +283,29 @@ export default function CVBuilder({ data, onChange }: CVBuilderProps) {
             </div>
           </div>
 
-          <div className="flex flex-col gap-2">
-            <Label>Date de naissance</Label>
-            <Input
-              value={data.personalInfo.birthDate ?? ""}
-              placeholder="ex : 10/02/2001"
-              onChange={(e) => updatePersonalInfo("birthDate", e.target.value)}
-            />
-          </div>
-          
-          <div className="flex flex-col gap-2 col-span-2">
-            <Label>Certifications (séparées par des virgules)</Label>
-            <Input
-              value={data.personalInfo.certifications ?? ""}
-              placeholder="ex : CCNA 1, CCNA 2, ITIL"
-              onChange={(e) => updatePersonalInfo("certifications", e.target.value)}
-            />
-          </div>
-
-          <div className="flex flex-col gap-2 col-span-2">
-            <Label>Centres d'intérêt (séparés par des points · ou virgules)</Label>
-            <Input
-              value={data.personalInfo.interests ?? ""}
-              placeholder="ex : Peinture Amatrice · Passion pour la lecture"
-              onChange={(e) => updatePersonalInfo("interests", e.target.value)}
-            />
-          </div>
+          <Field label="Date de naissance" value={data.personalInfo.birthDate ?? ""} onChange={(v) => updatePersonalInfo("birthDate", v)} placeholder="ex : 10/02/2001" />
+          <Field label="Certifications (séparées par des virgules)" value={data.personalInfo.certifications ?? ""} onChange={(v) => updatePersonalInfo("certifications", v)} placeholder="ex : CCNA 1, CCNA 2, ITIL" className="col-span-2" />
+          <Field label="Centres d'intérêt (séparés par des points · ou virgules)" value={data.personalInfo.interests ?? ""} onChange={(v) => updatePersonalInfo("interests", v)} placeholder="ex : Peinture Amatrice · Passion pour la lecture" className="col-span-2" />
         </div>
       </section>
 
       {/* ── Compétences ── */}
-      <section>
-        <SectionHeading icon={Lightbulb}>Compétences</SectionHeading>
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCenter}
-          onDragEnd={(e) => handleDragEnd(e, "skills")}
-        >
-          <SortableContext
-            items={data.skills.map((s) => s.id!)}
-            strategy={verticalListSortingStrategy}
-          >
-            {data.skills.map((group) => (
-              <SortableItem
-                key={group.id}
-                id={group.id!}
-                title={group.category}
-                onDelete={() => removeItem("skills", group.id!)}
-              >
-                <div className="flex flex-col gap-2">
-                  <Label>Catégorie</Label>
-                  <Input
-                    value={group.category}
-                    onChange={(e) => updateItem("skills", group.id!, { category: e.target.value })}
-                  />
-                </div>
-                <div className="flex flex-col gap-2">
-                  <Label>Compétences (séparées par des virgules)</Label>
-                  <Textarea
-                    value={group.items}
-                    onChange={(e) => updateItem("skills", group.id!, { items: e.target.value })}
-                    rows={2}
-                    className="resize-y"
-                  />
-                </div>
-              </SortableItem>
-            ))}
-          </SortableContext>
-        </DndContext>
-        <Button
-          variant="outline"
-          className="w-full mt-2 border-dashed border-border/60 text-muted-foreground hover:text-foreground hover:border-border gap-2"
-          onClick={() => addItem("skills", newSkill())}
-        >
-          <Plus size={15} /> Ajouter une catégorie
-        </Button>
-      </section>
+      <SortableSection
+        icon={Lightbulb}
+        heading="Compétences"
+        items={data.skills}
+        getTitle={(g) => g.category}
+        addLabel="Ajouter une catégorie"
+        onAdd={() => setSection("skills", [...data.skills, { id: uuidv4(), category: "", items: "" } satisfies SkillGroup])}
+        onReorder={(items) => setSection("skills", items)}
+        onRemove={removeItem("skills")}
+        renderFields={(group) => (
+          <>
+            <Field label="Catégorie" value={group.category} onChange={(v) => updateItem("skills", group.id!, { category: v })} />
+            <Field label="Compétences (séparées par des virgules)" value={group.items} onChange={(v) => updateItem("skills", group.id!, { items: v })} multiline rows={2} />
+          </>
+        )}
+      />
 
       {/* ── Langues ── */}
       <section>
@@ -388,11 +319,11 @@ export default function CVBuilder({ data, onChange }: CVBuilderProps) {
                 placeholder="ex : Français (natif)"
                 onChange={(e) => updateLanguage(i, e.target.value)}
               />
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                className="size-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 shrink-0" 
-                onClick={() => removeLanguage(i)}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 shrink-0"
+                onClick={() => onChange({ ...data, spokenLanguages: data.spokenLanguages.filter((_, idx) => idx !== i) })}
                 title="Supprimer"
               >
                 <Trash2 size={14} />
@@ -403,265 +334,74 @@ export default function CVBuilder({ data, onChange }: CVBuilderProps) {
         <Button
           variant="outline"
           className="w-full border-dashed border-border/60 text-muted-foreground hover:text-foreground hover:border-border gap-2"
-          onClick={addLanguage}
+          onClick={() => onChange({ ...data, spokenLanguages: [...data.spokenLanguages, ""] })}
         >
           <Plus size={15} /> Ajouter une langue
         </Button>
       </section>
 
       {/* ── Expériences ── */}
-      <section>
-        <SectionHeading icon={Briefcase}>Expériences</SectionHeading>
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCenter}
-          onDragEnd={(e) => handleDragEnd(e, "experiences")}
-        >
-          <SortableContext
-            items={data.experiences.map((e) => e.id!)}
-            strategy={verticalListSortingStrategy}
-          >
-            {data.experiences.map((exp) => (
-              <SortableItem
-                key={exp.id}
-                id={exp.id!}
-                title={exp.title}
-                onDelete={() => removeItem("experiences", exp.id!)}
-              >
-                <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg border border-border/50">
-                  <div className="flex items-center gap-2">
-                    <Checkbox
-                      id={`force-break-exp-${exp.id}`}
-                      checked={exp.forcePageBreak || false}
-                      onCheckedChange={(checked) =>
-                        updateItem("experiences", exp.id!, { forcePageBreak: checked === true })
-                      }
-                    />
-                    <Label htmlFor={`force-break-exp-${exp.id}`} className="cursor-pointer text-sm">Forcer saut de page avant</Label>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Label className="text-xs text-muted-foreground whitespace-nowrap">Marge basse (pt) :</Label>
-                    <Input
-                      type="number"
-                      className="w-20 h-8 text-sm"
-                      min="0"
-                      max="50"
-                      value={exp.customMarginBottom ?? ""}
-                      placeholder="Auto"
-                      onChange={(e) =>
-                        updateItem("experiences", exp.id!, {
-                          customMarginBottom: e.target.value ? Number(e.target.value) : undefined,
-                        })
-                      }
-                    />
-                  </div>
-                </div>
-                
-                <div className="flex flex-col gap-2">
-                  <Label>Titre du poste</Label>
-                  <Input
-                    value={exp.title}
-                    onChange={(e) => updateItem("experiences", exp.id!, { title: e.target.value })}
-                  />
-                </div>
-                <div className="flex flex-col gap-2">
-                  <Label>Entreprise</Label>
-                  <Input
-                    value={exp.org}
-                    onChange={(e) => updateItem("experiences", exp.id!, { org: e.target.value })}
-                  />
-                </div>
-                <div className="flex flex-col gap-2">
-                  <Label>Dates</Label>
-                  <Input
-                    value={exp.date}
-                    onChange={(e) => updateItem("experiences", exp.id!, { date: e.target.value })}
-                  />
-                </div>
-                <div className="flex flex-col gap-2">
-                  <Label>Missions & Réalisations (1 par ligne)</Label>
-                  <Textarea
-                    value={exp.bullets.join("\n")}
-                    onChange={(e) =>
-                      updateItem("experiences", exp.id!, {
-                        bullets: e.target.value.split("\n").filter((b) => b.trim() !== ""),
-                      })
-                    }
-                    rows={6}
-                    className="resize-y"
-                  />
-                </div>
-              </SortableItem>
-            ))}
-          </SortableContext>
-        </DndContext>
-        <Button
-          variant="outline"
-          className="w-full mt-2 border-dashed border-border/60 text-muted-foreground hover:text-foreground hover:border-border gap-2"
-          onClick={() => addItem("experiences", newExperience())}
-        >
-          <Plus size={15} /> Ajouter une expérience
-        </Button>
-      </section>
+      <SortableSection
+        icon={Briefcase}
+        heading="Expériences"
+        items={data.experiences}
+        getTitle={(e) => e.title}
+        addLabel="Ajouter une expérience"
+        onAdd={() => setSection("experiences", [...data.experiences, { id: uuidv4(), title: "", org: "", date: "", bullets: [] } satisfies Experience])}
+        onReorder={(items) => setSection("experiences", items)}
+        onRemove={removeItem("experiences")}
+        renderFields={(exp) => (
+          <>
+            <Field label="Titre du poste" value={exp.title} onChange={(v) => updateItem("experiences", exp.id!, { title: v })} />
+            <Field label="Entreprise" value={exp.org} onChange={(v) => updateItem("experiences", exp.id!, { org: v })} />
+            <Field label="Dates" value={exp.date} onChange={(v) => updateItem("experiences", exp.id!, { date: v })} />
+            <Field
+              label="Missions & Réalisations (1 par ligne)"
+              value={exp.bullets.join("\n")}
+              onChange={(v) => updateItem("experiences", exp.id!, { bullets: v.split("\n").filter((b) => b.trim() !== "") })}
+              multiline
+              rows={6}
+            />
+          </>
+        )}
+      />
 
       {/* ── Projets ── */}
-      <section>
-        <SectionHeading icon={Rocket}>Projets</SectionHeading>
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCenter}
-          onDragEnd={(e) => handleDragEnd(e, "projects")}
-        >
-          <SortableContext
-            items={data.projects.map((p) => p.id!)}
-            strategy={verticalListSortingStrategy}
-          >
-            {data.projects.map((proj) => (
-              <SortableItem
-                key={proj.id}
-                id={proj.id!}
-                title={proj.title}
-                onDelete={() => removeItem("projects", proj.id!)}
-              >
-                <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg border border-border/50">
-                  <div className="flex items-center gap-2">
-                    <Checkbox
-                      id={`force-break-proj-${proj.id}`}
-                      checked={proj.forcePageBreak || false}
-                      onCheckedChange={(checked) =>
-                        updateItem("projects", proj.id!, { forcePageBreak: checked === true })
-                      }
-                    />
-                    <Label htmlFor={`force-break-proj-${proj.id}`} className="cursor-pointer text-sm">Forcer saut de page avant</Label>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Label className="text-xs text-muted-foreground whitespace-nowrap">Marge basse (pt) :</Label>
-                    <Input
-                      type="number"
-                      className="w-20 h-8 text-sm"
-                      min="0"
-                      max="50"
-                      value={proj.customMarginBottom ?? ""}
-                      placeholder="Auto"
-                      onChange={(e) =>
-                        updateItem("projects", proj.id!, {
-                          customMarginBottom: e.target.value ? Number(e.target.value) : undefined,
-                        })
-                      }
-                    />
-                  </div>
-                </div>
-
-                <div className="flex flex-col gap-2">
-                  <Label>Nom du projet</Label>
-                  <Input
-                    value={proj.title}
-                    onChange={(e) => updateItem("projects", proj.id!, { title: e.target.value })}
-                  />
-                </div>
-                <div className="flex flex-col gap-2">
-                  <Label>Description</Label>
-                  <Textarea
-                    value={proj.description}
-                    onChange={(e) => updateItem("projects", proj.id!, { description: e.target.value })}
-                    rows={4}
-                    className="resize-y"
-                  />
-                </div>
-                <div className="flex flex-col gap-2">
-                  <Label>Stack Technique</Label>
-                  <Input
-                    value={proj.stack || ""}
-                    onChange={(e) => updateItem("projects", proj.id!, { stack: e.target.value })}
-                  />
-                </div>
-              </SortableItem>
-            ))}
-          </SortableContext>
-        </DndContext>
-        <Button
-          variant="outline"
-          className="w-full mt-2 border-dashed border-border/60 text-muted-foreground hover:text-foreground hover:border-border gap-2"
-          onClick={() => addItem("projects", newProject())}
-        >
-          <Plus size={15} /> Ajouter un projet
-        </Button>
-      </section>
+      <SortableSection
+        icon={Rocket}
+        heading="Projets"
+        items={data.projects}
+        getTitle={(p) => p.title}
+        addLabel="Ajouter un projet"
+        onAdd={() => setSection("projects", [...data.projects, { id: uuidv4(), title: "", description: "", stack: "" } satisfies Project])}
+        onReorder={(items) => setSection("projects", items)}
+        onRemove={removeItem("projects")}
+        renderFields={(proj) => (
+          <>
+            <Field label="Nom du projet" value={proj.title} onChange={(v) => updateItem("projects", proj.id!, { title: v })} />
+            <Field label="Description" value={proj.description} onChange={(v) => updateItem("projects", proj.id!, { description: v })} multiline rows={4} />
+            <Field label="Stack Technique" value={proj.stack || ""} onChange={(v) => updateItem("projects", proj.id!, { stack: v })} />
+          </>
+        )}
+      />
 
       {/* ── Formations ── */}
-      <section>
-        <SectionHeading icon={GraduationCap}>Formations</SectionHeading>
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCenter}
-          onDragEnd={(e) => handleDragEnd(e, "education")}
-        >
-          <SortableContext
-            items={data.education.map((e) => e.id!)}
-            strategy={verticalListSortingStrategy}
-          >
-            {data.education.map((edu) => (
-              <SortableItem
-                key={edu.id}
-                id={edu.id!}
-                title={edu.degree}
-                onDelete={() => removeItem("education", edu.id!)}
-              >
-                <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg border border-border/50">
-                  <div className="flex items-center gap-2">
-                    <Checkbox
-                      id={`force-break-edu-${edu.id}`}
-                      checked={edu.forcePageBreak || false}
-                      onCheckedChange={(checked) =>
-                        updateItem("education", edu.id!, { forcePageBreak: checked === true })
-                      }
-                    />
-                    <Label htmlFor={`force-break-edu-${edu.id}`} className="cursor-pointer text-sm">Forcer saut de page avant</Label>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Label className="text-xs text-muted-foreground whitespace-nowrap">Marge basse (pt) :</Label>
-                    <Input
-                      type="number"
-                      className="w-20 h-8 text-sm"
-                      min="0"
-                      max="50"
-                      value={edu.customMarginBottom ?? ""}
-                      placeholder="Auto"
-                      onChange={(e) =>
-                        updateItem("education", edu.id!, {
-                          customMarginBottom: e.target.value ? Number(e.target.value) : undefined,
-                        })
-                      }
-                    />
-                  </div>
-                </div>
-
-                <div className="flex flex-col gap-2">
-                  <Label>Diplôme</Label>
-                  <Input
-                    value={edu.degree}
-                    onChange={(e) => updateItem("education", edu.id!, { degree: e.target.value })}
-                  />
-                </div>
-                <div className="flex flex-col gap-2">
-                  <Label>Institution</Label>
-                  <Input
-                    value={edu.institution}
-                    onChange={(e) => updateItem("education", edu.id!, { institution: e.target.value })}
-                  />
-                </div>
-              </SortableItem>
-            ))}
-          </SortableContext>
-        </DndContext>
-        <Button
-          variant="outline"
-          className="w-full mt-2 border-dashed border-border/60 text-muted-foreground hover:text-foreground hover:border-border gap-2"
-          onClick={() => addItem("education", newEducation())}
-        >
-          <Plus size={15} /> Ajouter une formation
-        </Button>
-      </section>
+      <SortableSection
+        icon={GraduationCap}
+        heading="Formations"
+        items={data.education}
+        getTitle={(e) => e.degree}
+        addLabel="Ajouter une formation"
+        onAdd={() => setSection("education", [...data.education, { id: uuidv4(), degree: "", institution: "" } satisfies Education])}
+        onReorder={(items) => setSection("education", items)}
+        onRemove={removeItem("education")}
+        renderFields={(edu) => (
+          <>
+            <Field label="Diplôme" value={edu.degree} onChange={(v) => updateItem("education", edu.id!, { degree: v })} />
+            <Field label="Institution" value={edu.institution} onChange={(v) => updateItem("education", edu.id!, { institution: v })} />
+          </>
+        )}
+      />
     </div>
   );
 }

@@ -1,15 +1,17 @@
-version: '3.8'
-
 services:
-  kompyle-app:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    ports:
-      - "3000:3000"
-    environment:
-      - NODE_ENV=production
-      # Mettez vos vraies clés ici ou passez-les via un fichier .env
-      - GEMINI_API_KEY=${GEMINI_API_KEY}
-      - GROQ_API_KEY=${GROQ_API_KEY}
+  postgres:
+    image: postgres:16-alpine
+    container_name: kompyle-db
     restart: unless-stopped
+    environment:
+      POSTGRES_DB: kompyle
+      POSTGRES_USER: kompyle
+      POSTGRES_PASSWORD: kompyle_dev
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./scripts/init.sql:/docker-entrypoint-initdb.d/init.sql
+
+volumes:
+  pgdata:
