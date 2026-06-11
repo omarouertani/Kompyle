@@ -1,58 +1,63 @@
-# Graph Report - .  (2026-06-11)
+# Graph Report - Kompyle  (2026-06-11)
 
 ## Corpus Check
-- Corpus is ~46,999 words - fits in a single context window. You may not need a graph.
+- 74 files · ~47,108 words
+- Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 574 nodes · 1059 edges · 45 communities (25 shown, 20 thin omitted)
+- 576 nodes · 1060 edges · 44 communities (23 shown, 21 thin omitted)
 - Extraction: 93% EXTRACTED · 7% INFERRED · 0% AMBIGUOUS · INFERRED: 75 edges (avg confidence: 0.84)
 - Token cost: 0 input · 0 output
 
+## Graph Freshness
+- Built from commit: `afcc9586`
+- Run `git rev-parse HEAD` and compare to check if the graph is stale.
+- Run `graphify update .` after code changes (no API cost).
+
 ## Community Hubs (Navigation)
-- [[_COMMUNITY_Canvas Block Editing System|Canvas Block Editing System]]
-- [[_COMMUNITY_CV Builder & API Layer|CV Builder & API Layer]]
-- [[_COMMUNITY_CV PDF Template|CV PDF Template]]
-- [[_COMMUNITY_Cover Letter Template & PDF|Cover Letter Template & PDF]]
-- [[_COMMUNITY_AI Orchestration Pipeline|AI Orchestration Pipeline]]
-- [[_COMMUNITY_UI Primitives & Layout|UI Primitives & Layout]]
-- [[_COMMUNITY_AI JSON Schema Validation|AI JSON Schema Validation]]
-- [[_COMMUNITY_App Shell & i18n|App Shell & i18n]]
-- [[_COMMUNITY_CV Editor UI (Screenshot 2)|CV Editor UI (Screenshot 2)]]
-- [[_COMMUNITY_Preview & Cover Letter Components|Preview & Cover Letter Components]]
-- [[_COMMUNITY_CV Builder App View (Screenshot 1)|CV Builder App View (Screenshot 1)]]
-- [[_COMMUNITY_PDF Primitives Library|PDF Primitives Library]]
-- [[_COMMUNITY_AI Adapt Overlay & CV Preview|AI Adapt Overlay & CV Preview]]
-- [[_COMMUNITY_Multi-Provider AI & Layout Utils|Multi-Provider AI & Layout Utils]]
-- [[_COMMUNITY_Cover Letter Builder Form|Cover Letter Builder Form]]
-- [[_COMMUNITY_CV Profiles REST API|CV Profiles REST API]]
-- [[_COMMUNITY_PDF Font Registry|PDF Font Registry]]
-- [[_COMMUNITY_Card UI Component|Card UI Component]]
-- [[_COMMUNITY_Project Assets & Identity|Project Assets & Identity]]
-- [[_COMMUNITY_Form Input Components|Form Input Components]]
-- [[_COMMUNITY_DB Seed Script|DB Seed Script]]
-- [[_COMMUNITY_Alert UI Component|Alert UI Component]]
-- [[_COMMUNITY_Tooltip UI Component|Tooltip UI Component]]
-- [[_COMMUNITY_Tabs UI Component|Tabs UI Component]]
-- [[_COMMUNITY_Sidebar Nav Components|Sidebar Nav Components]]
-- [[_COMMUNITY_Next.js Config|Next.js Config]]
-- [[_COMMUNITY_Badge UI Component|Badge UI Component]]
-- [[_COMMUNITY_CV Section Layout Utils|CV Section Layout Utils]]
-- [[_COMMUNITY_ESLint Config|ESLint Config]]
-- [[_COMMUNITY_PostCSS Config|PostCSS Config]]
-- [[_COMMUNITY_Infrastructure (Docker + README)|Infrastructure (Docker + README)]]
-- [[_COMMUNITY_Select & Tabs Wrappers|Select & Tabs Wrappers]]
-- [[_COMMUNITY_Sidebar Provider|Sidebar Provider]]
-- [[_COMMUNITY_Skeleton Loading|Skeleton Loading]]
-- [[_COMMUNITY_Profile Manager & Status|Profile Manager & Status]]
-- [[_COMMUNITY_ESLint Rules|ESLint Rules]]
-- [[_COMMUNITY_Sidebar State Hook|Sidebar State Hook]]
-- [[_COMMUNITY_Textarea Component|Textarea Component]]
-- [[_COMMUNITY_Remove Custom Section|Remove Custom Section]]
-- [[_COMMUNITY_Class Merge Utility|Class Merge Utility]]
-- [[_COMMUNITY_AI Extraction Result Type|AI Extraction Result Type]]
-- [[_COMMUNITY_Text Wrap Utility|Text Wrap Utility]]
-- [[_COMMUNITY_URL Format Utility|URL Format Utility]]
-- [[_COMMUNITY_URL Display Utility|URL Display Utility]]
+- [[_COMMUNITY_Community 0|Community 0]]
+- [[_COMMUNITY_Community 1|Community 1]]
+- [[_COMMUNITY_Community 2|Community 2]]
+- [[_COMMUNITY_Community 3|Community 3]]
+- [[_COMMUNITY_Community 4|Community 4]]
+- [[_COMMUNITY_Community 5|Community 5]]
+- [[_COMMUNITY_Community 6|Community 6]]
+- [[_COMMUNITY_Community 7|Community 7]]
+- [[_COMMUNITY_Community 8|Community 8]]
+- [[_COMMUNITY_Community 9|Community 9]]
+- [[_COMMUNITY_Community 10|Community 10]]
+- [[_COMMUNITY_Community 11|Community 11]]
+- [[_COMMUNITY_Community 12|Community 12]]
+- [[_COMMUNITY_Community 13|Community 13]]
+- [[_COMMUNITY_Community 14|Community 14]]
+- [[_COMMUNITY_Community 15|Community 15]]
+- [[_COMMUNITY_Community 16|Community 16]]
+- [[_COMMUNITY_Community 17|Community 17]]
+- [[_COMMUNITY_Community 18|Community 18]]
+- [[_COMMUNITY_Community 19|Community 19]]
+- [[_COMMUNITY_Community 20|Community 20]]
+- [[_COMMUNITY_Community 21|Community 21]]
+- [[_COMMUNITY_Community 22|Community 22]]
+- [[_COMMUNITY_Community 24|Community 24]]
+- [[_COMMUNITY_Community 25|Community 25]]
+- [[_COMMUNITY_Community 26|Community 26]]
+- [[_COMMUNITY_Community 27|Community 27]]
+- [[_COMMUNITY_Community 28|Community 28]]
+- [[_COMMUNITY_Community 29|Community 29]]
+- [[_COMMUNITY_Community 30|Community 30]]
+- [[_COMMUNITY_Community 31|Community 31]]
+- [[_COMMUNITY_Community 32|Community 32]]
+- [[_COMMUNITY_Community 33|Community 33]]
+- [[_COMMUNITY_Community 34|Community 34]]
+- [[_COMMUNITY_Community 36|Community 36]]
+- [[_COMMUNITY_Community 37|Community 37]]
+- [[_COMMUNITY_Community 38|Community 38]]
+- [[_COMMUNITY_Community 39|Community 39]]
+- [[_COMMUNITY_Community 40|Community 40]]
+- [[_COMMUNITY_Community 41|Community 41]]
+- [[_COMMUNITY_Community 42|Community 42]]
+- [[_COMMUNITY_Community 43|Community 43]]
+- [[_COMMUNITY_Community 44|Community 44]]
 
 ## God Nodes (most connected - your core abstractions)
 1. `cn()` - 94 edges
@@ -86,123 +91,115 @@
 - **Main Page UI Orchestration** — locale_page, hook_use_profile_manager, hook_use_ai_provider_config, hook_use_ai_submission, component_cv_builder, component_cover_letter_builder, component_cover_letter_preview [INFERRED 0.90]
 - **PDF Rendering: Cover Letter** — component_cover_letter_preview, component_cover_letter_template, utils_pdf_fonts [EXTRACTED 1.00]
 
-## Communities (45 total, 20 thin omitted)
+## Communities (44 total, 21 thin omitted)
 
-### Community 0 - "Canvas Block Editing System"
-Cohesion: 0.05
-Nodes (60): AbsoluteBlock(), AbsoluteBlockProps, HANDLES, BlockContent(), BlockContentProps, BlockTheme, SECTION_LABELS, CanvasToolbar() (+52 more)
+### Community 0 - "Community 0"
+Cohesion: 0.06
+Nodes (58): AbsoluteBlock(), AbsoluteBlockProps, HANDLES, BlockContent(), BlockContentProps, BlockTheme, SECTION_LABELS, CanvasToolbar() (+50 more)
 
-### Community 1 - "CV Builder & API Layer"
+### Community 1 - "Community 1"
 Cohesion: 0.07
 Nodes (55): AbsoluteBlock, AIAdaptOverlay, API Route: Adapt CV, API Route: CV Profiles (Collection), API Route: CV Profile (By ID), API Route: Generate Cover Letter, BlockContent, CanvasSectionHeading (+47 more)
 
-### Community 2 - "CV PDF Template"
+### Community 2 - "Community 2"
 Cohesion: 0.06
-Nodes (23): CVTemplate(), CVTemplateProps, getStyles(), renderContact(), SECTION_RENDERERS, SectionRenderer, CVTemplateChaima(), CVTemplateChaimaProps (+15 more)
+Nodes (30): CoverLetterTemplateProps, FONT_FAMILY, styles, CVTemplate(), CVTemplateProps, getStyles(), renderContact(), SECTION_RENDERERS (+22 more)
 
-### Community 3 - "Cover Letter Template & PDF"
-Cohesion: 0.07
-Nodes (32): CoverLetterPreviewProps, CoverLetterTemplateProps, FONT_FAMILY, styles, StatusBanner, StatusBannerProps, PROVIDER_MODELS, useAIProviderConfig() (+24 more)
+### Community 3 - "Community 3"
+Cohesion: 0.1
+Nodes (18): StatusBanner, StatusBannerProps, PROVIDER_MODELS, useAIProviderConfig(), useAISubmission(), UseAISubmissionDeps, CVProfile, fallbackDataChaimaEn (+10 more)
 
-### Community 4 - "AI Orchestration Pipeline"
+### Community 4 - "Community 4"
 Cohesion: 0.09
 Nodes (33): buildCorrectionPrompt(), POST(), POST(), callWithFallback(), CallWithFallbackResult, DEFAULT_MODELS, callGemini(), callGroq() (+25 more)
 
-### Community 5 - "UI Primitives & Layout"
-Cohesion: 0.11
-Nodes (35): useIsMobile(), cn(), Separator(), SheetContent(), SheetDescription(), SheetHeader(), SheetTitle(), Sidebar() (+27 more)
+### Community 5 - "Community 5"
+Cohesion: 0.09
+Nodes (39): useIsMobile(), cn(), Separator(), SheetContent(), SheetDescription(), SheetHeader(), SheetTitle(), Sidebar() (+31 more)
 
-### Community 6 - "AI JSON Schema Validation"
+### Community 6 - "Community 6"
 Cohesion: 0.08
 Nodes (37): extractAndValidate, extractJsonString, lightRepairJson, parseAiJson, AIProvider type, AdaptCVRequest interface, AdaptCVResponse interface, CVData interface (+29 more)
 
-### Community 7 - "App Shell & i18n"
+### Community 7 - "Community 7"
 Cohesion: 0.12
 Nodes (14): Header Component, Theme Provider, ThemeProvider(), i18n Request Config, i18n Routing Config, {Link, redirect, usePathname, useRouter}, routing, Locale Root Layout (+6 more)
 
-### Community 8 - "CV Editor UI (Screenshot 2)"
+### Community 8 - "Community 8"
 Cohesion: 0.14
 Nodes (20): Add Section Button, Agency CV Menu / Tab, Appearance & Applications Panel, Breadcrumb Navigation, CV Canvas / Preview Area, CV Competences Section, CV Contact Section, CV Document (Omar Ouertani) (+12 more)
 
-### Community 9 - "Preview & Cover Letter Components"
-Cohesion: 0.15
-Nodes (11): Header(), HeaderProps, CoverLetterPreview(), CVPreview(), Button(), ButtonProps, buttonVariants, Checkbox() (+3 more)
+### Community 9 - "Community 9"
+Cohesion: 0.17
+Nodes (12): Header(), HeaderProps, AIAdaptOverlay(), AIAdaptOverlayProps, CoverLetterPreview(), CoverLetterPreviewProps, CVPreview(), PersonalInfo (+4 more)
 
-### Community 10 - "CV Builder App View (Screenshot 1)"
+### Community 10 - "Community 10"
 Cohesion: 0.14
 Nodes (18): Analyse CV Button, Aperçu CV Tab (Preview Tab), Kompyle Application Shell, CV Document – Omar Ouertani, CV Editor View, CV Preview Panel, CV Contact Section, Dark Theme UI (+10 more)
 
-### Community 11 - "PDF Primitives Library"
+### Community 11 - "Community 11"
 Cohesion: 0.24
 Nodes (15): Bold(), Heading(), KeepTogether(), Link(), Page(), Small(), Text(), View() (+7 more)
 
-### Community 12 - "AI Adapt Overlay & CV Preview"
-Cohesion: 0.15
-Nodes (13): AIAdaptOverlay(), AIAdaptOverlayProps, CVPreviewProps, CVVersion, SelectContent(), SelectGroup(), SelectItem(), SelectLabel() (+5 more)
+### Community 12 - "Community 12"
+Cohesion: 0.12
+Nodes (19): CVPreviewProps, CVVersion, CoverLetterPreview, CVPreview, initialCoverLetter, LeftTab, RightTab, SelectContent() (+11 more)
 
-### Community 13 - "Multi-Provider AI & Layout Utils"
+### Community 13 - "Community 13"
 Cohesion: 0.15
 Nodes (17): callWithFallback Function, callGemini Function, callGroq Function, callMistral Function, addCustomSection Function, computeDefaultPositions Function, defaultLayout Function, PostgreSQL Connection Pool (+9 more)
 
-### Community 14 - "Cover Letter Builder Form"
-Cohesion: 0.27
-Nodes (4): CoverLetterBuilderProps, Input, Label(), Textarea()
+### Community 14 - "Community 14"
+Cohesion: 0.11
+Nodes (13): CoverLetterBuilderProps, CVBuilderProps, ListSection, Card(), CardAction(), CardContent(), CardDescription(), CardFooter() (+5 more)
 
-### Community 16 - "PDF Font Registry"
+### Community 16 - "Community 16"
 Cohesion: 0.25
 Nodes (8): ACTIVE_PDF_FONT constant, PDF_FONTS registry, PdfFontDefinition interface, PdfFontVariant interface, registerPdfFont, DiffText component, PDF Export (react-pdf/renderer), Text Diffing (visual diff feature)
 
-### Community 17 - "Card UI Component"
-Cohesion: 0.25
-Nodes (7): Card(), CardAction(), CardContent(), CardDescription(), CardFooter(), CardHeader(), CardTitle()
+### Community 17 - "Community 17"
+Cohesion: 0.29
+Nodes (3): Sheet(), SheetFooter(), SheetOverlay()
 
-### Community 18 - "Project Assets & Identity"
+### Community 18 - "Community 18"
 Cohesion: 0.39
 Nodes (8): File Icon (Document with folded corner), Globe / Web Icon, Kompyle Project, Next.js Wordmark Logo, Next.js Framework, Vercel Deployment Platform, Vercel Triangle Logo, Browser / App Window Icon
 
-### Community 19 - "Form Input Components"
+### Community 19 - "Community 19"
 Cohesion: 0.4
 Nodes (6): Checkbox Component, Input Component, Label Component, Separator Component, Sheet Component, Sidebar Component
 
-### Community 20 - "DB Seed Script"
+### Community 20 - "Community 20"
 Cohesion: 0.4
 Nodes (3): dataDir, pool, profiles
 
-### Community 21 - "Alert UI Component"
+### Community 21 - "Community 21"
 Cohesion: 0.5
 Nodes (4): Alert(), AlertDescription(), AlertTitle(), alertVariants
 
-### Community 22 - "Tooltip UI Component"
-Cohesion: 0.4
-Nodes (4): Tooltip(), TooltipContent(), TooltipProvider(), TooltipTrigger()
-
-### Community 23 - "Tabs UI Component"
-Cohesion: 0.5
-Nodes (3): TabsContent(), TabsList(), TabsTrigger()
-
-### Community 24 - "Sidebar Nav Components"
+### Community 24 - "Community 24"
 Cohesion: 0.5
 Nodes (4): SidebarMenuButton, Tooltip Component, TooltipContent, TooltipTrigger
 
 ## Knowledge Gaps
-- **166 isolated node(s):** `eslintConfig`, `withNextIntl`, `nextConfig`, `config`, `pool` (+161 more)
+- **167 isolated node(s):** `graphify`, `eslintConfig`, `withNextIntl`, `nextConfig`, `config` (+162 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **20 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **21 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `cn()` connect `UI Primitives & Layout` to `Canvas Block Editing System`, `Cover Letter Template & PDF`, `Preview & Cover Letter Components`, `AI Adapt Overlay & CV Preview`, `Cover Letter Builder Form`, `Card UI Component`, `Alert UI Component`, `Tooltip UI Component`, `Tabs UI Component`, `Badge UI Component`?**
-  _High betweenness centrality (0.156) - this node is a cross-community bridge._
+- **Why does `cn()` connect `Community 5` to `Community 0`, `Community 3`, `Community 9`, `Community 12`, `Community 14`, `Community 17`, `Community 21`, `Community 26`?**
+  _High betweenness centrality (0.154) - this node is a cross-community bridge._
 - **Are the 3 inferred relationships involving `CV Types` (e.g. with `AI Adapt Overlay` and `CVTemplate`) actually correct?**
   _`CV Types` has 3 INFERRED edges - model-reasoned connections that need verification._
 - **Are the 3 inferred relationships involving `CVInteractiveCanvas` (e.g. with `useMarquee` and `CVTemplate`) actually correct?**
   _`CVInteractiveCanvas` has 3 INFERRED edges - model-reasoned connections that need verification._
-- **What connects `eslintConfig`, `withNextIntl`, `nextConfig` to the rest of the system?**
-  _166 weakly-connected nodes found - possible documentation gaps or missing edges._
-- **Should `Canvas Block Editing System` be split into smaller, more focused modules?**
-  _Cohesion score 0.05 - nodes in this community are weakly interconnected._
-- **Should `CV Builder & API Layer` be split into smaller, more focused modules?**
+- **What connects `graphify`, `eslintConfig`, `withNextIntl` to the rest of the system?**
+  _167 weakly-connected nodes found - possible documentation gaps or missing edges._
+- **Should `Community 0` be split into smaller, more focused modules?**
+  _Cohesion score 0.06 - nodes in this community are weakly interconnected._
+- **Should `Community 1` be split into smaller, more focused modules?**
   _Cohesion score 0.07 - nodes in this community are weakly interconnected._
-- **Should `CV PDF Template` be split into smaller, more focused modules?**
+- **Should `Community 2` be split into smaller, more focused modules?**
   _Cohesion score 0.06 - nodes in this community are weakly interconnected._
