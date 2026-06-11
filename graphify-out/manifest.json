@@ -1,0 +1,326 @@
+{
+  "C:\\Users\\oouer\\Projects\\Kompyle\\eslint.config.mjs": {
+    "mtime": 1780713827.2810998,
+    "hash": "dfa1f5f6a7037bf39dc510f30b180002"
+  },
+  "C:\\Users\\oouer\\Projects\\Kompyle\\next-env.d.ts": {
+    "mtime": 1781070819.6474996,
+    "hash": "2a74d3909800ca5467fa83b0ab4a4890"
+  },
+  "C:\\Users\\oouer\\Projects\\Kompyle\\next.config.ts": {
+    "mtime": 1780728238.9901063,
+    "hash": "b805183d90742ff7f864c6afff2f3ed2"
+  },
+  "C:\\Users\\oouer\\Projects\\Kompyle\\postcss.config.mjs": {
+    "mtime": 1780713827.3932796,
+    "hash": "239f3ebf717465dc636818a1a619398d"
+  },
+  "C:\\Users\\oouer\\Projects\\Kompyle\\scripts\\init.sql": {
+    "mtime": 1781139196.520873,
+    "hash": "cd17dca5b1859482761874052dd9b286"
+  },
+  "C:\\Users\\oouer\\Projects\\Kompyle\\scripts\\seed.ts": {
+    "mtime": 1781139196.5219119,
+    "hash": "14226a319cb3c5c71271178159e6418a"
+  },
+  "C:\\Users\\oouer\\Projects\\Kompyle\\src\\middleware.ts": {
+    "mtime": 1780728166.1627767,
+    "hash": "2d668c2d308763f6aa82ec5bcd8a6ab5"
+  },
+  "C:\\Users\\oouer\\Projects\\Kompyle\\src\\app\\api\\adapt-cv\\route.ts": {
+    "mtime": 1781053430.155041,
+    "hash": "f68bc6a2eff89c44eb47a122d2d08071"
+  },
+  "C:\\Users\\oouer\\Projects\\Kompyle\\src\\app\\api\\cv-profiles\\route.ts": {
+    "mtime": 1781139196.5253901,
+    "hash": "64985bbb998bb63bbcd2cf7de7eb6c05"
+  },
+  "C:\\Users\\oouer\\Projects\\Kompyle\\src\\app\\api\\cv-profiles\\[id]\\route.ts": {
+    "mtime": 1781139196.5248768,
+    "hash": "f3d8106b4f220403c6bcdaa7b7a31857"
+  },
+  "C:\\Users\\oouer\\Projects\\Kompyle\\src\\app\\api\\generate-cover-letter\\route.ts": {
+    "mtime": 1781053430.1581042,
+    "hash": "adc6214ad3f8ab89bd97afac739d1060"
+  },
+  "C:\\Users\\oouer\\Projects\\Kompyle\\src\\app\\[locale]\\layout.tsx": {
+    "mtime": 1780763059.3820324,
+    "hash": "f534ee3ae97a5b624b40b01ae5b736b8"
+  },
+  "C:\\Users\\oouer\\Projects\\Kompyle\\src\\app\\[locale]\\page.tsx": {
+    "mtime": 1781139196.522877,
+    "hash": "5499fb496b983a8f68b8256c6ef94a48"
+  },
+  "C:\\Users\\oouer\\Projects\\Kompyle\\src\\components\\Header.tsx": {
+    "mtime": 1780763596.0278387,
+    "hash": "c06198707dc45311cb09461faa6c2fed"
+  },
+  "C:\\Users\\oouer\\Projects\\Kompyle\\src\\components\\ThemeProvider.tsx": {
+    "mtime": 1780779337.2659028,
+    "hash": "f05fcc1e2a2539a695c40ecd0d5c431e"
+  },
+  "C:\\Users\\oouer\\Projects\\Kompyle\\src\\components\\cv\\AIAdaptOverlay.tsx": {
+    "mtime": 1780780169.7624602,
+    "hash": "446d56705966d52ee9d51b2c20d7411c"
+  },
+  "C:\\Users\\oouer\\Projects\\Kompyle\\src\\components\\cv\\canvas-section-heading.tsx": {
+    "mtime": 1781053430.1651223,
+    "hash": "2d933c6197b5fefa1cfecd551a2b68ac"
+  },
+  "C:\\Users\\oouer\\Projects\\Kompyle\\src\\components\\cv\\CoverLetterBuilder.tsx": {
+    "mtime": 1780759378.9823232,
+    "hash": "9d6417c78ffccd6d107009522c148edf"
+  },
+  "C:\\Users\\oouer\\Projects\\Kompyle\\src\\components\\cv\\CoverLetterPreview.tsx": {
+    "mtime": 1780780169.764469,
+    "hash": "0782d172846e84b63e5967c7119fb7e5"
+  },
+  "C:\\Users\\oouer\\Projects\\Kompyle\\src\\components\\cv\\CoverLetterTemplate.tsx": {
+    "mtime": 1780727096.8739166,
+    "hash": "3afaf57d0175fe867fb67fa0482a9c43"
+  },
+  "C:\\Users\\oouer\\Projects\\Kompyle\\src\\components\\cv\\cv-canvas-primitives.tsx": {
+    "mtime": 1781139196.5428288,
+    "hash": "79c0922bd1f2d9924fc096c46fcb82b9"
+  },
+  "C:\\Users\\oouer\\Projects\\Kompyle\\src\\components\\cv\\CVBuilder.tsx": {
+    "mtime": 1781139196.526391,
+    "hash": "5def8e632a0143bc595e48d89baaa53c"
+  },
+  "C:\\Users\\oouer\\Projects\\Kompyle\\src\\components\\cv\\CVInteractiveCanvas.tsx": {
+    "mtime": 1781139196.527392,
+    "hash": "7d4c20f55f5d33fa3f1c754b02aba711"
+  },
+  "C:\\Users\\oouer\\Projects\\Kompyle\\src\\components\\cv\\CVPreview.tsx": {
+    "mtime": 1781139196.528392,
+    "hash": "dd6cbc6ca9506d75aeb3e2485e6fb936"
+  },
+  "C:\\Users\\oouer\\Projects\\Kompyle\\src\\components\\cv\\CVTemplate.tsx": {
+    "mtime": 1781139196.5299048,
+    "hash": "be6dab69554ac042babc176bb03dc319"
+  },
+  "C:\\Users\\oouer\\Projects\\Kompyle\\src\\components\\cv\\CVTemplateChaima.tsx": {
+    "mtime": 1781139196.5329385,
+    "hash": "eebaf45394c516ab133eb91ffdda5dd9"
+  },
+  "C:\\Users\\oouer\\Projects\\Kompyle\\src\\components\\cv\\LayoutManager.tsx": {
+    "mtime": 1781139196.5349164,
+    "hash": "70c5576fcc867f7cc0245f3b854086b0"
+  },
+  "C:\\Users\\oouer\\Projects\\Kompyle\\src\\components\\cv\\status-banner.tsx": {
+    "mtime": 1781053430.1662593,
+    "hash": "43215af31a8c7ff0025e90ff2abff6bd"
+  },
+  "C:\\Users\\oouer\\Projects\\Kompyle\\src\\components\\cv\\canvas\\AbsoluteBlock.tsx": {
+    "mtime": 1781139196.5362558,
+    "hash": "4f4e73d59e70bfa9b39097548ffb1c55"
+  },
+  "C:\\Users\\oouer\\Projects\\Kompyle\\src\\components\\cv\\canvas\\BlockContent.tsx": {
+    "mtime": 1781139196.5372155,
+    "hash": "f96b48c8f44c85c30ace552c27335c27"
+  },
+  "C:\\Users\\oouer\\Projects\\Kompyle\\src\\components\\cv\\canvas\\CanvasToolbar.tsx": {
+    "mtime": 1781139196.5382493,
+    "hash": "7543c86d2395da1b4ea42cf5caddbbe5"
+  },
+  "C:\\Users\\oouer\\Projects\\Kompyle\\src\\components\\cv\\canvas\\ContextMenu.tsx": {
+    "mtime": 1781139196.5382493,
+    "hash": "6c177af30c688ab2c912f53894d4ac36"
+  },
+  "C:\\Users\\oouer\\Projects\\Kompyle\\src\\components\\cv\\canvas\\snap.ts": {
+    "mtime": 1781139196.5397935,
+    "hash": "d533d67eba2d5a4b0c70f792985023cc"
+  },
+  "C:\\Users\\oouer\\Projects\\Kompyle\\src\\components\\cv\\canvas\\use-block-actions.ts": {
+    "mtime": 1781139196.540823,
+    "hash": "e44a36b5e367645c53d447708f18216b"
+  },
+  "C:\\Users\\oouer\\Projects\\Kompyle\\src\\components\\cv\\canvas\\use-canvas-interactions.ts": {
+    "mtime": 1781139196.540823,
+    "hash": "599cf0aa0ee5678833feedd56fe86313"
+  },
+  "C:\\Users\\oouer\\Projects\\Kompyle\\src\\components\\cv\\canvas\\use-marquee.ts": {
+    "mtime": 1781139196.5418026,
+    "hash": "564cdc807290556203da49b40002b34c"
+  },
+  "C:\\Users\\oouer\\Projects\\Kompyle\\src\\components\\pdf-primitives\\index.ts": {
+    "mtime": 1780723140.6211073,
+    "hash": "576e20bb81398b87551aab4599f2c071"
+  },
+  "C:\\Users\\oouer\\Projects\\Kompyle\\src\\components\\pdf-primitives\\primitives.tsx": {
+    "mtime": 1780723136.228669,
+    "hash": "3e579b132660939a5aa97c1d80503935"
+  },
+  "C:\\Users\\oouer\\Projects\\Kompyle\\src\\components\\pdf-primitives\\styles.ts": {
+    "mtime": 1780723109.8441267,
+    "hash": "3bc7f6612aef7f9233d7239e32929ecd"
+  },
+  "C:\\Users\\oouer\\Projects\\Kompyle\\src\\components\\pdf-primitives\\theme.tsx": {
+    "mtime": 1780724155.7228706,
+    "hash": "67d03366e90986e18206ad90f14cc915"
+  },
+  "C:\\Users\\oouer\\Projects\\Kompyle\\src\\components\\ui\\alert.tsx": {
+    "mtime": 1780760405.6355107,
+    "hash": "e12175003ccc0eaa71f7ffb8e67bedc2"
+  },
+  "C:\\Users\\oouer\\Projects\\Kompyle\\src\\components\\ui\\badge.tsx": {
+    "mtime": 1780760380.5752807,
+    "hash": "6f7cfbdc849dea54cf78842ce203be62"
+  },
+  "C:\\Users\\oouer\\Projects\\Kompyle\\src\\components\\ui\\button.tsx": {
+    "mtime": 1780760345.0040367,
+    "hash": "8923e6301f5ecb3c1a03ba5a1e674dad"
+  },
+  "C:\\Users\\oouer\\Projects\\Kompyle\\src\\components\\ui\\card.tsx": {
+    "mtime": 1780760348.9496431,
+    "hash": "21551f421711f3c6605e92b2647a1cce"
+  },
+  "C:\\Users\\oouer\\Projects\\Kompyle\\src\\components\\ui\\checkbox.tsx": {
+    "mtime": 1780760392.3445523,
+    "hash": "561370c8b8fdcb00d51fcb62daa29c08"
+  },
+  "C:\\Users\\oouer\\Projects\\Kompyle\\src\\components\\ui\\input.tsx": {
+    "mtime": 1780760346.2116408,
+    "hash": "9f3554826901d347254407af761b08ca"
+  },
+  "C:\\Users\\oouer\\Projects\\Kompyle\\src\\components\\ui\\label.tsx": {
+    "mtime": 1780760392.5761752,
+    "hash": "0f186cdb784e161f0d00d4af716c1d45"
+  },
+  "C:\\Users\\oouer\\Projects\\Kompyle\\src\\components\\ui\\select.tsx": {
+    "mtime": 1780785667.794072,
+    "hash": "fb990c37ec66e1510081f4a0813eb982"
+  },
+  "C:\\Users\\oouer\\Projects\\Kompyle\\src\\components\\ui\\separator.tsx": {
+    "mtime": 1780763023.9617207,
+    "hash": "3de2dca3e47ab29c4b1f632671545628"
+  },
+  "C:\\Users\\oouer\\Projects\\Kompyle\\src\\components\\ui\\sheet.tsx": {
+    "mtime": 1780763025.3920958,
+    "hash": "511f2240241a85abf9ff57276112f9d6"
+  },
+  "C:\\Users\\oouer\\Projects\\Kompyle\\src\\components\\ui\\sidebar.tsx": {
+    "mtime": 1780763026.067948,
+    "hash": "8b034b9b227fb0dd7220ad70c72e57ef"
+  },
+  "C:\\Users\\oouer\\Projects\\Kompyle\\src\\components\\ui\\skeleton.tsx": {
+    "mtime": 1780763024.2771683,
+    "hash": "f6035d21a0a04898fb4e21353c8d0e34"
+  },
+  "C:\\Users\\oouer\\Projects\\Kompyle\\src\\components\\ui\\tabs.tsx": {
+    "mtime": 1780760405.4502504,
+    "hash": "2df2e04d1b0ab0f305b3c4bdf147effd"
+  },
+  "C:\\Users\\oouer\\Projects\\Kompyle\\src\\components\\ui\\textarea.tsx": {
+    "mtime": 1780760370.2781463,
+    "hash": "cb4c87f7c00fc790034a2a0a2e2d67bb"
+  },
+  "C:\\Users\\oouer\\Projects\\Kompyle\\src\\components\\ui\\tooltip.tsx": {
+    "mtime": 1780763024.578328,
+    "hash": "61535ae0301d1a242eeac6bd241aa9f4"
+  },
+  "C:\\Users\\oouer\\Projects\\Kompyle\\src\\hooks\\use-ai-provider-config.ts": {
+    "mtime": 1781053430.1713054,
+    "hash": "6d4bd3e68482c420e242f074173904bd"
+  },
+  "C:\\Users\\oouer\\Projects\\Kompyle\\src\\hooks\\use-ai-submission.ts": {
+    "mtime": 1781139196.5448005,
+    "hash": "33f84bb7636aebfed583639113149e52"
+  },
+  "C:\\Users\\oouer\\Projects\\Kompyle\\src\\hooks\\use-mobile.ts": {
+    "mtime": 1780763024.946644,
+    "hash": "209b5193af16624cdd89d3591480dd48"
+  },
+  "C:\\Users\\oouer\\Projects\\Kompyle\\src\\hooks\\use-profile-manager.ts": {
+    "mtime": 1781139196.5458639,
+    "hash": "c8bec33dfdb77bb4f451b494afbc86de"
+  },
+  "C:\\Users\\oouer\\Projects\\Kompyle\\src\\i18n\\request.ts": {
+    "mtime": 1780728163.3060882,
+    "hash": "7a25f4ce9c01351bb08fd3afabba751e"
+  },
+  "C:\\Users\\oouer\\Projects\\Kompyle\\src\\i18n\\routing.ts": {
+    "mtime": 1780728152.714703,
+    "hash": "025bbb3dfc1d612c4a60613a6426e58d"
+  },
+  "C:\\Users\\oouer\\Projects\\Kompyle\\src\\lib\\ai-orchestrator.ts": {
+    "mtime": 1781053430.1758468,
+    "hash": "a0acccd5983189be7ca989ede3933faf"
+  },
+  "C:\\Users\\oouer\\Projects\\Kompyle\\src\\lib\\ai-providers.ts": {
+    "mtime": 1781053430.1768575,
+    "hash": "84d130367865af342f2501cfe8eb34ee"
+  },
+  "C:\\Users\\oouer\\Projects\\Kompyle\\src\\lib\\cv-layout.ts": {
+    "mtime": 1781139196.5468683,
+    "hash": "cbf2b1702ed262af292c874b861ecf40"
+  },
+  "C:\\Users\\oouer\\Projects\\Kompyle\\src\\lib\\db.ts": {
+    "mtime": 1781139196.5468683,
+    "hash": "d5eee1cbaea540a81d6ac4f1059fbcd0"
+  },
+  "C:\\Users\\oouer\\Projects\\Kompyle\\src\\lib\\rate-limiter.ts": {
+    "mtime": 1781053430.179847,
+    "hash": "7135f3d179c5a585425dbf1b6babee31"
+  },
+  "C:\\Users\\oouer\\Projects\\Kompyle\\src\\lib\\utils.ts": {
+    "mtime": 1780729352.5814843,
+    "hash": "5a6fd53fdcf2be529e9cc0b718fde352"
+  },
+  "C:\\Users\\oouer\\Projects\\Kompyle\\src\\schemas\\resumeSchema.ts": {
+    "mtime": 1781139196.5478642,
+    "hash": "3ea5a797bd19f059d6dad765b0cd2b5b"
+  },
+  "C:\\Users\\oouer\\Projects\\Kompyle\\src\\types\\cv.ts": {
+    "mtime": 1781139196.5498655,
+    "hash": "29ad73701ce92872476bfcfcfdbbf392"
+  },
+  "C:\\Users\\oouer\\Projects\\Kompyle\\src\\utils\\ai-helpers.ts": {
+    "mtime": 1780725003.8246808,
+    "hash": "0c8156271616424e18a4a55bf3994321"
+  },
+  "C:\\Users\\oouer\\Projects\\Kompyle\\src\\utils\\pdf-fonts.ts": {
+    "mtime": 1780724285.0494738,
+    "hash": "b01836936ffd425a4d7d806e19abf4a6"
+  },
+  "C:\\Users\\oouer\\Projects\\Kompyle\\src\\utils\\pdf-text-utils.tsx": {
+    "mtime": 1781053430.1803553,
+    "hash": "322fc6ee6ec396086b6e7b8fdba75962"
+  },
+  "C:\\Users\\oouer\\Projects\\Kompyle\\docker-compose.yml": {
+    "mtime": 1781139196.512658,
+    "hash": "82e52676a3b4954894a853db143d1b74"
+  },
+  "C:\\Users\\oouer\\Projects\\Kompyle\\README.md": {
+    "mtime": 1780793381.5193455,
+    "hash": "6c143bb8a52baa6b35bc7081b7e64a2a"
+  },
+  "C:\\Users\\oouer\\Projects\\Kompyle\\public\\file.svg": {
+    "mtime": 1780713827.4228673,
+    "hash": "d09f95206c3fa0bb9bd9fefabfd0ea71"
+  },
+  "C:\\Users\\oouer\\Projects\\Kompyle\\public\\globe.svg": {
+    "mtime": 1780713827.4884114,
+    "hash": "2aaafa6a49b6563925fe440891e32717"
+  },
+  "C:\\Users\\oouer\\Projects\\Kompyle\\public\\next.svg": {
+    "mtime": 1780713827.5249982,
+    "hash": "8e061864f388b47f33a1c3780831193e"
+  },
+  "C:\\Users\\oouer\\Projects\\Kompyle\\public\\vercel.svg": {
+    "mtime": 1780713827.556707,
+    "hash": "c0af2f507b369b085b35ef4bbe3bcf1e"
+  },
+  "C:\\Users\\oouer\\Projects\\Kompyle\\public\\window.svg": {
+    "mtime": 1780713827.5878227,
+    "hash": "a2760511c65806022ad20adf74370ff3"
+  },
+  "C:\\Users\\oouer\\Projects\\Kompyle\\public\\images\\Kompyle1.png": {
+    "mtime": 1780792429.9794118,
+    "hash": "e98d89f386f0fb9d6ba2c4ff0c1b2fd7"
+  },
+  "C:\\Users\\oouer\\Projects\\Kompyle\\public\\images\\kompyle2.png": {
+    "mtime": 1780792522.9064329,
+    "hash": "a1e9902a418f4c47a687b3b1564ca745"
+  }
+}
