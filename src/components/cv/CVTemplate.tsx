@@ -694,7 +694,16 @@ const CVTemplate: React.FC<CVTemplateProps> = ({ data, originalData }) => {
     if (!pos) return null;
 
     let rendered: React.ReactNode = null;
-    if (blockId.startsWith("title_")) {
+    if (blockId.startsWith("title_custom_") || blockId.startsWith("content_custom_")) {
+      const isTitle = blockId.startsWith("title_");
+      const sectionId = blockId.substring(isTitle ? 6 : 8);
+      const cs = data.customSections?.find((c) => `custom_${c.id}` === sectionId);
+      if (cs) {
+        rendered = isTitle
+          ? <Text style={styles.h2}>{cs.title}</Text>
+          : <Text style={styles.summary}>{cs.content}</Text>;
+      }
+    } else if (blockId.startsWith("title_")) {
       const sectionId = blockId.substring(6);
       rendered = SECTION_RENDERERS[sectionId] ? SECTION_RENDERERS[sectionId](data, styles, originalData, "title") : null;
     } else if (blockId === "content_contact") {

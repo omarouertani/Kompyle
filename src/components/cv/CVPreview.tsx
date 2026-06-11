@@ -1,23 +1,43 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useSyncExternalStore } from "react";
 import { PDFViewer, PDFDownloadLink } from "@react-pdf/renderer";
 import CVTemplate from "./CVTemplate";
 import CVTemplateChaima from "./CVTemplateChaima";
 import CVInteractiveCanvas from "./CVInteractiveCanvas";
 import AIAdaptOverlay from "./AIAdaptOverlay";
 import type { CVData } from "@/types/cv";
-import { Download, Loader2, LayoutPanelLeft } from "lucide-react";
+import { Download, Loader2, LayoutPanelLeft, History } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
+const emptySubscribe = () => () => {};
+
+interface CVVersion {
+  id: string;
+  name: string;
+}
 
 interface CVPreviewProps {
   data: CVData;
   onChange?: (newData: CVData) => void;
   originalData?: CVData | null;
-  template: "default" | "chaima";
-  onTemplateChange: (template: "default" | "chaima") => void;
+  template: string;
+  onTemplateChange: (template: string) => void;
   isAdapting?: boolean;
+  /** Adaptations enregistrées du profil sélectionné. */
+  versions?: CVVersion[];
+  mainProfileId?: string | null;
+  currentProfileId?: string | null;
+  onVersionChange?: (id: string) => void;
 }
 
 export default function CVPreview({
@@ -27,14 +47,15 @@ export default function CVPreview({
   template,
   onTemplateChange,
   isAdapting = false,
+  versions = [],
+  mainProfileId = null,
+  currentProfileId = null,
+  onVersionChange,
 }: CVPreviewProps) {
   const [sideBySide, setSideBySide] = useState(true);
-  const [mounted, setMounted] = useState(false);
   const [mode, setMode] = useState<"canvas" | "pdf">("canvas");
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  // true côté client uniquement (les viewers PDF ne supportent pas le SSR)
+  const mounted = useSyncExternalStore(emptySubscribe, () => true, () => false);
 
   const ActiveTemplate = template === "chaima" ? CVTemplateChaima : CVTemplate;
 
@@ -80,6 +101,31 @@ export default function CVPreview({
               Aperçu PDF
             </Button>
           </div>
+
+          {/* Sélecteur de version (CV principal / adaptations) */}
+          {mainProfileId && onVersionChange && (
+            <Select
+              value={currentProfileId ?? mainProfileId}
+              onValueChange={(id) => id && onVersionChange(id)}
+            >
+              <SelectTrigger className="h-9 w-[210px] rounded-lg border border-border/60 bg-muted/40 hover:bg-muted/60 transition-colors text-xs gap-1.5">
+                <History size={13} className="text-primary shrink-0" />
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="bg-popover border border-border shadow-md rounded-lg p-1">
+                <SelectGroup>
+                  <SelectItem value={mainProfileId} className="cursor-pointer text-xs">
+                    CV principal
+                  </SelectItem>
+                  {versions.map((v) => (
+                    <SelectItem key={v.id} value={v.id} className="cursor-pointer text-xs">
+                      {v.name}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+          )}
 
           {/* Sélecteur de Template */}
           <div className="flex items-center bg-muted/40 rounded-lg p-0.5 border border-border/40 shrink-0 h-9">

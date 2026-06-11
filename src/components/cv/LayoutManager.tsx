@@ -18,9 +18,17 @@ import {
   useSortable,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import type { CVData, LayoutPage, SectionId, CVTheme } from "@/types/cv";
-import { defaultLayout, emptyLayoutPage, ALL_SECTION_IDS, SECTION_LABELS } from "@/lib/cv-layout";
-import { GripVertical, ArrowLeftRight, EyeOff, Plus, Trash2, LayoutPanelLeft, FilePlus } from "lucide-react";
+import type { CVData, LayoutPage, CVTheme } from "@/types/cv";
+import {
+  defaultLayout,
+  emptyLayoutPage,
+  ALL_SECTION_IDS,
+  SECTION_LABELS,
+  getSectionLabel,
+  addCustomSection,
+  removeCustomSection,
+} from "@/lib/cv-layout";
+import { GripVertical, ArrowLeftRight, EyeOff, Plus, Trash2, LayoutPanelLeft, FilePlus, SquarePlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 type Col = "main" | "sidebar";
@@ -33,6 +41,7 @@ function SectionRow({
   onMoveColumn,
   onMoveToPage,
   onHide,
+  onDelete,
 }: {
   id: string;
   label: string;
@@ -41,6 +50,8 @@ function SectionRow({
   onMoveColumn: () => void;
   onMoveToPage: (target: number) => void;
   onHide: () => void;
+  /** Suppression définitive — sections personnalisées uniquement. */
+  onDelete?: () => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id });
   const style: React.CSSProperties = {
@@ -74,6 +85,11 @@ function SectionRow({
       <Button variant="ghost" size="icon" className="size-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10" title="Masquer" onClick={onHide}>
         <EyeOff size={13} />
       </Button>
+      {onDelete && (
+        <Button variant="ghost" size="icon" className="size-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10" title="Supprimer la section" onClick={onDelete}>
+          <Trash2 size={13} />
+        </Button>
+      )}
     </div>
   );
 }
@@ -161,7 +177,7 @@ export default function LayoutManager({
   const hidden = ALL_SECTION_IDS.filter((id) => !visible.has(id));
 
   const renderColumn = (pageIndex: number, col: Col) => {
-    const ids = pages[pageIndex][col].filter((id) => id in SECTION_LABELS);
+    const ids = pages[pageIndex][col].filter((id) => id in SECTION_LABELS || id.startsWith("custom_"));
     return (
       <div className="flex-1 min-w-0">
         <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">
@@ -173,12 +189,13 @@ export default function LayoutManager({
               <SectionRow
                 key={id}
                 id={id}
-                label={SECTION_LABELS[id as SectionId]}
+                label={getSectionLabel(id, data)}
                 pageIndex={pageIndex}
                 totalPages={pages.length}
                 onMoveColumn={() => moveColumn(pageIndex, col, id)}
                 onMoveToPage={(target) => moveToPage(pageIndex, col, id, target)}
                 onHide={() => hide(pageIndex, id)}
+                onDelete={id.startsWith("custom_") ? () => onChange(removeCustomSection(data, id)) : undefined}
               />
             ))}
             {ids.length === 0 && (
@@ -226,9 +243,19 @@ export default function LayoutManager({
         </div>
       ))}
 
-      <Button variant="outline" className="w-full gap-2 text-muted-foreground hover:text-foreground" onClick={addPage}>
-        <FilePlus size={15} /> Ajouter une page
-      </Button>
+      <div className="flex gap-2">
+        <Button variant="outline" className="flex-1 gap-2 text-muted-foreground hover:text-foreground" onClick={addPage}>
+          <FilePlus size={15} /> Ajouter une page
+        </Button>
+        <Button
+          variant="outline"
+          className="flex-1 gap-2 text-muted-foreground hover:text-foreground"
+          title="Crée une section libre (titre + texte) modifiable dans le canvas"
+          onClick={() => onChange(addCustomSection(data))}
+        >
+          <SquarePlus size={15} /> Ajouter une section
+        </Button>
+      </div>
 
       {hidden.length > 0 && (
         <div className="mt-4">
