@@ -86,6 +86,7 @@ export interface ElementPosition {
   y: number;
   w?: number;
   h?: number; // hauteur explicite (pt) — sinon auto selon le contenu
+  page?: number; // index de page (0-based) en mode pagination auto
 }
 
 export interface CVLayout {
@@ -94,6 +95,7 @@ export interface CVLayout {
   theme?: CVTheme;       // Thème de couleurs personnalisé
   absolutePositions?: Record<string, ElementPosition>; // Canva-style absolute coordinates
   useAbsolutePositioning?: boolean; // toggle to enable Canva absolute layout
+  autoPaginated?: boolean; // les blocs sont répartis sur plusieurs pages via ElementPosition.page
 }
 
 /** Section libre créée par l'utilisateur (titre + texte).
@@ -134,6 +136,35 @@ export interface AdaptCVResponse {
 export interface AdaptCVErrorResponse {
   error: string;
   details?: string;
+}
+
+// ─── Refinement (discussion continue sur le même document) ─────────────────
+
+export interface RefineCVRequest {
+  instruction: string;
+  cvData: CVData;
+  /** Offre d'emploi d'origine — contexte optionnel pour garder l'alignement. */
+  jobDescription?: string;
+  provider?: AIProvider;
+  model?: string;
+}
+
+export interface RefineCVResponse {
+  refinedCV: CVData;
+  provider: AIProvider;
+}
+
+export interface RefineCoverLetterRequest {
+  instruction: string;
+  coverLetter: CoverLetterData;
+  jobDescription?: string;
+  provider?: AIProvider;
+  model?: string;
+}
+
+export interface RefineCoverLetterResponse {
+  coverLetter: CoverLetterData;
+  provider: AIProvider;
 }
 
 // ─── Cover Letter Types ─────────────────────────────────────────────────────

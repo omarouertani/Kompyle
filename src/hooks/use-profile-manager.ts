@@ -165,10 +165,44 @@ export function useProfileManager(locale: string, t: (key: string, values?: Reco
           setOriginalCV(origCV);
           setIsAdapted(true);
           setSelectedProfile(profile);
-          setSelectedTemplate(profile === "omar" ? "default" : "chaima");
+          const template = profile === "omar" ? "default" : "chaima";
+          setSelectedTemplate(template);
           setStatus("success");
           setStatusMessage(t("status_success_cv", { provider: "Gemini" }));
           setStatusDetails(null);
+          lastSavedRef.current = JSON.stringify(adaptedCV);
+
+          // Persiste l'adaptation en DB (sinon elle n'existerait qu'en mémoire
+          // et serait perdue au prochain rechargement / autre navigateur).
+          try {
+            const rows = await fetchProfiles();
+            if (cancelled) return;
+            const main = rows.find((r) => r.slug === profile && !r.is_adaptation);
+            if (main) setMainProfileId(main.id);
+            const stamp = new Date().toLocaleString("fr-FR", {
+              day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit",
+            });
+            const res = await fetch("/api/cv-profiles", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                slug: `${profile}-adapt-${Date.now()}`,
+                name: `Adaptation ${stamp}`,
+                locale,
+                template,
+                cv_data: adaptedCV,
+                is_adaptation: true,
+                parent_id: main?.id ?? null,
+              }),
+            });
+            if (res.ok && !cancelled) {
+              const saved = await res.json();
+              setCurrentProfileId(saved.id);
+              await fetchProfiles();
+            }
+          } catch {
+            // DB indisponible : l'adaptation reste éditable en mémoire
+          }
         } catch (e) {
           console.error("Failed to parse pending adapted CV", e);
         } finally {
@@ -267,17 +301,42 @@ export function useProfileManager(locale: string, t: (key: string, values?: Reco
   const performSave = useCallback(
     async (cvData: CVData) => {
       const snapshot = JSON.stringify(cvData);
-      if (snapshot === lastSavedRef.current) return;
-      if (!currentProfileId) return; // pas de ligne DB (fallback statique)
+      if (snapshot === lastSavedRef.current) {
+        setHasUnsavedChanges(false);
+        return;
+      }
 
       setSaveStatus("saving");
       try {
-        const res = await fetch(`/api/cv-profiles/${currentProfileId}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ cv_data: cvData, template: selectedTemplate }),
-        });
-        if (!res.ok) throw new Error("save failed");
+        if (!currentProfileId) {
+          // Profil fallback (aucune ligne DB) : on la crée au premier save pour
+          // que l'état visuel (canvas, layout…) persiste entre navigateurs.
+          const res = await fetch("/api/cv-profiles", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              slug: selectedProfile,
+              name: selectedProfile.charAt(0).toUpperCase() + selectedProfile.slice(1),
+              locale,
+              template: selectedTemplate,
+              cv_data: cvData,
+              is_adaptation: false,
+              parent_id: null,
+            }),
+          });
+          if (!res.ok) throw new Error("save failed");
+          const saved = await res.json();
+          setMainProfileId(saved.id);
+          setCurrentProfileId(saved.id);
+          await fetchProfiles();
+        } else {
+          const res = await fetch(`/api/cv-profiles/${currentProfileId}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ cv_data: cvData, template: selectedTemplate }),
+          });
+          if (!res.ok) throw new Error("save failed");
+        }
         lastSavedRef.current = snapshot;
         setSaveStatus("saved");
         setHasUnsavedChanges(false);
@@ -286,7 +345,7 @@ export function useProfileManager(locale: string, t: (key: string, values?: Reco
         setSaveStatus("error");
       }
     },
-    [currentProfileId, selectedTemplate]
+    [currentProfileId, selectedTemplate, selectedProfile, locale, fetchProfiles]
   );
 
   const handleSave = useCallback(() => {
@@ -294,17 +353,15 @@ export function useProfileManager(locale: string, t: (key: string, values?: Reco
     performSave(currentCV);
   }, [currentCV, performSave]);
 
-  // Auto-save (2s après la dernière modification)
+  // Auto-save (2s après la dernière modification).
+  // PERF : pas de JSON.stringify ici — sérialiser un CV avec photo base64
+  // (plusieurs Mo) à CHAQUE changement bloquait le thread principal pendant
+  // l'édition canvas. La comparaison réelle a lieu dans performSave, une
+  // seule fois après le debounce.
   useEffect(() => {
     if (isInitialLoad.current) {
       isInitialLoad.current = false;
       lastSavedRef.current = JSON.stringify(currentCV);
-      return;
-    }
-
-    const snapshot = JSON.stringify(currentCV);
-    if (snapshot === lastSavedRef.current) {
-      setHasUnsavedChanges(false);
       return;
     }
 

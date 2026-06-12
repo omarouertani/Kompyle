@@ -262,16 +262,27 @@ export function useCanvasInteractions({ data, defaultPositions, onChange }: UseC
       e.preventDefault();
       setIsResizing(true);
       const startX = e.clientX;
+      let rafId = 0;
+      let lastWidth = startWidth;
 
+      // RAF-throttlé : au plus un commit React par frame (un onChange par
+      // événement mousemove re-rendait toute l'app et figeait la page).
       const handleMouseMove = (moveEvent: MouseEvent) => {
-        const deltaPts = mouseDeltaToPts(moveEvent.clientX - startX);
-        const nextWidth = Math.max(120, Math.min(300, Math.round(startWidth + deltaPts)));
-        const current = dataRef.current;
-        if (!current.layout) return;
-        onChange({ ...current, layout: { ...current.layout, sidebarWidth: nextWidth } });
+        if (rafId) return;
+        rafId = requestAnimationFrame(() => {
+          rafId = 0;
+          const deltaPts = mouseDeltaToPts(moveEvent.clientX - startX);
+          const nextWidth = Math.max(120, Math.min(300, Math.round(startWidth + deltaPts)));
+          if (nextWidth === lastWidth) return;
+          lastWidth = nextWidth;
+          const current = dataRef.current;
+          if (!current.layout) return;
+          onChange({ ...current, layout: { ...current.layout, sidebarWidth: nextWidth } });
+        });
       };
 
       const handleMouseUp = () => {
+        if (rafId) cancelAnimationFrame(rafId);
         setIsResizing(false);
         window.removeEventListener("mousemove", handleMouseMove);
         window.removeEventListener("mouseup", handleMouseUp);
