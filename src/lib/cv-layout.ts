@@ -57,15 +57,113 @@ export function emptyLayoutPage(): LayoutPage {
   return { main: [], sidebar: [] };
 }
 
+/**
+ * Dé-duplique les références de sections dans les pages : chaque id de section
+ * ne doit apparaître qu'UNE fois (sur une seule page, une seule colonne).
+ * La 1re occurrence l'emporte. Évite les clés React dupliquées et les blocs
+ * empilés (positions recalculées deux fois pour le même id).
+ */
+export function dedupePages(pages: LayoutPage[]): LayoutPage[] {
+  const seen = new Set<string>();
+  const keepUnseen = (id: string): boolean => {
+    if (seen.has(id)) return false;
+    seen.add(id);
+    return true;
+  };
+  return pages.map((p) => ({
+    main: p.main.filter(keepUnseen),
+    sidebar: p.sidebar.filter(keepUnseen),
+  }));
+}
+
+/**
+ * Carte blocId → index de page effectif pour les blocs de SECTION (hors header).
+ * Page d'accueil = page de la section ; surchargée par layout.blockPages.
+ * Partagé entre le canvas et les templates PDF pour rester cohérents.
+ */
+export function sectionBlockPageMap(data: CVData): Map<string, number> {
+  const layout = data.layout ?? defaultLayout();
+  const pages = dedupePages(layout.pages);
+  const result = new Map<string, number>();
+  pages.forEach((pg, pi) => {
+    for (const sid of [...pg.sidebar, ...pg.main]) {
+      for (const bid of getSectionBlockIds(sid, data)) result.set(bid, pi);
+    }
+  });
+  if (layout.blockPages) {
+    for (const [bid, ov] of Object.entries(layout.blockPages)) {
+      if (result.has(bid) && ov >= 0 && ov < pages.length) result.set(bid, ov);
+    }
+  }
+  return result;
+}
+
+/** Vrai si au moins un id de section est référencé plusieurs fois. */
+export function hasDuplicateSections(pages: LayoutPage[]): boolean {
+  const seen = new Set<string>();
+  for (const p of pages) {
+    for (const id of [...p.main, ...p.sidebar]) {
+      if (seen.has(id)) return true;
+      seen.add(id);
+    }
+  }
+  return false;
+}
+
+/**
+ * CV vierge — utilisé quand la base de données est indisponible (plus aucune
+ * donnée codée en dur : les profils réels vivent en BD). L'utilisateur peut
+ * éditer ce squelette ou repartir d'un template.
+ */
+export function emptyCV(template = "default"): CVData {
+  return {
+    personalInfo: {
+      name: "",
+      role: "",
+      techLine: "",
+      email: "",
+      phone: "",
+      location: "",
+      linkedin: "",
+      summary: "",
+    },
+    skills: [],
+    spokenLanguages: [],
+    education: [],
+    experiences: [],
+    projects: [],
+    layout: { ...defaultLayout(), theme: template === "chaima" ? { primaryColor: "#fbbf24", sidebarBg: "#f4f4f5" } : {} },
+  };
+}
+
 // ─── Sections personnalisées ──────────────────────────────────────────────
 
-/** Libellé d'une section, built-in ou personnalisée. */
+/** Libellé d'une section, built-in ou personnalisée.
+ *  Priorité au renommage utilisateur (layout.sectionTitles) pour les built-in. */
 export function getSectionLabel(sectionId: string, data?: CVData): string {
   if (sectionId.startsWith("custom_")) {
     const cs = data?.customSections?.find((c) => `custom_${c.id}` === sectionId);
     return cs?.title || "Section personnalisée";
   }
-  return SECTION_LABELS[sectionId as SectionId] ?? sectionId;
+  const override = data?.layout?.sectionTitles?.[sectionId];
+  return override ?? SECTION_LABELS[sectionId as SectionId] ?? sectionId;
+}
+
+/** Renomme une section (built-in via sectionTitles, custom via customSections). */
+export function renameSection(data: CVData, sectionId: string, title: string): CVData {
+  if (sectionId.startsWith("custom_")) {
+    return {
+      ...data,
+      customSections: (data.customSections ?? []).map((c) =>
+        `custom_${c.id}` === sectionId ? { ...c, title } : c
+      ),
+    };
+  }
+  const layout = data.layout ?? defaultLayout();
+  return {
+    ...data,
+    layout: { ...layout, sectionTitles: { ...layout.sectionTitles, [sectionId]: title } },
+  };
 }
 
 /** Crée une section libre et l'ajoute à la colonne principale de la 1re page. */

@@ -1,14 +1,14 @@
 "use client";
 
 import React, { useState, useSyncExternalStore } from "react";
-import { PDFViewer, PDFDownloadLink } from "@react-pdf/renderer";
+import { PDFViewer, pdf } from "@react-pdf/renderer";
 import CVTemplate from "./CVTemplate";
 import CVTemplateChaima from "./CVTemplateChaima";
 import CVInteractiveCanvas from "./CVInteractiveCanvas";
 import AIAdaptOverlay from "./AIAdaptOverlay";
 import type { CVData } from "@/types/cv";
 import { Download, Loader2, LayoutPanelLeft, History } from "lucide-react";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
   Select,
@@ -54,10 +54,31 @@ export default function CVPreview({
 }: CVPreviewProps) {
   const [sideBySide, setSideBySide] = useState(true);
   const [mode, setMode] = useState<"canvas" | "pdf">("canvas");
+  const [isDownloading, setIsDownloading] = useState(false);
   // true côté client uniquement (les viewers PDF ne supportent pas le SSR)
   const mounted = useSyncExternalStore(emptySubscribe, () => true, () => false);
 
   const ActiveTemplate = template === "chaima" ? CVTemplateChaima : CVTemplate;
+
+  /** Génère le PDF à la demande (au clic) — un PDFDownloadLink monté en
+   *  permanence re-générait tout le document à CHAQUE frappe/déplacement. */
+  const handleDownload = async () => {
+    if (isDownloading) return;
+    setIsDownloading(true);
+    try {
+      const blob = await pdf(<ActiveTemplate data={data} />).toBlob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `CV_${data.personalInfo.name.replace(/\s+/g, "_")}_${data.personalInfo.role.replace(/\s+/g, "_")}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Échec de génération du PDF", err);
+    } finally {
+      setIsDownloading(false);
+    }
+  };
 
   const handleCanvasChange = (newData: CVData) => {
     if (onChange) {
@@ -149,25 +170,19 @@ export default function CVPreview({
         </div>
         
         {mounted && (
-          <PDFDownloadLink
-            document={<ActiveTemplate data={data} />}
-            fileName={`CV_${data.personalInfo.name.replace(/\s+/g, "_")}_${data.personalInfo.role.replace(/\s+/g, "_")}.pdf`}
-            className={cn(buttonVariants({ variant: "default", size: "default" }), "h-9 text-xs")}
-          >
-            {({ loading }) =>
-              loading ? (
-                <>
-                  <Loader2 size={14} className="animate-spin" />
-                  Génération...
-                </>
-              ) : (
-                <>
-                  <Download size={14} />
-                  Télécharger le PDF
-                </>
-              )
-            }
-          </PDFDownloadLink>
+          <Button onClick={handleDownload} disabled={isDownloading} className="h-9 text-xs gap-2">
+            {isDownloading ? (
+              <>
+                <Loader2 size={14} className="animate-spin" />
+                Génération...
+              </>
+            ) : (
+              <>
+                <Download size={14} />
+                Télécharger le PDF
+              </>
+            )}
+          </Button>
         )}
       </div>
 

@@ -11,7 +11,7 @@ import {
 import { Svg, Circle, Path, Image } from "@react-pdf/renderer";
 import { registerPdfFont, ACTIVE_PDF_FONT } from "@/utils/pdf-fonts";
 import type { CVData, CVTheme } from "@/types/cv";
-import { defaultLayout, getDefaultPositions, getDefaultPhotoPosition, getSectionBlockIds } from "@/lib/cv-layout";
+import { defaultLayout, getDefaultPositions, getDefaultPhotoPosition, getSectionBlockIds, dedupePages, sectionBlockPageMap } from "@/lib/cv-layout";
 import { wrapText, formatUrl, displayUrl, DiffText } from "@/utils/pdf-text-utils";
 
 registerPdfFont(ACTIVE_PDF_FONT);
@@ -339,6 +339,10 @@ type SectionRenderer = (
   itemIndex?: number
 ) => React.ReactNode;
 
+/** Titre d'une section dans le PDF : renommage utilisateur sinon libellé par défaut. */
+const sectionTitle = (data: CVData, id: string, fallback: string): string =>
+  data.layout?.sectionTitles?.[id] ?? fallback;
+
 const renderContact: SectionRenderer = (data, isSidebar, styles, originalData, part) => {
   const { personalInfo } = data;
   const h2Style = isSidebar ? styles.h2Sidebar : styles.h2Main;
@@ -347,7 +351,7 @@ const renderContact: SectionRenderer = (data, isSidebar, styles, originalData, p
 
   return (
     <>
-      {showTitle && <Text style={h2Style}>Contact</Text>}
+      {showTitle && <Text style={h2Style}>{sectionTitle(data, "contact", "Contact")}</Text>}
 
       {showContent && (
         <>
@@ -400,7 +404,7 @@ const renderSkills: SectionRenderer = (data, isSidebar, styles, originalData, pa
   const { skills } = data;
   const h2Style = isSidebar ? styles.h2Sidebar : styles.h2Main;
   if (part === "title") {
-    return <Text style={h2Style}>Compétences</Text>;
+    return <Text style={h2Style}>{sectionTitle(data, "skills", "Compétences")}</Text>;
   }
   if (part === "item") {
     const i = itemIndex ?? 0;
@@ -422,7 +426,7 @@ const renderSkills: SectionRenderer = (data, isSidebar, styles, originalData, pa
   }
   return (
     <>
-      <Text style={h2Style}>Compétences</Text>
+      <Text style={h2Style}>{sectionTitle(data, "skills", "Compétences")}</Text>
       {skills.map((group, i) => {
         const itemsArray = group.items.split(",").map((item) => item.trim()).filter(Boolean);
         return (
@@ -450,7 +454,7 @@ const renderLanguages: SectionRenderer = (data, isSidebar, styles, originalData,
 
   return (
     <>
-      {showTitle && <Text style={h2Style}>Langues</Text>}
+      {showTitle && <Text style={h2Style}>{sectionTitle(data, "languages", "Langues")}</Text>}
       {showContent && (
         <View>
           {spokenLanguages.map((lang, i) => (
@@ -474,7 +478,7 @@ const renderCertifications: SectionRenderer = (data, isSidebar, styles, original
 
   return (
     <>
-      {showTitle && <Text style={h2Style}>Certifications</Text>}
+      {showTitle && <Text style={h2Style}>{sectionTitle(data, "certifications", "Certifications")}</Text>}
       {showContent && (
         <View>
           {personalInfo.certifications.split(",").map((cert, i) => (
@@ -499,7 +503,7 @@ const renderInterests: SectionRenderer = (data, isSidebar, styles, originalData,
 
   return (
     <>
-      {showTitle && <Text style={h2Style}>Intérêts</Text>}
+      {showTitle && <Text style={h2Style}>{sectionTitle(data, "interests", "Intérêts")}</Text>}
       {showContent && (
         <View style={styles.skillsContainer}>
           {items.map((item, i) => (
@@ -521,7 +525,7 @@ const renderSummary: SectionRenderer = (data, isSidebar, styles, originalData, p
 
   return (
     <>
-      {showTitle && <Text style={h2Style}>Profil</Text>}
+      {showTitle && <Text style={h2Style}>{sectionTitle(data, "summary", "Profil")}</Text>}
       {showContent && (
         <DiffText
           oldText={originalData?.personalInfo.summary}
@@ -537,7 +541,7 @@ const renderExperience: SectionRenderer = (data, isSidebar, styles, originalData
   const { experiences } = data;
   const h2Style = isSidebar ? styles.h2Sidebar : styles.h2Main;
   if (part === "title") {
-    return <Text style={h2Style}>Expériences Professionnelles</Text>;
+    return <Text style={h2Style}>{sectionTitle(data, "experience", "Expériences Professionnelles")}</Text>;
   }
   if (part === "item") {
     const i = itemIndex ?? 0;
@@ -589,7 +593,7 @@ const renderExperience: SectionRenderer = (data, isSidebar, styles, originalData
   }
   return (
     <>
-      <Text style={h2Style}>Expériences Professionnelles</Text>
+      <Text style={h2Style}>{sectionTitle(data, "experience", "Expériences Professionnelles")}</Text>
       {experiences.map((exp, i) => (
         <View
           key={exp.id ?? i}
@@ -641,7 +645,7 @@ const renderEducation: SectionRenderer = (data, isSidebar, styles, originalData,
   const { education } = data;
   const h2Style = isSidebar ? styles.h2Sidebar : styles.h2Main;
   if (part === "title") {
-    return <Text style={h2Style}>Formation</Text>;
+    return <Text style={h2Style}>{sectionTitle(data, "education", "Formation")}</Text>;
   }
   if (part === "item") {
     const i = itemIndex ?? 0;
@@ -663,7 +667,7 @@ const renderEducation: SectionRenderer = (data, isSidebar, styles, originalData,
   }
   return (
     <>
-      <Text style={h2Style}>Formation</Text>
+      <Text style={h2Style}>{sectionTitle(data, "education", "Formation")}</Text>
       {education.map((edu, i) => (
         <KeepTogether
           key={edu.id ?? i}
@@ -686,7 +690,7 @@ const renderProjects: SectionRenderer = (data, isSidebar, styles, originalData, 
   const h2Style = isSidebar ? styles.h2Sidebar : styles.h2Main;
   if (!projects || projects.length === 0) return null;
   if (part === "title") {
-    return <Text style={h2Style}>Projets</Text>;
+    return <Text style={h2Style}>{sectionTitle(data, "projects", "Projets")}</Text>;
   }
   if (part === "item") {
     const i = itemIndex ?? 0;
@@ -719,7 +723,7 @@ const renderProjects: SectionRenderer = (data, isSidebar, styles, originalData, 
   }
   return (
     <>
-      <Text style={h2Style}>Projets</Text>
+      <Text style={h2Style}>{sectionTitle(data, "projects", "Projets")}</Text>
       {projects.map((proj, i) => (
         <View
           key={proj.id ?? i}
@@ -800,6 +804,9 @@ const CVTemplateChaima: React.FC<CVTemplateChaimaProps> = ({ data, originalData 
     const defaultPositions = getDefaultPositions("chaima", data);
     const pos = absolutePositions[blockId] || defaultPositions[blockId];
     if (!pos) return null;
+    // Position hors page A4 (842pt) : on ignore le bloc plutôt que de casser
+    // le rendu PDF (page blanche). Le canvas signale la limite (ligne ambre).
+    if (pos.y >= 842 || pos.x >= 595) return null;
 
     let rendered: React.ReactNode = null;
     if (blockId.startsWith("title_custom_") || blockId.startsWith("content_custom_")) {
@@ -917,7 +924,7 @@ const CVTemplateChaima: React.FC<CVTemplateChaimaProps> = ({ data, originalData 
       author={personalInfo.name}
       subject={personalInfo.role}
     >
-      {layout.pages.map((page, pageIndex) => {
+      {dedupePages(layout.pages).map((page, pageIndex) => {
         const hasSidebar = page.sidebar.some((id) => SECTION_RENDERERS[id]);
 
         if (useAbsolute) {
@@ -932,12 +939,19 @@ const CVTemplateChaima: React.FC<CVTemplateChaimaProps> = ({ data, originalData 
             borderRightColor: "#e4e4e7",
           };
 
+          // Routage par bloc (déplacements inter-pages individuels) cohérent avec
+          // le canvas ; on conserve l'appartenance "sidebar" de chaque bloc.
+          const blkPage = sectionBlockPageMap(data);
+          const sidebarBlocks = new Set(
+            dedupePages(layout.pages).flatMap((p) => p.sidebar).flatMap((id) => getSectionBlockIds(id, data))
+          );
+          const blocksHere = [...blkPage.keys()].filter((bid) => blkPage.get(bid) === pageIndex);
+
           return (
             <Page key={pageIndex} size="A4" style={[styles.page, { padding: 0 }]}>
               {hasSidebar && <View style={sidebarBgStyle} />}
               {renderAbsoluteHeaderAndPhoto(pageIndex)}
-              {page.sidebar.flatMap((id) => getSectionBlockIds(id, data)).map((blockId) => renderAbsoluteBlock(blockId, true))}
-              {page.main.flatMap((id) => getSectionBlockIds(id, data)).map((blockId) => renderAbsoluteBlock(blockId, false))}
+              {blocksHere.map((blockId) => renderAbsoluteBlock(blockId, sidebarBlocks.has(blockId)))}
             </Page>
           );
         }

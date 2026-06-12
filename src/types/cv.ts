@@ -94,6 +94,11 @@ export interface CVLayout {
   theme?: CVTheme;       // Thème de couleurs personnalisé
   absolutePositions?: Record<string, ElementPosition>; // Canva-style absolute coordinates
   useAbsolutePositioning?: boolean; // toggle to enable Canva absolute layout
+  /** Renommage des sections built-in (id → titre affiché). Vide = libellé par défaut. */
+  sectionTitles?: Record<string, string>;
+  /** Page d'un bloc individuel (blockId → index de page), surcharge la page de
+   *  sa section. Permet de déplacer un seul élément sur une autre page (Canva). */
+  blockPages?: Record<string, number>;
 }
 
 /** Section libre créée par l'utilisateur (titre + texte).

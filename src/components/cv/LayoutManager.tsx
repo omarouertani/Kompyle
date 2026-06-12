@@ -27,6 +27,8 @@ import {
   getSectionLabel,
   addCustomSection,
   removeCustomSection,
+  renameSection,
+  dedupePages,
 } from "@/lib/cv-layout";
 import { GripVertical, ArrowLeftRight, EyeOff, Plus, Trash2, LayoutPanelLeft, FilePlus, SquarePlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -40,6 +42,7 @@ function SectionRow({
   totalPages,
   onMoveColumn,
   onMoveToPage,
+  onRename,
   onHide,
   onDelete,
 }: {
@@ -49,6 +52,8 @@ function SectionRow({
   totalPages: number;
   onMoveColumn: () => void;
   onMoveToPage: (target: number) => void;
+  /** Renommage inline de la section. */
+  onRename: (title: string) => void;
   onHide: () => void;
   /** Suppression définitive — sections personnalisées uniquement. */
   onDelete?: () => void;
@@ -64,7 +69,13 @@ function SectionRow({
       <span {...attributes} {...listeners} className="cursor-grab text-muted-foreground/50 hover:text-muted-foreground transition-colors">
         <GripVertical size={14} />
       </span>
-      <span className="flex-1 text-sm font-medium min-w-0 truncate">{label}</span>
+      <input
+        value={label}
+        onChange={(e) => onRename(e.target.value)}
+        className="flex-1 text-sm font-medium min-w-0 bg-transparent rounded px-1 py-0.5 border border-transparent hover:border-border/70 focus:border-ring/40 focus:bg-input-bg focus:outline-none transition-colors"
+        title="Renommer la section"
+        spellCheck={false}
+      />
       {totalPages > 1 && (
         <select
           value={pageIndex}
@@ -110,7 +121,7 @@ export default function LayoutManager({
   const pages: LayoutPage[] = layout.pages.length > 0 ? layout.pages : [emptyLayoutPage()];
 
   const commitPages = (nextPages: LayoutPage[]) =>
-    onChange({ ...data, layout: { ...layout, pages: nextPages } });
+    onChange({ ...data, layout: { ...layout, pages: dedupePages(nextPages) } });
 
   const updatePage = (pageIndex: number, next: LayoutPage) =>
     commitPages(pages.map((p, i) => (i === pageIndex ? next : p)));
@@ -194,6 +205,7 @@ export default function LayoutManager({
                 totalPages={pages.length}
                 onMoveColumn={() => moveColumn(pageIndex, col, id)}
                 onMoveToPage={(target) => moveToPage(pageIndex, col, id, target)}
+                onRename={(title) => onChange(renameSection(data, id, title))}
                 onHide={() => hide(pageIndex, id)}
                 onDelete={id.startsWith("custom_") ? () => onChange(removeCustomSection(data, id)) : undefined}
               />
@@ -214,7 +226,7 @@ export default function LayoutManager({
         Mise en page
       </h2>
       <p className="text-xs text-muted-foreground mb-4">
-        Glisse pour réordonner, ⇄ colonne, P▾ pour changer de page, 🚫 pour masquer.
+        Clique le nom pour le renommer · glisse pour réordonner · ⇄ colonne · P▾ page · 🚫 masquer.
       </p>
 
       {pages.map((_, pageIndex) => (
@@ -269,7 +281,7 @@ export default function LayoutManager({
                 className="h-7 text-xs gap-1"
                 onClick={() => show(id)}
               >
-                <Plus size={12} /> {SECTION_LABELS[id]}
+                <Plus size={12} /> {getSectionLabel(id, data)}
               </Button>
             ))}
           </div>

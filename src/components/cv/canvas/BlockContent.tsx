@@ -6,18 +6,7 @@ import { cn } from "@/lib/utils";
 import { Trash2, PlusCircle } from "lucide-react";
 import { EditableText, ptsToPx } from "../cv-canvas-primitives";
 import { CanvasSectionHeading } from "../canvas-section-heading";
-
-const SECTION_LABELS: Record<string, string> = {
-  contact: "Contact",
-  skills: "Compétences",
-  languages: "Langues",
-  education: "Formation",
-  summary: "Résumé Professionnel",
-  experience: "Expérience Professionnelle",
-  projects: "Projets",
-  certifications: "Certifications",
-  interests: "Intérêts",
-};
+import { getSectionLabel, renameSection } from "@/lib/cv-layout";
 
 export interface BlockTheme {
   isChaima: boolean;
@@ -138,16 +127,17 @@ export function BlockContent({ blockId, data, theme, onChange }: BlockContentPro
     );
   }
 
-  // --- Titres de section ---
+  // --- Titres de section (built-in, renommables) ---
   if (blockId.startsWith("title_")) {
     const sectionId = blockId.substring(6);
     return (
       <CanvasSectionHeading
-        title={SECTION_LABELS[sectionId] || sectionId}
+        title={getSectionLabel(sectionId, data)}
         blockId={blockId}
         headingFontSize={headingFontSize}
         primaryColor={primaryColor}
         onFontSizeChange={(s) => updateTheme({ headingSize: s })}
+        onTitleChange={(title) => onChange(renameSection(data, sectionId, title))}
       />
     );
   }
