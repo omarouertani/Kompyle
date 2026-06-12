@@ -158,6 +158,7 @@ export function EditableText({
       ref={ref}
       contentEditable
       suppressContentEditableWarning
+      spellCheck={false}
       onBlur={handleBlur}
       onFocus={() => setIsFocused(true)}
       onKeyDown={handleKeyDown}

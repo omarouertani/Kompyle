@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import {
   Document,
   StyleSheet,
@@ -11,7 +11,7 @@ import {
 import { Svg, Circle, Path, Image } from "@react-pdf/renderer";
 import { registerPdfFont, ACTIVE_PDF_FONT } from "@/utils/pdf-fonts";
 import type { CVData, CVTheme } from "@/types/cv";
-import { defaultLayout, getDefaultPositions, getDefaultPhotoPosition, getSectionBlockIds } from "@/lib/cv-layout";
+import { defaultLayout, getDefaultPositions, getDefaultPhotoPosition, getPageBlockIds } from "@/lib/cv-layout";
 import { wrapText, formatUrl, displayUrl, DiffText } from "@/utils/pdf-text-utils";
 
 registerPdfFont(ACTIVE_PDF_FONT);
@@ -35,12 +35,11 @@ const getStyles = (theme?: CVTheme, sidebarWidth = 165) => {
       paddingLeft: 0,
       paddingRight: 0,
       flexDirection: "row",
-      height: "100%",
     },
     body: {
       flexDirection: "row",
       width: "100%",
-      height: "100%",
+      flexGrow: 1,
     },
     sidebar: {
       width: sidebarWidth,
@@ -49,7 +48,6 @@ const getStyles = (theme?: CVTheme, sidebarWidth = 165) => {
       paddingBottom: 20,
       paddingLeft: 12,
       paddingRight: 12,
-      height: "100%",
       borderRightWidth: 1,
       borderRightColor: "#e4e4e7",
     },
@@ -60,7 +58,6 @@ const getStyles = (theme?: CVTheme, sidebarWidth = 165) => {
       paddingBottom: 20,
       paddingLeft: 20,
       paddingRight: 20,
-      height: "100%",
     },
 
     /* ---------- Avatar ---------- */
@@ -792,125 +789,6 @@ const CVTemplateChaima: React.FC<CVTemplateChaimaProps> = ({ data, originalData 
   const sidebarWidth = layout.sidebarWidth ?? 175;
   const styles = getStyles(layout.theme, sidebarWidth);
 
-  const useAbsolute = layout.useAbsolutePositioning || false;
-  const absolutePositions = layout.absolutePositions || getDefaultPositions("chaima", data);
-
-
-  const renderAbsoluteBlock = (blockId: string, isSidebar: boolean) => {
-    const defaultPositions = getDefaultPositions("chaima", data);
-    const pos = absolutePositions[blockId] || defaultPositions[blockId];
-    if (!pos) return null;
-
-    let rendered: React.ReactNode = null;
-    if (blockId.startsWith("title_custom_") || blockId.startsWith("content_custom_")) {
-      const isTitle = blockId.startsWith("title_");
-      const sectionId = blockId.substring(isTitle ? 6 : 8);
-      const cs = data.customSections?.find((c) => `custom_${c.id}` === sectionId);
-      if (cs) {
-        rendered = isTitle
-          ? <Text style={isSidebar ? styles.h2Sidebar : styles.h2Main}>{cs.title}</Text>
-          : <Text style={styles.summary}>{cs.content}</Text>;
-      }
-    } else if (blockId.startsWith("title_")) {
-      const sectionId = blockId.substring(6);
-      rendered = SECTION_RENDERERS[sectionId] ? SECTION_RENDERERS[sectionId](data, isSidebar, styles, originalData, "title") : null;
-    } else if (blockId === "content_contact") {
-      rendered = renderContact(data, isSidebar, styles, originalData, "content");
-    } else if (blockId.startsWith("skill_")) {
-      const match = blockId.match(/^skill_(\d+)$/);
-      if (match) {
-        const idx = parseInt(match[1]);
-        rendered = renderSkills(data, isSidebar, styles, originalData, "item", idx);
-      }
-    } else if (blockId === "content_languages") {
-      rendered = renderLanguages(data, isSidebar, styles, originalData, "content");
-    } else if (blockId.startsWith("education_")) {
-      const match = blockId.match(/^education_(\d+)$/);
-      if (match) {
-        const idx = parseInt(match[1]);
-        rendered = renderEducation(data, isSidebar, styles, originalData, "item", idx);
-      }
-    } else if (blockId === "content_summary") {
-      rendered = renderSummary(data, isSidebar, styles, originalData, "content");
-    } else if (blockId.startsWith("experience_")) {
-      const match = blockId.match(/^experience_(\d+)$/);
-      if (match) {
-        const idx = parseInt(match[1]);
-        rendered = renderExperience(data, isSidebar, styles, originalData, "item", idx);
-      }
-    } else if (blockId.startsWith("project_")) {
-      const match = blockId.match(/^project_(\d+)$/);
-      if (match) {
-        const idx = parseInt(match[1]);
-        rendered = renderProjects(data, isSidebar, styles, originalData, "item", idx);
-      }
-    } else if (blockId === "content_certifications") {
-      rendered = renderCertifications(data, isSidebar, styles, originalData, "content");
-    } else if (blockId === "content_interests") {
-      rendered = renderInterests(data, isSidebar, styles, originalData, "content");
-    }
-
-    if (!rendered) return null;
-
-    return (
-      <View key={blockId} style={{ position: "absolute", left: pos.x, top: pos.y, width: pos.w }}>
-        {rendered}
-      </View>
-    );
-  };
-
-  const renderAbsoluteHeaderAndPhoto = (pageIndex: number) => {
-    if (pageIndex !== 0) return null;
-
-    const photoPos = absolutePositions.photo || getDefaultPhotoPosition("chaima", sidebarWidth);
-    const namePos = absolutePositions.name || { x: 200, y: 20, w: 370 };
-    const rolePos = absolutePositions.role || { x: 200, y: 48, w: 370 };
-    const techPos = absolutePositions.techLine || { x: 200, y: 66, w: 370 };
-
-    return (
-      <>
-        {/* Photo */}
-        <View style={{ position: "absolute", left: photoPos.x, top: photoPos.y, width: photoPos.w ?? 65, alignItems: "center" }}>
-          <View style={[styles.avatarCircle, { width: photoPos.w ?? 65, height: photoPos.w ?? 65, borderRadius: (photoPos.w ?? 65) / 2 }]}>
-            {personalInfo.photo ? (
-              <Image src={personalInfo.photo} style={styles.avatarImage} />
-            ) : (
-              <Svg viewBox="0 0 100 100" style={{ width: "100%", height: "100%" }}>
-                <Circle cx="50" cy="50" r="48" fill="#cbd5e1" />
-                <Circle cx="50" cy="40" r="18" fill="#475569" />
-                <Path
-                  d="M 22,82 C 22,65 34,58 50,58 C 66,58 78,65 78,82 C 78,85 75,85 50,85 C 25,85 22,85 22,82 Z"
-                  fill="#475569"
-                />
-              </Svg>
-            )}
-          </View>
-        </View>
-
-        {/* Name */}
-        <View style={{ position: "absolute", left: namePos.x, top: namePos.y, width: namePos.w }}>
-          <Text style={styles.h1}>{personalInfo.name}</Text>
-        </View>
-
-        {/* Role */}
-        <View style={{ position: "absolute", left: rolePos.x, top: rolePos.y, width: rolePos.w }}>
-          <Text style={styles.role}>{personalInfo.role}</Text>
-        </View>
-
-        {/* Tech Line */}
-        {personalInfo.techLine && (
-          <View style={{ position: "absolute", left: techPos.x, top: techPos.y, width: techPos.w }}>
-            <DiffText
-              oldText={originalData?.personalInfo.techLine}
-              newText={personalInfo.techLine}
-              style={styles.techLine}
-            />
-          </View>
-        )}
-      </>
-    );
-  };
-
   return (
     <Document
       title={`${personalInfo.name} — ${personalInfo.role} (CV)`}
@@ -920,7 +798,16 @@ const CVTemplateChaima: React.FC<CVTemplateChaimaProps> = ({ data, originalData 
       {layout.pages.map((page, pageIndex) => {
         const hasSidebar = page.sidebar.some((id) => SECTION_RENDERERS[id]);
 
+        const useAbsolute = layout.useAbsolutePositioning || false;
+
         if (useAbsolute) {
+          const absolutePositions = layout.absolutePositions || getDefaultPositions("chaima", data);
+          // Honore la pagination auto (position.page) si présente, sinon le
+          // modèle historique section→page de `layout.pages`.
+          const { sidebar: sidebarBlocks, main: mainBlocks } = getPageBlockIds(layout, data, pageIndex);
+          const hasSidebarAbs = sidebarBlocks.length > 0;
+
+          // STEP: sidebar background in absolute mode
           const sidebarBgStyle = {
             position: "absolute" as const,
             left: 0,
@@ -932,12 +819,110 @@ const CVTemplateChaima: React.FC<CVTemplateChaimaProps> = ({ data, originalData 
             borderRightColor: "#e4e4e7",
           };
 
+          // STEP: header + photo in absolute mode
+          const renderAbsoluteHeaderAndPhoto = (pi: number) => {
+            if (pi !== 0) return null;
+            const photoPos = absolutePositions.photo || getDefaultPhotoPosition("chaima", sidebarWidth);
+            const namePos = absolutePositions.name || { x: 200, y: 20, w: 370 };
+            const rolePos = absolutePositions.role || { x: 200, y: 48, w: 370 };
+            const techPos = absolutePositions.techLine || { x: 200, y: 66, w: 370 };
+            return (
+              <>
+                <View style={{ position: "absolute", left: photoPos.x, top: photoPos.y, width: photoPos.w ?? 65, alignItems: "center" }}>
+                  <View style={[styles.avatarCircle, { width: photoPos.w ?? 65, height: photoPos.w ?? 65, borderRadius: (photoPos.w ?? 65) / 2 }]}>
+                    {personalInfo.photo ? (
+                      <Image src={personalInfo.photo} style={styles.avatarImage} />
+                    ) : (
+                      <Svg viewBox="0 0 100 100" style={{ width: "100%", height: "100%" }}>
+                        <Circle cx="50" cy="50" r="48" fill="#cbd5e1" />
+                        <Circle cx="50" cy="40" r="18" fill="#475569" />
+                        <Path
+                          d="M 22,82 C 22,65 34,58 50,58 C 66,58 78,65 78,82 C 78,85 75,85 50,85 C 25,85 22,85 22,82 Z"
+                          fill="#475569"
+                        />
+                      </Svg>
+                    )}
+                  </View>
+                </View>
+                <View style={{ position: "absolute", left: namePos.x, top: namePos.y, width: namePos.w }}>
+                  <Text style={styles.h1}>{personalInfo.name}</Text>
+                </View>
+                <View style={{ position: "absolute", left: rolePos.x, top: rolePos.y, width: rolePos.w }}>
+                  <Text style={styles.role}>{personalInfo.role}</Text>
+                </View>
+                {personalInfo.techLine && (
+                  <View style={{ position: "absolute", left: techPos.x, top: techPos.y, width: techPos.w }}>
+                    <DiffText
+                      oldText={originalData?.personalInfo.techLine}
+                      newText={personalInfo.techLine}
+                      style={styles.techLine}
+                    />
+                  </View>
+                )}
+              </>
+            );
+          };
+
+          const renderAbsoluteBlock = (blockId: string, isSidebar: boolean) => {
+            const defaultPositions = getDefaultPositions("chaima", data);
+            const pos = absolutePositions[blockId] || defaultPositions[blockId];
+            if (!pos) return null;
+
+            let rendered: React.ReactNode = null;
+            // STEP: custom sections support
+            if (blockId.startsWith("title_custom_") || blockId.startsWith("content_custom_")) {
+              const isTitle = blockId.startsWith("title_");
+              const sectionId = blockId.substring(isTitle ? 6 : 8);
+              const cs = data.customSections?.find((c) => `custom_${c.id}` === sectionId);
+              if (cs) {
+                rendered = isTitle
+                  ? <Text style={isSidebar ? styles.h2Sidebar : styles.h2Main}>{cs.title}</Text>
+                  : <Text style={styles.summary}>{cs.content}</Text>;
+              }
+            } else if (blockId.startsWith("title_")) {
+              const sectionId = blockId.substring(6);
+              rendered = SECTION_RENDERERS[sectionId]
+                ? SECTION_RENDERERS[sectionId](data, isSidebar, styles, originalData, "title")
+                : null;
+            } else if (blockId === "content_contact") {
+              rendered = renderContact(data, isSidebar, styles, originalData, "content");
+            } else if (blockId === "content_languages") {
+              rendered = renderLanguages(data, isSidebar, styles, originalData, "content");
+            } else if (blockId === "content_summary") {
+              rendered = renderSummary(data, isSidebar, styles, originalData, "content");
+            } else if (blockId === "content_certifications") {
+              rendered = renderCertifications(data, isSidebar, styles, originalData, "content");
+            } else if (blockId === "content_interests") {
+              rendered = renderInterests(data, isSidebar, styles, originalData, "content");
+            } else if (blockId.startsWith("skill_")) {
+              const idx = parseInt(blockId.split("_")[1]);
+              rendered = renderSkills(data, isSidebar, styles, originalData, "item", idx);
+            } else if (blockId.startsWith("education_")) {
+              const idx = parseInt(blockId.split("_")[1]);
+              rendered = renderEducation(data, isSidebar, styles, originalData, "item", idx);
+            } else if (blockId.startsWith("experience_")) {
+              const idx = parseInt(blockId.split("_")[1]);
+              rendered = renderExperience(data, isSidebar, styles, originalData, "item", idx);
+            } else if (blockId.startsWith("project_")) {
+              const idx = parseInt(blockId.split("_")[1]);
+              rendered = renderProjects(data, isSidebar, styles, originalData, "item", idx);
+            }
+
+            if (!rendered) return null;
+
+            return (
+              <View key={blockId} style={{ position: "absolute", left: pos.x, top: pos.y, width: pos.w }}>
+                {rendered}
+              </View>
+            );
+          };
+
           return (
             <Page key={pageIndex} size="A4" style={[styles.page, { padding: 0 }]}>
-              {hasSidebar && <View style={sidebarBgStyle} />}
+              {hasSidebarAbs && <View style={sidebarBgStyle} />}
               {renderAbsoluteHeaderAndPhoto(pageIndex)}
-              {page.sidebar.flatMap((id) => getSectionBlockIds(id, data)).map((blockId) => renderAbsoluteBlock(blockId, true))}
-              {page.main.flatMap((id) => getSectionBlockIds(id, data)).map((blockId) => renderAbsoluteBlock(blockId, false))}
+              {sidebarBlocks.map((id) => renderAbsoluteBlock(id, true))}
+              {mainBlocks.map((id) => renderAbsoluteBlock(id, false))}
             </Page>
           );
         }
@@ -947,7 +932,6 @@ const CVTemplateChaima: React.FC<CVTemplateChaimaProps> = ({ data, originalData 
             <View style={styles.body}>
               {hasSidebar && (
                 <View style={styles.sidebar}>
-                  {/* Photo de profil (uniquement sur la 1re page) */}
                   {pageIndex === 0 && (
                     <View style={styles.avatarContainer}>
                       <View style={styles.avatarCircle}>
@@ -972,7 +956,6 @@ const CVTemplateChaima: React.FC<CVTemplateChaimaProps> = ({ data, originalData 
               )}
 
               <View style={styles.main}>
-                {/* Header (nom / rôle / techLine) : uniquement sur la 1re page dans la colonne main */}
                 {pageIndex === 0 && (
                   <View style={styles.header}>
                     <Text style={styles.h1}>{personalInfo.name}</Text>

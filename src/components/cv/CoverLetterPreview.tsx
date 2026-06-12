@@ -1,13 +1,15 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { PDFViewer, PDFDownloadLink } from "@react-pdf/renderer";
+import React, { useState, useMemo, useCallback, useSyncExternalStore } from "react";
+import { PDFViewer, pdf } from "@react-pdf/renderer";
 import CoverLetterTemplate from "./CoverLetterTemplate";
 import AIAdaptOverlay from "./AIAdaptOverlay";
 import type { CoverLetterData, PersonalInfo } from "@/types/cv";
 import { Download, Loader2 } from "lucide-react";
-import { buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+
+const emptySubscribe = () => () => {};
 
 interface CoverLetterPreviewProps {
   data: CoverLetterData;
@@ -15,40 +17,58 @@ interface CoverLetterPreviewProps {
   isAdapting?: boolean;
 }
 
-export default function CoverLetterPreview({ 
-  data, 
+export default function CoverLetterPreview({
+  data,
   personalInfo,
   isAdapting = false,
 }: CoverLetterPreviewProps) {
-  const [mounted, setMounted] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
+  // true côté client uniquement (les viewers PDF ne supportent pas le SSR)
+  const mounted = useSyncExternalStore(emptySubscribe, () => true, () => false);
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  // Document mémoïsé : un élément stable évite que react-pdf régénère le PDF
+  // à chaque render du parent (source de freezes).
+  const letterDoc = useMemo(
+    () => <CoverLetterTemplate data={data} personalInfo={personalInfo} />,
+    [data, personalInfo]
+  );
+
+  // Génération à la demande (au clic) au lieu d'un PDFDownloadLink qui
+  // re-générait le document en continu.
+  const handleDownload = useCallback(async () => {
+    setIsDownloading(true);
+    try {
+      const blob = await pdf(<CoverLetterTemplate data={data} personalInfo={personalInfo} />).toBlob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `Lettre_de_motivation_${personalInfo.role.replace(/\s+/g, "_")}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("PDF generation failed:", err);
+    } finally {
+      setIsDownloading(false);
+    }
+  }, [data, personalInfo]);
 
   return (
     <div className="flex flex-col flex-1 h-full w-full gap-3">
       {/* Toolbar */}
       <div className="flex justify-end items-center">
-        <PDFDownloadLink
-          document={<CoverLetterTemplate data={data} personalInfo={personalInfo} />}
-          fileName={`Lettre_de_motivation_${personalInfo.role.replace(/\s+/g, "_")}.pdf`}
-          className={cn(buttonVariants({ variant: "default", size: "default" }))}
-        >
-          {({ loading }) =>
-            loading ? (
-              <>
-                <Loader2 size={15} className="animate-spin" />
-                Génération...
-              </>
-            ) : (
-              <>
-                <Download size={15} />
-                Télécharger le PDF
-              </>
-            )
-          }
-        </PDFDownloadLink>
+        <Button onClick={handleDownload} disabled={isDownloading} className="gap-1.5">
+          {isDownloading ? (
+            <>
+              <Loader2 size={15} className="animate-spin" />
+              Génération...
+            </>
+          ) : (
+            <>
+              <Download size={15} />
+              Télécharger le PDF
+            </>
+          )}
+        </Button>
       </div>
 
       {/* PDF Viewer */}
@@ -56,7 +76,7 @@ export default function CoverLetterPreview({
         <div className={cn("w-full h-full transition-all duration-500", isAdapting && "blur-[5px] scale-[0.99] opacity-40 pointer-events-none")}>
           {mounted && (
             <PDFViewer width="100%" height="100%" className="border-none w-full h-full">
-              <CoverLetterTemplate data={data} personalInfo={personalInfo} />
+              {letterDoc}
             </PDFViewer>
           )}
         </div>

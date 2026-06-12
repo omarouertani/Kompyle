@@ -11,7 +11,7 @@ import {
 } from "@/components/pdf-primitives";
 import { registerPdfFont, ACTIVE_PDF_FONT } from "@/utils/pdf-fonts";
 import type { CVData, CVTheme } from "@/types/cv";
-import { defaultLayout, DEFAULT_SIDEBAR_WIDTH, getDefaultPositions, getDefaultPhotoPosition, getSectionBlockIds } from "@/lib/cv-layout";
+import { defaultLayout, DEFAULT_SIDEBAR_WIDTH, getDefaultPositions, getDefaultPhotoPosition, getPageBlockIds } from "@/lib/cv-layout";
 import { wrapText, formatUrl, displayUrl, DiffText } from "@/utils/pdf-text-utils";
 
 registerPdfFont(ACTIVE_PDF_FONT);
@@ -804,6 +804,9 @@ const CVTemplate: React.FC<CVTemplateProps> = ({ data, originalData }) => {
         const hasSidebar = page.sidebar.some((id) => SECTION_RENDERERS[id]);
 
         if (useAbsolute) {
+          // Honore la pagination auto (position.page) si présente.
+          const { sidebar: sidebarBlocks, main: mainBlocks } = getPageBlockIds(layout, data, pageIndex);
+          const hasSidebarAbs = sidebarBlocks.length > 0;
           const sidebarBgStyle = {
             position: "absolute" as const,
             left: 0,
@@ -815,10 +818,10 @@ const CVTemplate: React.FC<CVTemplateProps> = ({ data, originalData }) => {
 
           return (
             <Page key={pageIndex} size="A4" style={[styles.page, { padding: 0 }]}>
-              {hasSidebar && styles.sidebar.backgroundColor !== "transparent" && <View style={sidebarBgStyle} />}
+              {hasSidebarAbs && styles.sidebar.backgroundColor !== "transparent" && <View style={sidebarBgStyle} />}
               {renderAbsoluteHeaderAndPhoto(pageIndex)}
-              {page.sidebar.flatMap((id) => getSectionBlockIds(id, data)).map((blockId) => renderAbsoluteBlock(blockId))}
-              {page.main.flatMap((id) => getSectionBlockIds(id, data)).map((blockId) => renderAbsoluteBlock(blockId))}
+              {sidebarBlocks.map((blockId) => renderAbsoluteBlock(blockId))}
+              {mainBlocks.map((blockId) => renderAbsoluteBlock(blockId))}
             </Page>
           );
         }

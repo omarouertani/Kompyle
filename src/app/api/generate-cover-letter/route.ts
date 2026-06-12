@@ -1,39 +1,54 @@
 import { NextRequest, NextResponse } from "next/server";
-import type { GenerateCoverLetterRequest, CoverLetterData } from "@/types/cv";
+import type { GenerateCoverLetterRequest } from "@/types/cv";
+import { z } from "zod";
 import { resumeSchema, formatZodIssues } from "@/schemas/resumeSchema";
+import { coverLetterSchema } from "@/schemas/coverLetterSchema";
+import { extractAndValidate } from "@/utils/ai-helpers";
 import { callWithFallback } from "@/lib/ai-orchestrator";
 import { checkRateLimit } from "@/lib/rate-limiter";
 
-const SYSTEM_PROMPT = `Tu es un expert en recrutement de haut niveau.
-Ta mission est de rédiger une lettre de motivation (Cover Letter) professionnelle et percutante en te basant sur le CV du candidat et la description de l'offre d'emploi.
+let COVER_LETTER_SCHEMA_JSON = "";
+try {
+  COVER_LETTER_SCHEMA_JSON = JSON.stringify(z.toJSONSchema(coverLetterSchema), null, 2);
+} catch {
+  COVER_LETTER_SCHEMA_JSON = "";
+}
 
-Règles de rédaction (CRITICAL) :
-1. Le ton doit être professionnel, persuasif, et direct (pas de remplissage inutile).
-2. Utilise une structure classique :
-   - Paragraphe 1 : L'accroche (pourquoi cette entreprise, quel poste).
-   - Paragraphe 2 : L'adéquation (comment les expériences du CV répondent aux besoins de l'offre).
-   - Paragraphe 3 : La projection (ce que le candidat va apporter).
-   - Paragraphe 4 : La conclusion/appel à l'action (disponibilité pour un entretien).
-3. Adapte la langue de la lettre en fonction de la langue de l'offre d'emploi (français ou anglais).
-4. La date doit être la date d'aujourd'hui (format lisible).
-5. Si le nom de l'entreprise cible (recipientCompany) n'est pas explicitement dit dans l'offre, laisse le champ vide (""). N'invente pas de nom et n'utilise pas "L'entreprise".
-6. Si le nom du contact (recipientName) n'est pas explicitement dit dans l'offre, laisse le champ vide (""). N'utilise pas "Responsable du Recrutement" ou "Hiring Manager".
-7. L'objet (subject) doit être clair (ex: "Candidature pour le poste de...").
-8. La signature (signOff) doit être professionnelle (ex: "Cordialement,", "Sincerely,").
+const SYSTEM_PROMPT = `You are an elite recruiter and professional cover-letter writer. Write a compelling, professional cover letter based on the candidate's CV and the target job posting.
 
-Tu dois OBLIGATOIREMENT retourner la réponse au format JSON strictement valide, sans aucun bloc markdown ni texte avant ou après.
+## Truthfulness (CRITICAL — anti-hallucination)
+1. Use ONLY facts present in the CV. Never invent experiences, skills, diplomas, metrics, or achievements.
+2. If the company name (recipientCompany) is not explicitly stated in the job posting, leave it EMPTY (""). Never invent a name, never use "L'entreprise" or "The company".
+3. If the contact name (recipientName) is not explicitly stated, leave it EMPTY (""). Never use "Responsable du Recrutement" or "Hiring Manager" as a name.
+4. Same for recipientAddress: empty ("") unless explicitly in the posting.
 
-Structure JSON requise :
-{
-  "recipientName": "string",
-  "recipientCompany": "string",
-  "recipientAddress": "string",
-  "date": "string",
-  "subject": "string",
-  "salutation": "string",
-  "paragraphs": ["string", "string", "string", "string"],
-  "signOff": "string"
-}`;
+## Writing rules
+1. Professional, persuasive, direct tone — zero filler.
+2. Classic structure (one paragraph each):
+   - Hook: why this company, which position.
+   - Fit: how the CV's experiences answer the posting's needs (cite concrete CV facts).
+   - Projection: what the candidate will bring.
+   - Call to action: availability for an interview.
+3. Write the letter in the LANGUAGE OF THE JOB POSTING (French posting → French letter; English → English). Date, subject, salutation and signOff must all match that language.
+4. Use the provided today's date, formatted naturally in the letter's language.
+5. The subject must be specific (e.g. "Candidature pour le poste de…" / "Application for the … position").
+6. signOff must be professional (e.g. "Cordialement,", "Sincerely,").
+
+## Output contract
+- Return ONLY one raw JSON object — no markdown fences, no comments, no prose before or after.
+- It MUST validate against this exact JSON schema:
+
+${COVER_LETTER_SCHEMA_JSON}`;
+
+function buildCorrectionPrompt(originalUserPrompt: string, issues: string[]): string {
+  return `${originalUserPrompt}
+
+## Your previous answer was REJECTED
+It failed strict schema validation with these errors:
+${issues.map((issue) => `- ${issue}`).join("\n")}
+
+Return ONLY a corrected raw JSON object that fixes these errors and fully respects the schema and all rules above. No markdown, no commentary.`;
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -70,41 +85,67 @@ export async function POST(req: NextRequest) {
     // Strip layout before sending to AI
     const { layout: _layout, ...cvForAi } = cvData;
 
-    const todayDate = new Date().toLocaleDateString('fr-FR', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    });
+    // Date fournie dans les deux langues : le modèle choisit celle de l'offre.
+    const today = new Date();
+    const todayFr = today.toLocaleDateString("fr-FR", { year: "numeric", month: "long", day: "numeric" });
+    const todayEn = today.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
 
-    const userPrompt = `
-Date du jour: ${todayDate}
+    const userPrompt = `Today's date — French format: ${todayFr} · English format: ${todayEn}
 
-=== OFFRE D'EMPLOI ===
+=== JOB POSTING ===
 ${jobDescription}
 
-=== DONNÉES DU CV ===
+=== CANDIDATE'S CV (JSON) ===
 ${JSON.stringify(cvForAi, null, 2)}
-    `;
 
-    const result = await callWithFallback(SYSTEM_PROMPT, userPrompt, provider, model);
+Write the cover letter in the language of the job posting. Return only the JSON object.`;
 
-    const cleaned = result.text
-      .replace(/^```(?:json)?\s*/i, "")
-      .replace(/\s*```\s*$/i, "")
-      .trim();
+    let result;
+    try {
+      result = await callWithFallback(SYSTEM_PROMPT, userPrompt, provider, model);
+    } catch (err) {
+      return NextResponse.json(
+        {
+          error: "All AI providers failed. Check your API keys and configuration.",
+          details: err instanceof Error ? err.message : "Unknown error",
+        },
+        { status: 502 }
+      );
+    }
 
-    const coverLetterData: CoverLetterData = JSON.parse(cleaned);
+    const { text: rawResponse, provider: usedProvider } = result;
+
+    // Extract + repair + validate avec self-healing retry (même pipeline que /api/adapt-cv)
+    let validation = extractAndValidate(rawResponse, coverLetterSchema);
+
+    if (!validation.success) {
+      console.warn("Cover letter failed validation, retrying with self-correction...", validation.issues);
+      try {
+        const correctionPrompt = buildCorrectionPrompt(userPrompt, validation.issues);
+        const retryResult = await callWithFallback(SYSTEM_PROMPT, correctionPrompt, usedProvider, model);
+        validation = extractAndValidate(retryResult.text, coverLetterSchema);
+      } catch (retryError) {
+        console.error("Self-correction retry failed:", retryError);
+      }
+    }
+
+    if (!validation.success) {
+      return NextResponse.json(
+        { error: "The generated cover letter structure is invalid.", details: validation.issues },
+        { status: 502 }
+      );
+    }
 
     return NextResponse.json({
-      coverLetter: coverLetterData,
-      provider: result.provider,
+      coverLetter: validation.data,
+      provider: usedProvider,
     });
-  } catch (error: any) {
+  } catch (error) {
     console.error("Cover Letter Generation Error:", error);
     return NextResponse.json(
       {
         error: "Échec de la génération de la lettre de motivation.",
-        details: error.message || String(error),
+        details: error instanceof Error ? error.message : String(error),
       },
       { status: 500 }
     );
