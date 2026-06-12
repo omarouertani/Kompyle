@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import type { AdaptCVRequest, AdaptCVResponse, CVData, AIProvider } from "@/types/cv";
+import type { AdaptCVRequest, AdaptCVResponse, CVData } from "@/types/cv";
 import { z } from "zod";
 import { resumeSchema, formatZodIssues } from "@/schemas/resumeSchema";
 import { extractAndValidate } from "@/utils/ai-helpers";
@@ -41,6 +41,7 @@ const SYSTEM_PROMPT = `You are an elite technical recruiter and professional CV 
 - projects[].title, stack
 - spokenLanguages[]
 - education[] (every field)
+- customSections[] (every field — user-authored, copy verbatim)
 - Any id / forcePageBreak / customMarginBottom metadata, if present.
 
 ## Hard constraints
@@ -187,7 +188,20 @@ Adapt this CV to maximize the candidate's chances for this role. Return only the
     adaptedCV.personalInfo.interests = cvData.personalInfo.interests;
     adaptedCV.education = cvData.education;
     adaptedCV.spokenLanguages = cvData.spokenLanguages;
-    adaptedCV.layout = cvData.layout; // user-controlled layout, never from the AI
+    adaptedCV.customSections = cvData.customSections; // user-authored, never from the AI
+
+    // Layout piloté par l'utilisateur, jamais par l'IA. MAIS on retire les
+    // positions absolues du canvas : elles ont été calculées pour l'ANCIEN
+    // contenu ; les réappliquer au texte adapté (longueurs différentes) fait
+    // chevaucher les sections. Le canvas recalcule un empilement propre à
+    // partir des hauteurs réelles du nouveau contenu. Pages / sidebar / thème
+    // (structure choisie par l'utilisateur) sont conservés.
+    if (cvData.layout) {
+      const { absolutePositions: _ap, useAbsolutePositioning: _uap, ...layoutStructure } = cvData.layout;
+      adaptedCV.layout = layoutStructure;
+    } else {
+      adaptedCV.layout = cvData.layout;
+    }
 
     // Preserve immutable experience fields
     adaptedCV.experiences = adaptedCV.experiences.map((exp, i) => ({

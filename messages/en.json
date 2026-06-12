@@ -24,7 +24,16 @@
     "status_loading_letter": "AI is writing your cover letter...",
     "status_success_cv": "CV successfully adapted via {provider}",
     "status_success_letter": "Cover letter generated successfully via {provider}",
-    "status_error": "Unexpected error."
+    "status_error": "Unexpected error.",
+    "refine_title": "Keep working on this document",
+    "refine_subtitle": "Ask for a change: it will be applied to the current version, not a new copy.",
+    "refine_placeholder": "E.g.: shorten the summary, emphasize React, rephrase the 2nd bullet of my first experience…",
+    "btn_refine_cv": "Edit CV",
+    "btn_refine_letter": "Edit letter",
+    "error_refine_empty": "Describe the change you want (at least 3 characters).",
+    "status_loading_refine_cv": "AI is applying your changes to the CV...",
+    "status_loading_refine_letter": "AI is applying your changes to the letter...",
+    "status_success_refine": "Changes applied via {provider}"
   },
   "RightPanel": {
     "tab_cv": "CV Preview",
@@ -35,16 +44,7 @@
     "letter": "Loading Letter engine..."
   },
   "AIAdapt": {
-    "scanning": "Scanning document...",
-    "cv_step1": "Analyzing job description...",
-    "cv_step2": "Aligning professional profile...",
-    "cv_step3": "Optimizing technical skills...",
-    "cv_step4": "Adapting professional experiences...",
-    "cv_step5": "Polishing layout and structure...",
-    "letter_step1": "Analyzing target company tone...",
-    "letter_step2": "Writing introduction hook...",
-    "letter_step3": "Highlighting relevant experiences...",
-    "letter_step4": "Formatting professional salutations...",
-    "letter_step5": "Finalizing cover letter layout..."
+    "adapting_cv": "AI is working on your CV…",
+    "adapting_letter": "AI is writing your letter…"
   }
 }

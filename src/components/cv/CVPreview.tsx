@@ -1,13 +1,10 @@
 "use client";
 
-import React, { useState, useSyncExternalStore } from "react";
-import { PDFViewer, pdf } from "@react-pdf/renderer";
-import CVTemplate from "./CVTemplate";
-import CVTemplateChaima from "./CVTemplateChaima";
+import React, { useState, useCallback, useSyncExternalStore, useEffect, useRef } from "react";
 import CVInteractiveCanvas from "./CVInteractiveCanvas";
 import AIAdaptOverlay from "./AIAdaptOverlay";
 import type { CVData } from "@/types/cv";
-import { Download, Loader2, LayoutPanelLeft, History } from "lucide-react";
+import { Download, Loader2, LayoutPanelLeft, History, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
@@ -33,11 +30,80 @@ interface CVPreviewProps {
   template: string;
   onTemplateChange: (template: string) => void;
   isAdapting?: boolean;
-  /** Adaptations enregistrées du profil sélectionné. */
   versions?: CVVersion[];
   mainProfileId?: string | null;
   currentProfileId?: string | null;
   onVersionChange?: (id: string) => void;
+}
+
+/**
+ * Fetches a PDF from the server-side render API. All heavy rendering happens
+ * on the server — the browser thread stays free. Debounces by 600ms.
+ */
+function useServerPdfUrl(
+  data: CVData | null,
+  template: string,
+  enabled: boolean,
+  originalData?: CVData | null,
+  sideBySide?: boolean
+): { url: string | null; loading: boolean } {
+  const [url, setUrl] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const prevUrlRef = useRef<string | null>(null);
+  const dataRef = useRef({ data, template, originalData, sideBySide });
+  dataRef.current = { data, template, originalData, sideBySide };
+
+  useEffect(() => {
+    if (!enabled || !data) {
+      if (prevUrlRef.current) {
+        URL.revokeObjectURL(prevUrlRef.current);
+        prevUrlRef.current = null;
+      }
+      setUrl(null);
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    let cancelled = false;
+
+    const timer = setTimeout(async () => {
+      try {
+        const { data: d, template: t, originalData: od, sideBySide: sbs } = dataRef.current;
+        const res = await fetch("/api/render-pdf", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ data: d, template: t, originalData: od, sideBySide: sbs }),
+        });
+        if (cancelled) return;
+        if (!res.ok) throw new Error(`Server returned ${res.status}`);
+        const blob = await res.blob();
+        if (cancelled) return;
+        if (prevUrlRef.current) URL.revokeObjectURL(prevUrlRef.current);
+        const newUrl = URL.createObjectURL(blob);
+        prevUrlRef.current = newUrl;
+        setUrl(newUrl);
+      } catch (err) {
+        console.error("Server PDF generation failed:", err);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }, 600);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enabled, data, template, originalData, sideBySide]);
+
+  useEffect(() => {
+    return () => {
+      if (prevUrlRef.current) URL.revokeObjectURL(prevUrlRef.current);
+    };
+  }, []);
+
+  return { url, loading };
 }
 
 export default function CVPreview({
@@ -52,21 +118,38 @@ export default function CVPreview({
   currentProfileId = null,
   onVersionChange,
 }: CVPreviewProps) {
-  const [sideBySide, setSideBySide] = useState(true);
+  const [sideBySide, setSideBySide] = useState(false);
   const [mode, setMode] = useState<"canvas" | "pdf">("canvas");
   const [isDownloading, setIsDownloading] = useState(false);
-  // true côté client uniquement (les viewers PDF ne supportent pas le SSR)
+  const [isOverflowing, setIsOverflowing] = useState(false);
   const mounted = useSyncExternalStore(emptySubscribe, () => true, () => false);
 
-  const ActiveTemplate = template === "chaima" ? CVTemplateChaima : CVTemplate;
+  const handleCanvasChange = (newData: CVData) => {
+    if (onChange) onChange(newData);
+  };
 
-  /** Génère le PDF à la demande (au clic) — un PDFDownloadLink monté en
-   *  permanence re-générait tout le document à CHAQUE frappe/déplacement. */
-  const handleDownload = async () => {
-    if (isDownloading) return;
+  // Server-side PDF generation — disabled when content overflows the A4 page
+  const isPdf = mode === "pdf";
+  const needsOriginalPdf = sideBySide && !!originalData;
+
+  const { url: originalUrl, loading: originalLoading } = useServerPdfUrl(
+    originalData ?? null, template, needsOriginalPdf && !isOverflowing
+  );
+  const { url: adaptedUrl, loading: adaptedLoading } = useServerPdfUrl(
+    data, template, isPdf && !isOverflowing, originalData, sideBySide
+  );
+
+  const handleDownload = useCallback(async () => {
+    if (isOverflowing) return;
     setIsDownloading(true);
     try {
-      const blob = await pdf(<ActiveTemplate data={data} />).toBlob();
+      const res = await fetch("/api/render-pdf", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ data, template }),
+      });
+      if (!res.ok) throw new Error(`Server returned ${res.status}`);
+      const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
@@ -74,17 +157,11 @@ export default function CVPreview({
       a.click();
       URL.revokeObjectURL(url);
     } catch (err) {
-      console.error("Échec de génération du PDF", err);
+      console.error("PDF download failed:", err);
     } finally {
       setIsDownloading(false);
     }
-  };
-
-  const handleCanvasChange = (newData: CVData) => {
-    if (onChange) {
-      onChange(newData);
-    }
-  };
+  }, [data, template, isOverflowing]);
 
   return (
     <div className="flex flex-col flex-1 h-full w-full gap-3">
@@ -92,7 +169,7 @@ export default function CVPreview({
       <div className="flex items-center justify-between gap-4 shrink-0 flex-wrap sm:flex-nowrap">
         <div className="flex items-center gap-2 flex-wrap">
           {originalData && (
-            <Button 
+            <Button
               variant={sideBySide ? "secondary" : "outline"}
               onClick={() => setSideBySide(!sideBySide)}
               className="gap-2 h-9 text-xs"
@@ -123,7 +200,7 @@ export default function CVPreview({
             </Button>
           </div>
 
-          {/* Sélecteur de version (CV principal / adaptations) */}
+          {/* Sélecteur de version */}
           {mainProfileId && onVersionChange && (
             <Select
               value={currentProfileId ?? mainProfileId}
@@ -168,9 +245,16 @@ export default function CVPreview({
             </Button>
           </div>
         </div>
-        
+
         {mounted && (
-          <Button onClick={handleDownload} disabled={isDownloading} className="h-9 text-xs gap-2">
+          <div className="flex items-center gap-2">
+            {isOverflowing && (
+              <div className="flex items-center gap-1.5 text-amber-600 text-xs font-medium">
+                <AlertTriangle size={13} />
+                Contenu hors page — réduisez le CV
+              </div>
+            )}
+          <Button onClick={handleDownload} disabled={isDownloading || isOverflowing} className="h-9 text-xs gap-1.5">
             {isDownloading ? (
               <>
                 <Loader2 size={14} className="animate-spin" />
@@ -183,6 +267,7 @@ export default function CVPreview({
               </>
             )}
           </Button>
+          </div>
         )}
       </div>
 
@@ -197,19 +282,9 @@ export default function CVPreview({
                     <div className="text-sm font-medium text-muted-foreground text-center">
                       CV Original
                     </div>
-                    <div className="flex-1 rounded-lg overflow-hidden border border-border bg-card shadow-sm min-h-0">
-                      <PDFViewer
-                        key={`orig-${template}`}
-                        width="100%"
-                        height="100%"
-                        showToolbar={false}
-                        className="border-none w-full h-full"
-                      >
-                        <ActiveTemplate data={originalData} />
-                      </PDFViewer>
-                    </div>
+                    <PdfIframe url={originalUrl} loading={originalLoading} />
                   </div>
-                  
+
                   <div className="flex-1 flex flex-col gap-2 min-h-0">
                     <div className="text-sm font-medium text-success text-center shrink-0">
                       CV Adapté (Édition Visuelle)
@@ -220,6 +295,7 @@ export default function CVPreview({
                         onChange={handleCanvasChange}
                         template={template}
                         originalData={originalData}
+                        onOverflowChange={setIsOverflowing}
                       />
                     </div>
                   </div>
@@ -244,43 +320,43 @@ export default function CVPreview({
                   <div className="text-sm font-medium text-muted-foreground text-center">
                     CV Original
                   </div>
-                  <div className="flex-1 rounded-lg overflow-hidden border border-border bg-card shadow-sm min-h-0">
-                    <PDFViewer
-                      key={`orig-${template}`}
-                      width="100%"
-                      height="100%"
-                      showToolbar={false}
-                      className="border-none w-full h-full"
-                    >
-                      <ActiveTemplate data={originalData} />
-                    </PDFViewer>
-                  </div>
+                  <PdfIframe url={originalUrl} loading={originalLoading} />
                 </div>
               )}
-              
+
               <div className="flex-1 flex flex-col gap-2 min-h-0">
                 {originalData && sideBySide && (
                   <div className="text-sm font-medium text-success text-center">
                     CV Adapté (Modifications surlignées)
                   </div>
                 )}
-                <div className="flex-1 rounded-lg overflow-hidden border border-border bg-card shadow-sm min-h-0">
-                  <PDFViewer
-                    key={`adap-${template}-${data.experiences.map((e) => e.id).join(",")}-${data.projects.map((p) => p.id).join(",")}-${data.skills.map((s) => s.id).join(",")}-${data.education.map((e) => e.id).join(",")}-${data.spokenLanguages.join(",")}-${JSON.stringify(data.layout)}`}
-                    width="100%"
-                    height="100%"
-                    showToolbar={false}
-                    className="border-none w-full h-full"
-                  >
-                    <ActiveTemplate data={data} originalData={(sideBySide && originalData) ? originalData : undefined} />
-                  </PDFViewer>
-                </div>
+                <PdfIframe url={adaptedUrl} loading={adaptedLoading} />
               </div>
             </div>
           )}
         </div>
         {isAdapting && <AIAdaptOverlay type="cv" />}
       </div>
+    </div>
+  );
+}
+
+function PdfIframe({ url, loading }: { url: string | null; loading: boolean }) {
+  return (
+    <div className="flex-1 rounded-lg overflow-hidden border border-border bg-card shadow-sm min-h-0 relative">
+      {(loading || !url) && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 z-10 bg-card">
+          <Loader2 className="animate-spin text-primary" size={28} />
+          <span className="text-xs text-muted-foreground">Génération du PDF…</span>
+        </div>
+      )}
+      {url && (
+        <iframe
+          src={url}
+          className="w-full h-full border-none"
+          title="PDF preview"
+        />
+      )}
     </div>
   );
 }

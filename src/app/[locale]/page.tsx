@@ -89,20 +89,24 @@ export default function AdaptPage() {
   const [activeLeftTab, setActiveLeftTab] = useState<LeftTab>("ai");
   const [activeRightTab, setActiveRightTab] = useState<RightTab>("cv");
   const [jobDescription, setJobDescription] = useState("");
+  const [refineInstruction, setRefineInstruction] = useState("");
+  const [refineHistory, setRefineHistory] = useState<string[]>([]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
   const profile = useProfileManager(locale, t);
   const aiConfig = useAIProviderConfig();
 
-  const { handleAdaptCV, handleGenerateLetter } = useAISubmission({
+  const { handleAdaptCV, handleGenerateLetter, handleRefineCV, handleRefineLetter } = useAISubmission({
     jobDescription,
     provider: aiConfig.provider,
     model: aiConfig.model,
     currentCV: profile.currentCV,
+    coverLetterData: profile.coverLetterData,
     locale,
     selectedProfile: profile.selectedProfile,
     getProviderName: aiConfig.getProviderName,
     applyAdaptation: profile.applyAdaptation,
+    setCurrentCV: profile.setCurrentCV,
     setCoverLetterData: profile.setCoverLetterData,
     setActiveRightTab,
     setStatus: profile.setStatus,
@@ -111,6 +115,18 @@ export default function AdaptPage() {
     setLoadingType: profile.setLoadingType,
     t,
   });
+
+  const submitRefine = async (target: "cv" | "letter") => {
+    const instruction = refineInstruction.trim();
+    if (!instruction) return;
+    const ok = target === "cv"
+      ? await handleRefineCV(instruction)
+      : await handleRefineLetter(instruction);
+    if (ok) {
+      setRefineHistory((prev) => [...prev, instruction]);
+      setRefineInstruction("");
+    }
+  };
 
   const renderLeftContent = () => {
     switch (activeLeftTab) {
@@ -182,7 +198,7 @@ export default function AdaptPage() {
 
             <div className="grid grid-cols-2 gap-3">
               <Button
-                onClick={handleAdaptCV}
+                onClick={() => { setRefineHistory([]); handleAdaptCV(); }}
                 disabled={profile.status === "loading" || !jobDescription.trim()}
                 className="gap-2"
               >
@@ -192,7 +208,7 @@ export default function AdaptPage() {
               <Button
                 variant="outline"
                 className="gap-2 text-primary border-primary/20 hover:bg-primary/5"
-                onClick={handleGenerateLetter}
+                onClick={() => { setRefineHistory([]); handleGenerateLetter(); }}
                 disabled={profile.status === "loading" || !jobDescription.trim()}
               >
                 <Mail size={16} />
@@ -200,8 +216,71 @@ export default function AdaptPage() {
               </Button>
             </div>
 
+            {/* ── Discussion continue : modifier le document généré ── */}
+            {(profile.isAdapted || profile.coverLetterData) && (
+              <div className="flex flex-col gap-3 border border-primary/20 bg-primary/[0.03] rounded-xl p-4 animate-in fade-in slide-in-from-top-1 duration-200">
+                <div>
+                  <h2 className="flex items-center gap-2 text-sm font-semibold text-foreground mb-1">
+                    <Sparkles size={14} className="text-primary" />
+                    {t("refine_title")}
+                  </h2>
+                  <p className="text-xs text-muted-foreground leading-relaxed">{t("refine_subtitle")}</p>
+                </div>
+
+                {refineHistory.length > 0 && (
+                  <div className="flex flex-col gap-1.5">
+                    {refineHistory.map((instruction, i) => (
+                      <div key={i} className="flex items-start gap-2 text-xs text-muted-foreground bg-muted/40 rounded-lg px-2.5 py-1.5">
+                        <Check size={12} className="text-emerald-500 mt-0.5 shrink-0" />
+                        <span className="leading-snug">{instruction}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <Textarea
+                  className="min-h-[72px] resize-y text-sm leading-relaxed"
+                  placeholder={t("refine_placeholder")}
+                  value={refineInstruction}
+                  onChange={(e) => setRefineInstruction(e.target.value)}
+                  disabled={profile.status === "loading"}
+                />
+
+                <div className="grid grid-cols-2 gap-2">
+                  <Button
+                    size="sm"
+                    className="gap-1.5"
+                    onClick={() => submitRefine("cv")}
+                    disabled={profile.status === "loading" || !refineInstruction.trim() || !profile.isAdapted}
+                  >
+                    <FileText size={14} />
+                    {t("btn_refine_cv")}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="gap-1.5 text-primary border-primary/20 hover:bg-primary/5"
+                    onClick={() => submitRefine("letter")}
+                    disabled={profile.status === "loading" || !refineInstruction.trim() || !profile.coverLetterData}
+                  >
+                    <Mail size={14} />
+                    {t("btn_refine_letter")}
+                  </Button>
+                </div>
+              </div>
+            )}
+
             {(profile.isAdapted || profile.coverLetterData) && profile.status !== "loading" && (
-              <Button variant="ghost" onClick={profile.handleReset} className="text-muted-foreground gap-1.5" size="sm">
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  profile.handleReset();
+                  setRefineHistory([]);
+                  setRefineInstruction("");
+                }}
+                className="text-muted-foreground gap-1.5"
+                size="sm"
+              >
                 <RotateCcw size={14} />
                 {t("btn_reset")}
               </Button>

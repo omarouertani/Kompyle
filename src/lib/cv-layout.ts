@@ -76,28 +76,6 @@ export function dedupePages(pages: LayoutPage[]): LayoutPage[] {
   }));
 }
 
-/**
- * Carte blocId → index de page effectif pour les blocs de SECTION (hors header).
- * Page d'accueil = page de la section ; surchargée par layout.blockPages.
- * Partagé entre le canvas et les templates PDF pour rester cohérents.
- */
-export function sectionBlockPageMap(data: CVData): Map<string, number> {
-  const layout = data.layout ?? defaultLayout();
-  const pages = dedupePages(layout.pages);
-  const result = new Map<string, number>();
-  pages.forEach((pg, pi) => {
-    for (const sid of [...pg.sidebar, ...pg.main]) {
-      for (const bid of getSectionBlockIds(sid, data)) result.set(bid, pi);
-    }
-  });
-  if (layout.blockPages) {
-    for (const [bid, ov] of Object.entries(layout.blockPages)) {
-      if (result.has(bid) && ov >= 0 && ov < pages.length) result.set(bid, ov);
-    }
-  }
-  return result;
-}
-
 /** Vrai si au moins un id de section est référencé plusieurs fois. */
 export function hasDuplicateSections(pages: LayoutPage[]): boolean {
   const seen = new Set<string>();
@@ -405,6 +383,201 @@ export function computeDefaultPositions(template: string, data: CVData): Record<
   });
 
   return positions;
+}
+
+/**
+ * Reflow des positions à partir des hauteurs RÉELLES des blocs.
+ *
+ * `computeDefaultPositions` empile les blocs avec des hauteurs *estimées*
+ * (ex : `Math.ceil(len / 60) * 13`). Dès que le contenu change de longueur
+ * (typiquement après une adaptation IA), ces estimations dérivent et les
+ * sections se chevauchent. Cette fonction réutilise les colonnes (x / largeur)
+ * de `computeDefaultPositions` mais recalcule les `y` en empilant chaque bloc
+ * sous le précédent selon sa hauteur MESURÉE dans le DOM — zéro chevauchement,
+ * quelle que soit la longueur du texte.
+ *
+ * `measureHeightPt(blockId)` doit renvoyer la hauteur réelle du bloc en points
+ * (offsetHeight / PT_TO_PX), ou `null` si le bloc n'est pas dans le DOM.
+ */
+export function computeFlowPositions(
+  template: string,
+  data: CVData,
+  measureHeightPt: (blockId: string) => number | null
+): Record<string, { x: number; y: number; w: number; h?: number }> {
+  const base = computeDefaultPositions(template, data);
+  const positions: Record<string, { x: number; y: number; w: number; h?: number }> = {};
+  for (const [k, v] of Object.entries(base)) positions[k] = { ...v };
+
+  const isChaima = template === "chaima";
+  const layout = data.layout ?? defaultLayout();
+  const BLOCK_GAP = 6; // espacement entre blocs d'une même section (pt)
+  const SECTION_GAP = 14; // espacement supplémentaire entre sections (pt)
+
+  const stackColumn = (sectionIds: string[], startY: number) => {
+    let y = startY;
+    sectionIds.forEach((sectionId) => {
+      const blockIds = getSectionBlockIds(sectionId, data);
+      blockIds.forEach((blockId) => {
+        if (!positions[blockId]) return;
+        positions[blockId] = { ...positions[blockId], y: Math.round(y), h: undefined };
+        const h = measureHeightPt(blockId);
+        y += (h ?? 20) + BLOCK_GAP;
+      });
+      if (blockIds.length > 0) y += SECTION_GAP - BLOCK_GAP;
+    });
+  };
+
+  // En-tête (nom / rôle / techLine) : empilé par hauteur mesurée. Sans ça, un
+  // nom ou un titre sur 2 lignes chevauche la ligne suivante.
+  let headerY = positions["name"]?.y ?? (isChaima ? 20 : 12);
+  for (const id of ["name", "role", "techLine"]) {
+    if (!positions[id]) continue;
+    positions[id] = { ...positions[id], y: Math.round(headerY), h: undefined };
+    const h = measureHeightPt(id);
+    headerY += (h ?? 16) + 3;
+  }
+
+  layout.pages.forEach((page, pageIndex) => {
+    const startY = pageIndex === 0 ? (isChaima ? 100 : 95) : 20;
+    stackColumn(page.sidebar, startY);
+    stackColumn(page.main, startY);
+  });
+
+  return positions;
+}
+
+/** Sections présentes dans chaque colonne, dans l'ordre, dédupliquées sur
+ *  l'ensemble des pages. Sert de source d'ordre unique pour la pagination. */
+export function getColumnSections(layout: CVLayout): { sidebar: string[]; main: string[] } {
+  const sidebar: string[] = [];
+  const main: string[] = [];
+  for (const page of layout.pages) {
+    for (const s of page.sidebar) if (!sidebar.includes(s)) sidebar.push(s);
+    for (const s of page.main) if (!main.includes(s)) main.push(s);
+  }
+  return { sidebar, main };
+}
+
+/**
+ * Pagination au niveau BLOC à partir des hauteurs RÉELLES mesurées.
+ *
+ * Empile chaque colonne (sidebar / main) en partant du haut de la page 1 ;
+ * dès qu'un bloc dépasserait le bas de la page A4 utilisable, il (et les
+ * suivants) basculent sur une nouvelle page, `y` repart en haut. La page de
+ * chaque bloc est stockée dans `position.page`. Garantit qu'AUCUN bloc ne
+ * dépasse la hauteur d'une page → plus de boucle infinie au rendu PDF.
+ */
+export function computePaginatedFlow(
+  template: string,
+  data: CVData,
+  measureHeightPt: (blockId: string) => number | null
+): { positions: Record<string, { x: number; y: number; w: number; h?: number; page: number }>; pageCount: number } {
+  const base = computeDefaultPositions(template, data);
+  const positions: Record<string, { x: number; y: number; w: number; h?: number; page: number }> = {};
+  for (const [k, v] of Object.entries(base)) positions[k] = { ...v, page: 0 };
+
+  const isChaima = template === "chaima";
+  const layout = data.layout ?? defaultLayout();
+  const { sidebar: sidebarSections, main: mainSections } = getColumnSections(layout);
+
+  const BLOCK_GAP = 6;
+  const SECTION_GAP = 14;
+  const FIRST_START = isChaima ? 100 : 95; // sous le header / la photo
+  const NEXT_START = 24; // haut des pages suivantes
+  const PAGE_BOTTOM = A4_PAGE_HEIGHT_PT - 24; // marge basse
+
+  // En-tête (page 0 uniquement) : empilé par hauteur mesurée.
+  let headerY = positions["name"]?.y ?? (isChaima ? 20 : 12);
+  for (const id of ["name", "role", "techLine"]) {
+    if (!positions[id]) continue;
+    positions[id] = { ...positions[id], y: Math.round(headerY), h: undefined, page: 0 };
+    headerY += (measureHeightPt(id) ?? 16) + 3;
+  }
+  if (positions["photo"]) positions["photo"].page = 0;
+
+  let maxPage = 0;
+
+  const paginate = (sectionIds: string[]) => {
+    const blocks: { id: string; h: number }[] = [];
+    sectionIds.forEach((sectionId) => {
+      getSectionBlockIds(sectionId, data).forEach((id) => {
+        if (positions[id]) blocks.push({ id, h: measureHeightPt(id) ?? 20 });
+      });
+    });
+
+    let page = 0;
+    let y = FIRST_START;
+    const startOf = (p: number) => (p === 0 ? FIRST_START : NEXT_START);
+
+    for (let i = 0; i < blocks.length; i++) {
+      const b = blocks[i];
+      const isTitle = b.id.startsWith("title_");
+      // Anti-orphelin : un titre ne reste pas seul en bas de page.
+      let needed = b.h;
+      if (isTitle && i + 1 < blocks.length) needed += BLOCK_GAP + blocks[i + 1].h;
+
+      if (y + needed > PAGE_BOTTOM && y > startOf(page)) {
+        page++;
+        y = NEXT_START;
+      }
+
+      positions[b.id] = { ...positions[b.id], y: Math.round(y), h: undefined, page };
+      y += b.h + BLOCK_GAP;
+
+      const next = blocks[i + 1];
+      if (next && getParentSectionId(next.id) !== getParentSectionId(b.id)) {
+        y += SECTION_GAP - BLOCK_GAP;
+      }
+    }
+    maxPage = Math.max(maxPage, page);
+  };
+
+  paginate(sidebarSections);
+  paginate(mainSections);
+
+  return { positions, pageCount: maxPage + 1 };
+}
+
+/** IDs de blocs (titre + items) à rendre pour une page donnée, par colonne.
+ *  En mode `autoPaginated`, filtre par `position.page` ; sinon, conserve le
+ *  modèle historique section→page de `layout.pages`. Source unique pour le
+ *  canvas ET le rendu PDF. */
+export function getPageBlockIds(
+  layout: CVLayout,
+  data: CVData,
+  pageIndex: number
+): { sidebar: string[]; main: string[] } {
+  const positions = layout.absolutePositions ?? {};
+  if (layout.autoPaginated) {
+    const pageOf = (b: string) => positions[b]?.page ?? 0;
+    const { sidebar, main } = getColumnSections(layout);
+    return {
+      sidebar: sidebar.flatMap((s) => getSectionBlockIds(s, data)).filter((b) => pageOf(b) === pageIndex),
+      main: main.flatMap((s) => getSectionBlockIds(s, data)).filter((b) => pageOf(b) === pageIndex),
+    };
+  }
+  // Mode pages : page d'accueil = page de la section, surchargée par bloc via
+  // position.page (déplacement individuel d'un élément vers une autre page).
+  const pages = dedupePages(layout.pages);
+  const pageOf = (b: string, home: number) => {
+    const ov = positions[b]?.page;
+    return ov !== undefined && ov >= 0 && ov < pages.length ? ov : home;
+  };
+  const sidebar: string[] = [];
+  const main: string[] = [];
+  pages.forEach((pg, pi) => {
+    for (const s of pg.sidebar) {
+      for (const b of getSectionBlockIds(s, data)) {
+        if (pageOf(b, pi) === pageIndex) sidebar.push(b);
+      }
+    }
+    for (const s of pg.main) {
+      for (const b of getSectionBlockIds(s, data)) {
+        if (pageOf(b, pi) === pageIndex) main.push(b);
+      }
+    }
+  });
+  return { sidebar, main };
 }
 
 /** Positions absolues par défaut (points) pour le Mode Canva */

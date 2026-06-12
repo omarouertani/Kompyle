@@ -1,23 +1,25 @@
 "use client";
 
 import React, { useState, useRef, useEffect, useMemo, useCallback } from "react";
-import type { CVData, SectionId } from "@/types/cv";
+import type { CVData, SectionId, CVLayout } from "@/types/cv";
 import {
   defaultLayout,
   emptyLayoutPage,
   ALL_SECTION_IDS,
   getDefaultPositions,
   getDefaultPhotoPosition,
-  estimateAbsolutePageHeightPt,
   getSectionBlockIds,
   getParentSectionId,
   addCustomSection,
   dedupePages,
   hasDuplicateSections,
+  computePaginatedFlow,
+  getColumnSections,
+  getPageBlockIds,
 } from "@/lib/cv-layout";
 import { cn } from "@/lib/utils";
 import { Maximize2, MoveUpRight, MoveRight, Copy, EyeOff, RotateCcw, SquarePlus } from "lucide-react";
-import { CVPageScaleWrapper, PT_TO_PX, A4_WIDTH_PX, ptsToPx, SELECTION_COLOR } from "./cv-canvas-primitives";
+import { CVPageScaleWrapper, PT_TO_PX, A4_WIDTH_PX, A4_HEIGHT_PX, ptsToPx, SELECTION_COLOR } from "./cv-canvas-primitives";
 import { AbsoluteBlock } from "./canvas/AbsoluteBlock";
 import { BlockContent, type BlockTheme } from "./canvas/BlockContent";
 import { CanvasToolbar, ZOOM_MIN, ZOOM_MAX } from "./canvas/CanvasToolbar";
@@ -32,6 +34,7 @@ interface CVInteractiveCanvasProps {
   onChange: (newData: CVData) => void;
   template: string;
   originalData?: CVData | null;
+  onOverflowChange?: (isOverflowing: boolean) => void;
 }
 
 /** Un bloc appartient-il à une section masquable (built-in ou custom) ? */
@@ -40,7 +43,7 @@ function isSectionBlock(blockId: string): boolean {
   return ALL_SECTION_IDS.includes(parent as SectionId) || parent.startsWith("custom_");
 }
 
-export default function CVInteractiveCanvas({ data, onChange, template }: CVInteractiveCanvasProps) {
+export default function CVInteractiveCanvas({ data, onChange, template, onOverflowChange }: CVInteractiveCanvasProps) {
   const layout = data.layout ?? defaultLayout();
   const theme = layout.theme ?? {};
   const isChaima = template === "chaima";
@@ -65,10 +68,19 @@ export default function CVInteractiveCanvas({ data, onChange, template }: CVInte
     [layout.pages]
   );
 
+  // Structural key: only recalculate positions when the NUMBER of items changes
+  // (not on every text edit). Text edits change data identity but don't affect
+  // block positions — only adding/removing experiences/skills/etc. does.
+  const structuralKey = useMemo(
+    () =>
+      `${data.experiences?.length ?? 0}_${data.projects?.length ?? 0}_${data.skills?.length ?? 0}_${data.education?.length ?? 0}_${data.spokenLanguages?.length ?? 0}_${data.customSections?.length ?? 0}_${data.personalInfo?.photo ? 1 : 0}_${data.personalInfo?.portfolio ? 1 : 0}_${data.personalInfo?.birthDate ? 1 : 0}_${data.personalInfo?.certifications?.length ?? 0}_${data.personalInfo?.interests?.length ?? 0}`,
+    [data.experiences?.length, data.projects?.length, data.skills?.length, data.education?.length, data.spokenLanguages?.length, data.customSections?.length, data.personalInfo?.photo, data.personalInfo?.portfolio, data.personalInfo?.birthDate, data.personalInfo?.certifications?.length, data.personalInfo?.interests?.length]
+  );
+
   const defaultPositions = useMemo(
     () => getDefaultPositions(template, data),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [template, data, layout.sidebarWidth, pagesKey]
+    [template, structuralKey, layout.sidebarWidth, pagesKey]
   );
 
   // Résout un drop drag-and-drop inter-pages (assigné plus bas, une fois
@@ -99,19 +111,10 @@ export default function CVInteractiveCanvas({ data, onChange, template }: CVInte
   const activePageIndex = Math.min(rawPageIndex, layout.pages.length - 1);
   const [menu, setMenu] = useState<{ x: number; y: number; blockId: string | null } | null>(null);
 
-  // Migration : les anciens CV (mode colonnes) basculent en positions absolues
-  useEffect(() => {
-    if (!layout.useAbsolutePositioning) {
-      onChange({
-        ...data,
-        layout: {
-          ...layout,
-          useAbsolutePositioning: true,
-          absolutePositions: layout.absolutePositions ?? defaultPositions,
-        },
-      });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  // Mesure la hauteur réelle d'un bloc rendu (offsetHeight est pré-scale).
+  const measureHeightPt = useCallback((blockId: string): number | null => {
+    const el = document.querySelector(`[data-block-id="${blockId}"]`) as HTMLElement | null;
+    return el ? el.offsetHeight / PT_TO_PX : null;
   }, []);
 
   // Auto-réparation : un layout corrompu (section référencée 2× après un
@@ -122,6 +125,72 @@ export default function CVInteractiveCanvas({ data, onChange, template }: CVInte
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pagesKey]);
+
+  // Construit un layout paginé : positions reflowées + blocs répartis sur
+  // autant de pages que nécessaire (aucun bloc ne dépasse la hauteur A4).
+  const buildPaginatedLayout = useCallback(
+    (d: CVData, l: CVLayout, tpl: string): CVLayout | null => {
+      const { positions, pageCount } = computePaginatedFlow(tpl, d, measureHeightPt);
+      if (Object.keys(positions).length === 0) return null;
+      const cols = getColumnSections(l);
+      const pages = Array.from({ length: pageCount }, (_, p) => ({
+        sidebar: cols.sidebar.filter((s) =>
+          getSectionBlockIds(s, d).some((b) => (positions[b]?.page ?? 0) === p)
+        ),
+        main: cols.main.filter((s) =>
+          getSectionBlockIds(s, d).some((b) => (positions[b]?.page ?? 0) === p)
+        ),
+      }));
+      return { ...l, useAbsolutePositioning: true, autoPaginated: true, absolutePositions: positions, pages };
+    },
+    [measureHeightPt]
+  );
+
+  // Snapshots pour l'effet d'auto-reflow : on lit les dernières valeurs via des
+  // refs au lieu de les mettre en dépendances — sinon l'effet se redéclenche à
+  // CHAQUE render (data/layout changent d'identité), provoquant une boucle qui
+  // fige l'app.
+  const reflowRefs = useRef({ data, layout, template, onChange });
+  reflowRefs.current = { data, layout, template, onChange };
+
+  // Y a-t-il des positions sauvegardées ? (dépendance PRIMITIVE de l'effet)
+  const hasSavedPositions = !!(layout.absolutePositions && Object.keys(layout.absolutePositions).length > 0);
+
+  // DIAGNOSTIC : casse une éventuelle boucle de reflow et la signale.
+  const reflowCount = useRef(0);
+
+  // Auto-reflow mesuré : un CV SANS positions sauvegardées (nouveau, ou
+  // fraîchement adapté/raffiné — l'API strippe alors absolutePositions) est
+  // mis en page à partir des hauteurs RÉELLES des blocs, après chargement des
+  // polices. Élimine les chevauchements dus aux estimations heuristiques quand
+  // le contenu change de longueur. L'effet ne se déclenche QUE lorsque
+  // `hasSavedPositions` passe à false → exécution unique, jamais en boucle.
+  useEffect(() => {
+    if (hasSavedPositions) { reflowCount.current = 0; return; }
+    if (reflowCount.current > 10) { console.error("[Kompyle] REFLOW LOOP DETECTED — positions re-stripped after write"); return; }
+    reflowCount.current++;
+
+    let cancelled = false;
+    const apply = () => {
+      requestAnimationFrame(() => {
+        if (cancelled) return;
+        const { data: d, layout: l, template: tpl, onChange: oc } = reflowRefs.current;
+        const nextLayout = buildPaginatedLayout(d, l, tpl);
+        // Garde anti-boucle : ne jamais écrire un layout vide (sinon
+        // hasSavedPositions resterait false et l'effet se relancerait).
+        if (!nextLayout) return;
+        oc({ ...d, layout: nextLayout });
+      });
+    };
+
+    // Attendre les polices : leurs métriques changent la hauteur du texte.
+    if (typeof document !== "undefined" && document.fonts && document.fonts.status !== "loaded") {
+      document.fonts.ready.then(() => { if (!cancelled) apply(); });
+    } else {
+      apply();
+    }
+    return () => { cancelled = true; };
+  }, [hasSavedPositions, measureHeightPt, buildPaginatedLayout]);
 
   useEffect(() => {
     document.getElementById(`cv-page-${activePageIndex}`)?.scrollIntoView({ behavior: "smooth", block: "nearest" });
@@ -207,97 +276,13 @@ export default function CVInteractiveCanvas({ data, onChange, template }: CVInte
     setActivePageIndex(Math.min(activePageIndex, nextPages.length - 1));
   };
 
-  /** Réorganisation automatique : empile chaque colonne en mesurant la hauteur
-   *  RÉELLE rendue de chaque bloc, en respectant la limite A4 — un bloc qui
-   *  dépasserait le bas de page bascule sur la page suivante (créée au besoin).
-   *  Garantit : pas de chevauchement, rien sous la ligne limite, PDF complet. */
+  // « Tout réaligner » : reflow à partir des hauteurs RÉELLES mesurées dans le
+  // DOM (et non des estimations), garantissant un empilement sans chevauchement.
   const realign = useCallback(() => {
-    const isCh = template === "chaima";
-    const sidebarW = layout.sidebarWidth ?? (isCh ? 175 : 165);
-    const dpages = dedupePages(layout.pages);
-
-    const positions: Record<string, BlockPos> = {};
-    const blockPages: Record<string, number> = {};
-    // Le header garde ses positions par défaut (nom / rôle / photo…)
-    const defs = getDefaultPositions(template, data);
-    for (const id of ["photo", "name", "role", "techLine"]) {
-      if (defs[id]) positions[id] = defs[id];
-    }
-
-    // Mesure la hauteur rendue (px non scalés → pt) à la largeur cible.
-    const measure = (id: string, w: number): number => {
-      const el = document.querySelector(`[data-block-id="${id}"]`) as HTMLElement | null;
-      if (!el) return 22;
-      const prev = el.style.width;
-      el.style.width = `${w * PT_TO_PX}px`;
-      const h = el.offsetHeight / PT_TO_PX; // lecture = reflow forcé
-      el.style.width = prev;
-      return Math.max(12, h);
-    };
-
-    const SECTION_GAP = 12;   // entre deux sections
-    const TITLE_GAP = 4;      // après un titre de section
-    const ITEM_GAP = 7;       // entre deux éléments d'une section
-    const PAGE_BOTTOM = 812;  // A4 = 842pt, marge basse de 30pt
-    const topYOf = (pi: number) => (pi === 0 ? (isCh ? 100 : 95) : 30);
-
-    let pagesNeeded = dpages.length;
-
-    /** Écoule une colonne sur les pages : sections dans l'ordre des pages, blocs
-     *  empilés ; au-delà de la limite A4 → page suivante (jamais avant sa page
-     *  d'origine). Un titre n'est jamais orphelin en bas de page. */
-    const flow = (col: "sidebar" | "main", x: number, w: number) => {
-      const entries: { sid: string; home: number }[] = [];
-      dpages.forEach((p, pi) => p[col].forEach((sid) => entries.push({ sid, home: pi })));
-
-      let pi = 0;
-      let y = topYOf(0);
-      const nextPage = () => {
-        pi++;
-        y = topYOf(pi);
-        pagesNeeded = Math.max(pagesNeeded, pi + 1);
-      };
-
-      for (const { sid, home } of entries) {
-        const ids = getSectionBlockIds(sid, data);
-        if (ids.length === 0) continue;
-        // Une section ne remonte jamais avant la page où elle est rangée
-        if (pi < home) {
-          pi = home;
-          y = topYOf(pi);
-          pagesNeeded = Math.max(pagesNeeded, pi + 1);
-        } else if (y > topYOf(pi)) {
-          y += SECTION_GAP;
-        }
-
-        const heights = ids.map((bid) => measure(bid, w));
-        ids.forEach((bid, idx) => {
-          const h = heights[idx];
-          // Le titre (idx 0) doit tenir avec au moins le début du 1er item
-          const needed = idx === 0 ? h + TITLE_GAP + Math.min(heights[1] ?? 0, 36) : h;
-          if (y + needed > PAGE_BOTTOM && y > topYOf(pi)) nextPage();
-          positions[bid] = { x, y, w };
-          if (pi !== home) blockPages[bid] = pi;
-          y += h + (idx === 0 ? TITLE_GAP : ITEM_GAP);
-        });
-      }
-    };
-
-    const sideX = isCh ? 12 : 24;
-    const sideW = isCh ? sidebarW - 24 : sidebarW;
-    const mainX = isCh ? sidebarW + 20 : sidebarW + 30;
-    const mainW = isCh ? 595 - sidebarW - 35 : 595 - sidebarW - 54;
-    flow("sidebar", sideX, sideW);
-    flow("main", mainX, mainW);
-
-    const nextPages = [...dpages];
-    while (nextPages.length < pagesNeeded) nextPages.push(emptyLayoutPage());
-
-    onChange({
-      ...data,
-      layout: { ...layout, pages: nextPages, absolutePositions: positions, blockPages, useAbsolutePositioning: true },
-    });
-  }, [data, layout, template, onChange]);
+    const nextLayout = buildPaginatedLayout(data, layout, template);
+    if (!nextLayout) return;
+    onChange({ ...data, layout: nextLayout });
+  }, [data, layout, template, onChange, buildPaginatedLayout]);
 
   /** Déplace la section parente d'un bloc vers une autre page (même colonne) et
    *  recalcule les positions de ses blocs pour qu'ils se placent proprement sur
@@ -319,20 +304,19 @@ export default function CVInteractiveCanvas({ data, onChange, template }: CVInte
 
       const nextData: CVData = { ...data, layout: { ...layout, pages: nextPages } };
       // Recalcule les positions par défaut pour la nouvelle disposition, puis
-      // réinitialise uniquement les blocs de la section déplacée.
+      // réinitialise uniquement les blocs de la section déplacée (avec leur
+      // nouvelle page — le routage par bloc lit position.page).
       const recomputed = getDefaultPositions(template, nextData);
       const moved = getSectionBlockIds(sectionId, nextData);
       const nextPositions = { ...(layout.absolutePositions ?? {}) };
-      // La section entière suit la page → on efface les surcharges par bloc.
-      const nextBlockPages = { ...(layout.blockPages ?? {}) };
       for (const bId of moved) {
-        if (recomputed[bId]) nextPositions[bId] = recomputed[bId];
-        delete nextBlockPages[bId];
+        const base = recomputed[bId] ?? nextPositions[bId];
+        if (base) nextPositions[bId] = { ...base, page: targetPage };
       }
 
       onChange({
         ...nextData,
-        layout: { ...nextData.layout!, absolutePositions: nextPositions, blockPages: nextBlockPages },
+        layout: { ...nextData.layout!, absolutePositions: nextPositions },
       });
       setActivePageIndex(targetPage);
     },
@@ -348,16 +332,16 @@ export default function CVInteractiveCanvas({ data, onChange, template }: CVInte
     [layout.pages]
   );
 
-  /** Page d'origine "logique" d'un bloc : sa surcharge par bloc, sinon la page
-   *  de sa section (header → page 0). */
+  /** Page d'origine "logique" d'un bloc : sa surcharge position.page, sinon la
+   *  page de sa section (header → page 0). */
   const homePageOf = useCallback(
     (id: string): number => {
-      const ov = layout.blockPages?.[id];
+      const ov = layout.absolutePositions?.[id]?.page;
       if (ov !== undefined && ov >= 0 && ov < layout.pages.length) return ov;
       const sp = pageOfSection(id);
       return sp === -1 ? 0 : sp;
     },
-    [layout.blockPages, layout.pages.length, pageOfSection]
+    [layout.absolutePositions, layout.pages.length, pageOfSection]
   );
 
   // Drag-and-drop inter-pages, à la Canva : seul(s) le(s) bloc(s) déplacé(s)
@@ -381,7 +365,6 @@ export default function CVInteractiveCanvas({ data, onChange, template }: CVInte
 
       const group = selectedIds.includes(blockId) ? selectedIds : [blockId];
       const positions = { ...(layout.absolutePositions ?? defaultPositions) };
-      const nextBlockPages = { ...(layout.blockPages ?? {}) };
       let changed = false;
 
       const HEADER = new Set(["photo", "name", "role", "techLine"]);
@@ -394,16 +377,17 @@ export default function CVInteractiveCanvas({ data, onChange, template }: CVInte
         const ptX = Math.max(0, Math.round((r.left + screenDx - contentRect.left) / scale / PT_TO_PX));
         const ptY = Math.max(0, Math.round((r.top + screenDy - contentRect.top) / scale / PT_TO_PX));
         const cur = positions[id] ?? defaultPositions[id] ?? { x: ptX, y: ptY, w: 150 };
-        positions[id] = { ...cur, x: ptX, y: ptY };
-        // Si le bloc retombe sur la page de sa section, on retire la surcharge.
+        // Si le bloc retombe sur la page de sa section (mode pages), la
+        // surcharge devient inutile ; en mode autoPaginated, page fait foi.
         const sp = pageOfSection(id);
-        if ((sp === -1 ? 0 : sp) === targetPage) delete nextBlockPages[id];
-        else nextBlockPages[id] = targetPage;
+        const home = sp === -1 ? 0 : sp;
+        const pageOverride = !layout.autoPaginated && home === targetPage ? undefined : targetPage;
+        positions[id] = { ...cur, x: ptX, y: ptY, page: pageOverride };
         changed = true;
       }
       if (!changed) return false;
 
-      onChange({ ...data, layout: { ...layout, absolutePositions: positions, blockPages: nextBlockPages } });
+      onChange({ ...data, layout: { ...layout, absolutePositions: positions } });
       setActivePageIndex(targetPage);
       return true;
     },
@@ -415,10 +399,65 @@ export default function CVInteractiveCanvas({ data, onChange, template }: CVInte
   }, [resolveDrop]);
 
   const savedPositions = layout.absolutePositions ?? {};
-  const absolutePositions: Record<string, BlockPos> = {
-    ...defaultPositions,
-    ...savedPositions,
-  };
+  const absolutePositions: Record<string, BlockPos> = useMemo(
+    () => ({ ...defaultPositions, ...savedPositions }),
+    [defaultPositions, savedPositions]
+  );
+
+  // Bas de contenu RÉEL (mesuré) de la page la plus chargée. En mode paginé,
+  // chaque page réinitialise `y` en haut → `pos.y + hauteur` est le bas dans la
+  // page ; le max sur tous les blocs = la page la plus haute. Contrairement à
+  // `estimateAbsolutePageHeightPt` (qui plancher à 842 + marge, donc toujours
+  // « plein »), ceci détecte un VRAI débordement de la zone A4.
+  const maxContentBottomPt = useMemo(() => {
+    let worst = 0;
+    for (const [id, pos] of Object.entries(absolutePositions)) {
+      const h = measureHeightPt(id) ?? pos.h ?? 24;
+      worst = Math.max(worst, pos.y + h);
+    }
+    return worst;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [absolutePositions, data, measureHeightPt]);
+
+  const isOverflowing = maxContentBottomPt * PT_TO_PX > A4_HEIGHT_PX;
+
+  // Hauteur de page affichée : une A4 fixe en mode paginé (chaque page tient sur
+  // une A4) ; sinon on laisse la page grandir pour montrer tout le contenu.
+  const pageHeightPx = layout.autoPaginated
+    ? A4_HEIGHT_PX
+    : Math.max(A4_HEIGHT_PX, maxContentBottomPt * PT_TO_PX + 40);
+  useEffect(() => {
+    onOverflowChange?.(isOverflowing);
+  }, [isOverflowing, onOverflowChange]);
+
+  // Auto-pagination : dès que le contenu dépasse la hauteur d'une page A4,
+  // on répartit les blocs sur une nouvelle page (mesure réelle). La garde
+  // borne le nombre de tentatives — si un SEUL bloc dépasse la page (ex. une
+  // expérience géante non sécable), on s'arrête au lieu de boucler.
+  const paginateGuard = useRef(0);
+  useEffect(() => {
+    if (!isOverflowing) { paginateGuard.current = 0; return; }
+    if (paginateGuard.current > 5) {
+      console.warn("[Kompyle] Auto-pagination plafonnée — un bloc dépasse seul la page");
+      return;
+    }
+    paginateGuard.current++;
+
+    let cancelled = false;
+    const run = () => requestAnimationFrame(() => {
+      if (cancelled) return;
+      const { data: d, layout: l, template: tpl, onChange: oc } = reflowRefs.current;
+      const nextLayout = buildPaginatedLayout(d, l, tpl);
+      if (nextLayout) oc({ ...d, layout: nextLayout });
+    });
+
+    if (typeof document !== "undefined" && document.fonts && document.fonts.status !== "loaded") {
+      document.fonts.ready.then(() => { if (!cancelled) run(); });
+    } else {
+      run();
+    }
+    return () => { cancelled = true; };
+  }, [isOverflowing, buildPaginatedLayout]);
 
   const resolvePos = (id: string): BlockPos => {
     // La photo garde sa taille de cercle, pas la largeur mesurée du conteneur
@@ -534,24 +573,6 @@ export default function CVInteractiveCanvas({ data, onChange, template }: CVInte
     "techLine",
   ];
 
-  // Assemblage global : page d'accueil de chaque bloc (page de sa section ;
-  // header → page 0), puis page effective = surcharge par bloc si présente.
-  const renderPages = dedupePages(layout.pages);
-  const blockHome = new Map<string, number>();
-  for (const id of headerBlockIds) blockHome.set(id, 0);
-  renderPages.forEach((pg, pi) => {
-    for (const sid of [...pg.sidebar, ...pg.main]) {
-      for (const bid of getSectionBlockIds(sid, data)) blockHome.set(bid, pi);
-    }
-  });
-  const effectivePageOf = (id: string): number => {
-    const ov = layout.blockPages?.[id];
-    const home = blockHome.get(id) ?? 0;
-    return ov !== undefined && ov >= 0 && ov < renderPages.length ? ov : home;
-  };
-  const blockIdsForPage = (pageIndex: number) =>
-    [...blockHome.keys()].filter((id) => effectivePageOf(id) === pageIndex);
-
   // Fond du canvas : clic gauche → lasso de sélection (clic simple = désélection)
   const handleBackgroundMouseDown = (e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
@@ -583,10 +604,14 @@ export default function CVInteractiveCanvas({ data, onChange, template }: CVInte
         className="flex-1 overflow-auto p-4 flex flex-col gap-6 min-h-0 w-full scrollbar-thin"
         onContextMenu={openCanvasMenu}
       >
-        {renderPages.map((page, pageIndex) => {
-          const hasSidebar = page.sidebar.length > 0;
-          const pageHeightPx = estimateAbsolutePageHeightPt(absolutePositions, data) * PT_TO_PX;
-          const pageBlockIds = blockIdsForPage(pageIndex);
+        {layout.pages.map((page, pageIndex) => {
+          const { sidebar: sidebarBlocks, main: mainBlocks } = getPageBlockIds(layout, data, pageIndex);
+          const hasSidebar = sidebarBlocks.length > 0;
+          const pageBlockIds = [
+            ...(pageIndex === 0 ? headerBlockIds : []),
+            ...sidebarBlocks,
+            ...mainBlocks,
+          ];
 
           return (
             <CVPageScaleWrapper
