@@ -7,6 +7,10 @@ export const PT_TO_PX = 1.33;
 export const A4_WIDTH_PX = 794;
 export const A4_HEIGHT_PX = 1123;
 
+/** Couleur de sélection du canvas (indigo) — indépendante du thème du CV,
+ *  pour rester lisible quelle que soit la couleur d'accent choisie. */
+export const SELECTION_COLOR = "#6366f1";
+
 export function ptsToPx(pts: number): string {
   return `${pts * PT_TO_PX}px`;
 }

@@ -2,13 +2,8 @@
 
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import type { CVData, CoverLetterData } from "@/types/cv";
-import { defaultLayout } from "@/lib/cv-layout";
+import { defaultLayout, emptyCV } from "@/lib/cv-layout";
 import { v4 as uuidv4 } from "uuid";
-
-import cvDataEnRaw from "@/data/cv_data_en.json";
-import cvDataFrRaw from "@/data/cv_data_fr.json";
-import cvDataChaimaEnRaw from "@/data/cv_data_chaima_en.json";
-import cvDataChaimaFrRaw from "@/data/cv_data_chaima_fr.json";
 
 const injectIds = (data: CVData): CVData => ({
   ...data,
@@ -18,11 +13,6 @@ const injectIds = (data: CVData): CVData => ({
   education: data.education.map((ed) => ({ ...ed, id: ed.id || uuidv4() })),
   layout: data.layout ?? defaultLayout(),
 });
-
-const fallbackDataEn = injectIds(cvDataEnRaw as unknown as CVData);
-const fallbackDataFr = injectIds(cvDataFrRaw as unknown as CVData);
-const fallbackDataChaimaEn = injectIds(cvDataChaimaEnRaw as unknown as CVData);
-const fallbackDataChaimaFr = injectIds(cvDataChaimaFrRaw as unknown as CVData);
 
 export interface CVProfile {
   id: string;
@@ -38,11 +28,10 @@ export interface CVProfile {
 export type Status = "idle" | "loading" | "success" | "error";
 export type SaveStatus = "idle" | "saving" | "saved" | "error";
 
-function getFallbackCV(profile: string, lang: string): CVData {
-  if (profile === "chaima") {
-    return lang === "fr" ? fallbackDataChaimaFr : fallbackDataChaimaEn;
-  }
-  return lang === "fr" ? fallbackDataFr : fallbackDataEn;
+/** Plus de données codées en dur : les profils vivent en base. Si la BD est
+ *  indisponible, on démarre sur un CV vierge (éditable / à reconstruire). */
+function getFallbackCV(profile: string): CVData {
+  return injectIds(emptyCV(profile === "chaima" ? "chaima" : "default"));
 }
 
 export function useProfileManager(locale: string, t: (key: string, values?: Record<string, string>) => string) {
@@ -55,7 +44,7 @@ export function useProfileManager(locale: string, t: (key: string, values?: Reco
   /** Ligne DB actuellement éditée (profil principal OU adaptation). */
   const [currentProfileId, setCurrentProfileId] = useState<string | null>(null);
 
-  const [currentCV, setCurrentCV] = useState<CVData>(() => getFallbackCV("omar", locale));
+  const [currentCV, setCurrentCV] = useState<CVData>(() => getFallbackCV("omar"));
   const [originalCV, setOriginalCV] = useState<CVData | null>(null);
   const [isAdapted, setIsAdapted] = useState(false);
   const [coverLetterData, setCoverLetterData] = useState<CoverLetterData | null>(null);
@@ -110,7 +99,7 @@ export function useProfileManager(locale: string, t: (key: string, values?: Reco
   const loadFallback = useCallback((profile: string) => {
     if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
     isInitialLoad.current = true;
-    const fallback = getFallbackCV(profile, locale);
+    const fallback = getFallbackCV(profile);
     setCurrentCV(fallback);
     setSelectedTemplate(profile === "omar" ? "default" : "chaima");
     setMainProfileId(null);
@@ -118,7 +107,7 @@ export function useProfileManager(locale: string, t: (key: string, values?: Reco
     lastSavedRef.current = JSON.stringify(fallback);
     setHasUnsavedChanges(false);
     setSaveStatus("idle");
-  }, [locale]);
+  }, []);
 
   const resetStatus = useCallback(() => {
     setOriginalCV(null);
@@ -142,11 +131,6 @@ export function useProfileManager(locale: string, t: (key: string, values?: Reco
       resetStatus();
     },
     [fetchProfiles, loadRow, loadFallback, resetStatus]
-  );
-
-  const getInitialCV = useCallback(
-    (profile: string, lang: string) => getFallbackCV(profile, lang),
-    []
   );
 
   // Chargement initial (+ CV adapté en attente après bascule de langue)
@@ -429,7 +413,6 @@ export function useProfileManager(locale: string, t: (key: string, values?: Reco
     setStatusDetails,
     loadingType,
     setLoadingType,
-    getInitialCV,
     handleProfileChange,
     handleReset,
     profiles,

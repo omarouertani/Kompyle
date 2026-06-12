@@ -38,7 +38,6 @@ interface UseAISubmissionDeps {
   coverLetterData: CoverLetterData | null;
   locale: string;
   selectedProfile: string;
-  getInitialCV: (profile: string, lang: string) => CVData;
   getProviderName: (p: AIProvider) => string;
   /** Enregistre l'adaptation comme copie liée au profil (l'original reste intact). */
   applyAdaptation: (cv: CVData) => Promise<void>;
@@ -56,7 +55,7 @@ interface UseAISubmissionDeps {
 export function useAISubmission(deps: UseAISubmissionDeps) {
   const {
     jobDescription, provider, model, currentCV, coverLetterData, locale, selectedProfile,
-    getInitialCV, getProviderName,
+    getProviderName,
     applyAdaptation, setCurrentCV, setCoverLetterData,
     setActiveRightTab, setStatus, setStatusMessage, setStatusDetails, setLoadingType, t,
   } = deps;
@@ -77,13 +76,10 @@ export function useAISubmission(deps: UseAISubmissionDeps) {
     const jobLang = detectLanguage(jobDescription);
     const hasLangMismatch = jobLang !== locale;
 
-    let sourceCV = currentCV;
-    let originalSourceCV = currentCV;
-
-    if (hasLangMismatch) {
-      sourceCV = getInitialCV(selectedProfile, jobLang);
-      originalSourceCV = sourceCV;
-    }
+    // Le CV source est toujours celui chargé (depuis la BD) ; plus de variante
+    // codée en dur. En cas d'écart de langue, on bascule l'UI après adaptation.
+    const sourceCV = currentCV;
+    const originalSourceCV = currentCV;
 
     try {
       const res = await fetch("/api/adapt-cv", {
@@ -119,7 +115,7 @@ export function useAISubmission(deps: UseAISubmissionDeps) {
     } finally {
       setLoadingType(null);
     }
-  }, [jobDescription, provider, model, currentCV, locale, selectedProfile, getInitialCV, t, setActiveRightTab, getProviderName, applyAdaptation, setStatus, setStatusMessage, setStatusDetails, setLoadingType]);
+  }, [jobDescription, provider, model, currentCV, locale, selectedProfile, t, setActiveRightTab, getProviderName, applyAdaptation, setStatus, setStatusMessage, setStatusDetails, setLoadingType]);
 
   const handleGenerateLetter = useCallback(async () => {
     if (!jobDescription.trim() || jobDescription.trim().length < 20) {

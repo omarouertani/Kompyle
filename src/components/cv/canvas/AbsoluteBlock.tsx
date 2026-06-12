@@ -2,19 +2,21 @@
 
 import React from "react";
 import { cn } from "@/lib/utils";
-import { ptsToPx } from "../cv-canvas-primitives";
+import { ptsToPx, SELECTION_COLOR } from "../cv-canvas-primitives";
 import type { BlockPos } from "./snap";
 import type { ResizeEdge } from "./use-canvas-interactions";
 
-const HANDLES: Array<{ edge: ResizeEdge; cursor: string; cls: string }> = [
-  { edge: "e", cursor: "ew-resize", cls: "right-0 top-1/2 -translate-y-1/2 w-2 h-6 translate-x-1/2" },
-  { edge: "w", cursor: "ew-resize", cls: "left-0 top-1/2 -translate-y-1/2 w-2 h-6 -translate-x-1/2" },
-  { edge: "n", cursor: "ns-resize", cls: "top-0 left-1/2 -translate-x-1/2 h-2 w-6 -translate-y-1/2" },
-  { edge: "s", cursor: "ns-resize", cls: "bottom-0 left-1/2 -translate-x-1/2 h-2 w-6 translate-y-1/2" },
-  { edge: "nw", cursor: "nwse-resize", cls: "top-0 left-0 w-3 h-3 -translate-x-1/2 -translate-y-1/2" },
-  { edge: "ne", cursor: "nesw-resize", cls: "top-0 right-0 w-3 h-3 translate-x-1/2 -translate-y-1/2" },
-  { edge: "sw", cursor: "nesw-resize", cls: "bottom-0 left-0 w-3 h-3 -translate-x-1/2 translate-y-1/2" },
-  { edge: "se", cursor: "nwse-resize", cls: "bottom-0 right-0 w-3 h-3 translate-x-1/2 translate-y-1/2" },
+/** Poignées de redimensionnement : barres fines sur les arêtes,
+ *  petits carrés sur les coins (style Canva, épaisseur réduite). */
+const HANDLES: Array<{ edge: ResizeEdge; cursor: string; cls: string; corner: boolean }> = [
+  { edge: "e", cursor: "ew-resize", cls: "right-0 top-1/2 -translate-y-1/2 w-1 h-4 translate-x-1/2", corner: false },
+  { edge: "w", cursor: "ew-resize", cls: "left-0 top-1/2 -translate-y-1/2 w-1 h-4 -translate-x-1/2", corner: false },
+  { edge: "n", cursor: "ns-resize", cls: "top-0 left-1/2 -translate-x-1/2 h-1 w-4 -translate-y-1/2", corner: false },
+  { edge: "s", cursor: "ns-resize", cls: "bottom-0 left-1/2 -translate-x-1/2 h-1 w-4 translate-y-1/2", corner: false },
+  { edge: "nw", cursor: "nwse-resize", cls: "top-0 left-0 size-2 -translate-x-1/2 -translate-y-1/2", corner: true },
+  { edge: "ne", cursor: "nesw-resize", cls: "top-0 right-0 size-2 translate-x-1/2 -translate-y-1/2", corner: true },
+  { edge: "sw", cursor: "nesw-resize", cls: "bottom-0 left-0 size-2 -translate-x-1/2 translate-y-1/2", corner: true },
+  { edge: "se", cursor: "nwse-resize", cls: "bottom-0 right-0 size-2 translate-x-1/2 translate-y-1/2", corner: true },
 ];
 
 interface AbsoluteBlockProps {
@@ -30,8 +32,8 @@ interface AbsoluteBlockProps {
 }
 
 /** Bloc positionné en absolu avec sélection type Canva :
- *  ring + 8 poignées de redimensionnement (largeur, hauteur, diagonales)
- *  + tooltip de coordonnées. Double-clic sur une poignée → hauteur auto. */
+ *  contour fin coloré + 8 poignées de redimensionnement (largeur, hauteur,
+ *  diagonales). Double-clic sur une poignée → hauteur auto. */
 export function AbsoluteBlock({
   id,
   pos,
@@ -54,37 +56,42 @@ export function AbsoluteBlock({
         // minHeight (et non height) : le contenu n'est jamais coupé
         minHeight: pos.h ? ptsToPx(pos.h) : undefined,
         zIndex: isSelected ? 30 : 10,
+        // Contour fin et net (1px) — remplace l'ancien ring épais near-black
+        boxShadow: isSelected ? `0 0 0 1px ${SELECTION_COLOR}` : undefined,
       }}
       className={cn(
-        "group/abs rounded transition-shadow duration-100",
+        "group/abs rounded-[3px] transition-shadow duration-100",
         isSelected
-          ? "ring-2 ring-primary shadow-lg"
-          : "border border-transparent hover:border-primary/30 hover:shadow-sm",
+          ? "shadow-md"
+          : "border border-transparent hover:shadow-sm",
         !isInteracting && "cursor-move"
       )}
       onMouseDown={(e) => onDragStart(e, id, pos)}
       onContextMenu={(e) => onContextMenu?.(e, id)}
     >
+      {!isSelected && (
+        <div
+          className="absolute inset-0 rounded-[3px] opacity-0 group-hover/abs:opacity-100 transition-opacity pointer-events-none"
+          style={{ boxShadow: `0 0 0 1px ${SELECTION_COLOR}55` }}
+        />
+      )}
+
       <div className="p-1">{children}</div>
 
-      {isSelected && HANDLES.map(({ edge, cursor, cls }) => (
+      {isSelected && HANDLES.map(({ edge, cursor, cls, corner }) => (
         <div
           key={edge}
-          className={cn("absolute bg-primary rounded-sm z-40", cls)}
-          style={{ cursor }}
+          className={cn("absolute z-40 rounded-[2px]", cls)}
+          style={{
+            cursor,
+            backgroundColor: corner ? "#ffffff" : SELECTION_COLOR,
+            border: corner ? `1px solid ${SELECTION_COLOR}` : undefined,
+          }}
           onMouseDown={(e) => onResizeStart(e, id, pos, edge)}
           onDoubleClick={() => onResetHeight?.(id, pos)}
           title="Glisser pour redimensionner · double-clic : hauteur auto"
         />
       ))}
-
-      {isSelected && (
-        <div className="absolute -top-5 left-0 flex items-center gap-2 bg-zinc-900/90 text-white text-[9px] font-mono px-1.5 py-0.5 rounded z-50 select-none pointer-events-none whitespace-nowrap">
-          X:{Math.round(pos.x)} Y:{Math.round(pos.y)}
-          {pos.w ? ` W:${Math.round(pos.w)}` : ""}
-          {pos.h ? ` H:${Math.round(pos.h)}` : ""}
-        </div>
-      )}
     </div>
   );
 }

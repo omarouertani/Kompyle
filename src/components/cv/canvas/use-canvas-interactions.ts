@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import type { CVData } from "@/types/cv";
-import { PT_TO_PX } from "../cv-canvas-primitives";
+import { PT_TO_PX, SELECTION_COLOR } from "../cv-canvas-primitives";
 import { findSnapGuides, A4_WIDTH_PT, type BlockPos, type SnapGuide } from "./snap";
 
 export type ResizeEdge = "e" | "w" | "n" | "s" | "ne" | "nw" | "se" | "sw";
@@ -11,12 +11,18 @@ interface UseCanvasInteractionsArgs {
   data: CVData;
   defaultPositions: Record<string, BlockPos>;
   onChange: (newData: CVData) => void;
+  /** Résout un drop inter-pages : renvoie true si le(s) bloc(s) ont changé de
+   *  page (la position est alors gérée par l'appelant, pas par commitPositions).
+   *  screenDx/Dy = déplacement écran (px) pour replacer chaque bloc sous son fantôme. */
+  resolveDropRef?: {
+    current: ((blockId: string, clientX: number, clientY: number, screenDx: number, screenDy: number) => boolean) | null;
+  };
 }
 
 /** Sélection (simple ou multiple) + drag / resize / snap des blocs absolus.
  *  Pendant un geste, seules les propriétés CSS des blocs sont mises à jour
  *  (RAF) ; le state React n'est commité qu'au mouseup — d'où la fluidité. */
-export function useCanvasInteractions({ data, defaultPositions, onChange }: UseCanvasInteractionsArgs) {
+export function useCanvasInteractions({ data, defaultPositions, onChange, resolveDropRef }: UseCanvasInteractionsArgs) {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [snapGuides, setSnapGuides] = useState<SnapGuide[]>([]);
   const [isDragging, setIsDragging] = useState(false);
@@ -95,10 +101,36 @@ export function useCanvasInteractions({ data, defaultPositions, onChange }: UseC
         })
         .filter((b): b is { blockId: string; el: HTMLElement; pos: BlockPos } => b !== null);
 
+      // Fantômes type Canva : clones flottants (position fixed, hors de tout
+      // conteneur `overflow:hidden`) qui suivent le curseur d'une page à l'autre.
+      // L'élément réel reste en place, estompé, comme repère d'origine.
+      const ghosts: HTMLElement[] = [];
       for (const b of blocks) {
-        b.el.style.willChange = "left, top";
-        b.el.style.zIndex = "50";
-        b.el.style.opacity = "0.92";
+        const rect = b.el.getBoundingClientRect();
+        const ghost = b.el.cloneNode(true) as HTMLElement;
+        // Garde uniquement le contenu (1er enfant) ; retire les poignées de resize.
+        Array.from(ghost.children).forEach((child, i) => {
+          if (i > 0) child.remove();
+        });
+        Object.assign(ghost.style, {
+          position: "fixed",
+          left: `${rect.left}px`,
+          top: `${rect.top}px`,
+          width: `${rect.width}px`,
+          height: `${rect.height}px`,
+          margin: "0",
+          pointerEvents: "none",
+          zIndex: "9999",
+          opacity: "0.97",
+          transform: "translate(0px, 0px)",
+          background: "#ffffff",
+          borderRadius: "3px",
+          boxShadow: `0 0 0 1px ${SELECTION_COLOR}, 0 10px 28px rgba(0,0,0,0.22)`,
+          willChange: "transform",
+        } as Partial<CSSStyleDeclaration>);
+        document.body.appendChild(ghost);
+        ghosts.push(ghost);
+        b.el.style.opacity = "0.25";
       }
 
       // Candidats au snap : tous les blocs HORS sélection
@@ -132,16 +164,18 @@ export function useCanvasInteractions({ data, defaultPositions, onChange }: UseC
           pendingDx = clampedX - currentPos.x;
           pendingDy = clampedY - currentPos.y;
 
-          for (const b of blocks) {
-            b.el.style.left = `${(b.pos.x + pendingDx) * PT_TO_PX}px`;
-            b.el.style.top = `${Math.max(0, b.pos.y + pendingDy) * PT_TO_PX}px`;
-          }
+          // Les fantômes suivent le curseur en pixels écran (1:1) → visibles
+          // même au-dessus d'une autre page, comme dans Canva.
+          const screenDx = moveEvent.clientX - startMouseX;
+          const screenDy = moveEvent.clientY - startMouseY;
+          for (const g of ghosts) g.style.transform = `translate(${screenDx}px, ${screenDy}px)`;
           setSnapGuides(guides);
         });
       };
 
-      const handleMouseUp = () => {
+      const handleMouseUp = (upEvent: MouseEvent) => {
         if (rafId) cancelAnimationFrame(rafId);
+        for (const g of ghosts) g.remove();
         for (const b of blocks) {
           b.el.style.willChange = "";
           b.el.style.zIndex = "";
@@ -151,6 +185,10 @@ export function useCanvasInteractions({ data, defaultPositions, onChange }: UseC
         setSnapGuides([]);
         window.removeEventListener("mousemove", handleMouseMove);
         window.removeEventListener("mouseup", handleMouseUp);
+
+        // Drop sur une autre page → l'appelant déplace le(s) bloc(s) sélectionné(s)
+        // et fixe leurs positions ; on n'écrit pas les coordonnées du drag.
+        if (resolveDropRef?.current?.(id, upEvent.clientX, upEvent.clientY, upEvent.clientX - startMouseX, upEvent.clientY - startMouseY)) return;
 
         const updates: Record<string, BlockPos> = {};
         for (const b of blocks) {
@@ -166,7 +204,7 @@ export function useCanvasInteractions({ data, defaultPositions, onChange }: UseC
       window.addEventListener("mousemove", handleMouseMove);
       window.addEventListener("mouseup", handleMouseUp);
     },
-    [commitPositions, mouseDeltaToPts, resolveSavedPos, toggleSelect]
+    [commitPositions, mouseDeltaToPts, resolveSavedPos, toggleSelect, resolveDropRef]
   );
 
   const startResize = useCallback(

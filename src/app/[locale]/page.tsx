@@ -104,7 +104,6 @@ export default function AdaptPage() {
     coverLetterData: profile.coverLetterData,
     locale,
     selectedProfile: profile.selectedProfile,
-    getInitialCV: profile.getInitialCV,
     getProviderName: aiConfig.getProviderName,
     applyAdaptation: profile.applyAdaptation,
     setCurrentCV: profile.setCurrentCV,

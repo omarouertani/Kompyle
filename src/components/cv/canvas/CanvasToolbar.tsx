@@ -32,7 +32,7 @@ export function CanvasToolbar({
     <div data-canvas-toolbar className="p-3 border-b border-border/45 bg-background/95 backdrop-blur-md z-20 shrink-0 w-full flex items-center justify-between gap-3 shadow-sm">
       <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
         <Sparkles size={13} className="text-primary shrink-0" />
-        <span className="hidden sm:inline"><b>Canvas :</b> Cliquez pour sélectionner, glissez pour déplacer. Flèches pour ajuster.</span>
+        <span className="hidden sm:inline"><b>Canvas :</b> Glissez pour déplacer · flèches pour ajuster · <b>Ctrl+D</b> dupliquer · clic droit pour plus.</span>
       </div>
 
       <div className="flex items-center gap-2 shrink-0">

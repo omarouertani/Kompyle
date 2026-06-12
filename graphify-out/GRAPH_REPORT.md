@@ -1,16 +1,16 @@
-# Graph Report - Kompyle  (2026-06-11)
+# Graph Report - Kompyle  (2026-06-12)
 
 ## Corpus Check
-- 74 files · ~47,108 words
+- 80 files · ~56,656 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 600 nodes · 1083 edges · 39 communities (19 shown, 20 thin omitted)
-- Extraction: 93% EXTRACTED · 7% INFERRED · 0% AMBIGUOUS · INFERRED: 75 edges (avg confidence: 0.84)
+- 636 nodes · 1199 edges · 45 communities (24 shown, 21 thin omitted)
+- Extraction: 94% EXTRACTED · 6% INFERRED · 0% AMBIGUOUS · INFERRED: 75 edges (avg confidence: 0.84)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `aa66ddec`
+- Built from commit: `0afca123`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -27,15 +27,21 @@
 - [[_COMMUNITY_Community 9|Community 9]]
 - [[_COMMUNITY_Community 10|Community 10]]
 - [[_COMMUNITY_Community 11|Community 11]]
+- [[_COMMUNITY_Community 12|Community 12]]
 - [[_COMMUNITY_Community 13|Community 13]]
+- [[_COMMUNITY_Community 14|Community 14]]
 - [[_COMMUNITY_Community 15|Community 15]]
 - [[_COMMUNITY_Community 16|Community 16]]
+- [[_COMMUNITY_Community 17|Community 17]]
 - [[_COMMUNITY_Community 18|Community 18]]
 - [[_COMMUNITY_Community 19|Community 19]]
 - [[_COMMUNITY_Community 20|Community 20]]
+- [[_COMMUNITY_Community 21|Community 21]]
 - [[_COMMUNITY_Community 22|Community 22]]
+- [[_COMMUNITY_Community 23|Community 23]]
 - [[_COMMUNITY_Community 24|Community 24]]
 - [[_COMMUNITY_Community 25|Community 25]]
+- [[_COMMUNITY_Community 26|Community 26]]
 - [[_COMMUNITY_Community 27|Community 27]]
 - [[_COMMUNITY_Community 28|Community 28]]
 - [[_COMMUNITY_Community 29|Community 29]]
@@ -56,15 +62,15 @@
 
 ## God Nodes (most connected - your core abstractions)
 1. `cn()` - 94 edges
-2. `CV Types` - 16 edges
-3. `CVData` - 15 edges
-4. `defaultLayout()` - 14 edges
+2. `defaultLayout()` - 19 edges
+3. `CVData` - 17 edges
+4. `CV Types` - 16 edges
 5. `CVInteractiveCanvas` - 14 edges
 6. `CVData interface` - 13 edges
-7. `Button()` - 11 edges
-8. `composeStyles()` - 10 edges
-9. `CVTemplate` - 10 edges
-10. `CVTemplateChaima` - 9 edges
+7. `Button()` - 12 edges
+8. `sectionTitle()` - 10 edges
+9. `sectionTitle()` - 10 edges
+10. `dedupePages()` - 10 edges
 
 ## Surprising Connections (you probably didn't know these)
 - `Data Immutability (anti-hallucination pattern)` --rationale_for--> `CVData interface`  [INFERRED]
@@ -86,11 +92,11 @@
 - **Main Page UI Orchestration** — locale_page, hook_use_profile_manager, hook_use_ai_provider_config, hook_use_ai_submission, component_cv_builder, component_cover_letter_builder, component_cover_letter_preview [INFERRED 0.90]
 - **PDF Rendering: Cover Letter** — component_cover_letter_preview, component_cover_letter_template, utils_pdf_fonts [EXTRACTED 1.00]
 
-## Communities (39 total, 20 thin omitted)
+## Communities (45 total, 21 thin omitted)
 
 ### Community 0 - "Community 0"
-Cohesion: 0.05
-Nodes (63): AbsoluteBlock(), AbsoluteBlockProps, HANDLES, BlockContent(), BlockContentProps, BlockTheme, SECTION_LABELS, CanvasToolbar() (+55 more)
+Cohesion: 0.07
+Nodes (58): AbsoluteBlock(), AbsoluteBlockProps, HANDLES, BlockContent(), CanvasToolbar(), CanvasToolbarProps, ContextMenu(), ContextMenuItem (+50 more)
 
 ### Community 1 - "Community 1"
 Cohesion: 0.07
@@ -98,19 +104,19 @@ Nodes (55): AbsoluteBlock, AIAdaptOverlay, API Route: Adapt CV, API Route: CV Pr
 
 ### Community 2 - "Community 2"
 Cohesion: 0.06
-Nodes (28): CoverLetterTemplateProps, FONT_FAMILY, styles, CVTemplate(), CVTemplateProps, getStyles(), renderContact(), SECTION_RENDERERS (+20 more)
+Nodes (43): CoverLetterTemplateProps, FONT_FAMILY, styles, CVTemplateProps, getStyles(), renderCertifications(), renderContact(), renderEducation() (+35 more)
 
 ### Community 3 - "Community 3"
-Cohesion: 0.07
-Nodes (29): CoverLetterBuilderProps, StatusBanner, StatusBannerProps, PROVIDER_MODELS, useAIProviderConfig(), useAISubmission(), UseAISubmissionDeps, CVProfile (+21 more)
+Cohesion: 0.11
+Nodes (19): StatusBanner, StatusBannerProps, PROVIDER_MODELS, useAIProviderConfig(), useAISubmission(), UseAISubmissionDeps, CVProfile, fallbackDataChaimaEn (+11 more)
 
 ### Community 4 - "Community 4"
-Cohesion: 0.09
-Nodes (33): buildCorrectionPrompt(), POST(), POST(), callWithFallback(), CallWithFallbackResult, DEFAULT_MODELS, callGemini(), callGroq() (+25 more)
+Cohesion: 0.05
+Nodes (61): buildCorrectionPrompt(), POST(), BlockContentProps, BlockTheme, SECTION_LABELS, CanvasSectionHeading, CanvasSectionHeadingProps, EditableText() (+53 more)
 
 ### Community 5 - "Community 5"
-Cohesion: 0.05
-Nodes (77): Header(), HeaderProps, AIAdaptOverlay(), AIAdaptOverlayProps, CoverLetterPreview(), CoverLetterPreviewProps, CVPreview(), CVPreviewProps (+69 more)
+Cohesion: 0.1
+Nodes (38): useIsMobile(), cn(), Separator(), SheetContent(), SheetDescription(), SheetHeader(), SheetTitle(), Sidebar() (+30 more)
 
 ### Community 6 - "Community 6"
 Cohesion: 0.08
@@ -133,16 +139,28 @@ Cohesion: 0.14
 Nodes (18): Analyse CV Button, Aperçu CV Tab (Preview Tab), Kompyle Application Shell, CV Document – Omar Ouertani, CV Editor View, CV Preview Panel, CV Contact Section, Dark Theme UI (+10 more)
 
 ### Community 11 - "Community 11"
-Cohesion: 0.24
+Cohesion: 0.22
 Nodes (15): Bold(), Heading(), KeepTogether(), Link(), Page(), Small(), Text(), View() (+7 more)
+
+### Community 12 - "Community 12"
+Cohesion: 0.12
+Nodes (11): CVBuilderProps, ListSection, Card(), CardAction(), CardContent(), CardDescription(), CardFooter(), CardHeader() (+3 more)
 
 ### Community 13 - "Community 13"
 Cohesion: 0.15
 Nodes (17): callWithFallback Function, callGemini Function, callGroq Function, callMistral Function, addCustomSection Function, computeDefaultPositions Function, defaultLayout Function, PostgreSQL Connection Pool (+9 more)
 
+### Community 14 - "Community 14"
+Cohesion: 0.16
+Nodes (13): CVPreview(), CVPreviewProps, CVVersion, useServerPdfUrl(), SelectContent(), SelectGroup(), SelectItem(), SelectLabel() (+5 more)
+
 ### Community 16 - "Community 16"
 Cohesion: 0.25
 Nodes (8): ACTIVE_PDF_FONT constant, PDF_FONTS registry, PdfFontDefinition interface, PdfFontVariant interface, registerPdfFont, DiffText component, PDF Export (react-pdf/renderer), Text Diffing (visual diff feature)
+
+### Community 17 - "Community 17"
+Cohesion: 0.16
+Nodes (10): Header(), HeaderProps, CoverLetterPreview(), CoverLetterPreviewProps, Button(), ButtonProps, buttonVariants, Sheet() (+2 more)
 
 ### Community 18 - "Community 18"
 Cohesion: 0.39
@@ -156,28 +174,36 @@ Nodes (6): Checkbox Component, Input Component, Label Component, Separator Compo
 Cohesion: 0.4
 Nodes (3): dataDir, pool, profiles
 
+### Community 21 - "Community 21"
+Cohesion: 0.15
+Nodes (9): AIAdaptOverlay(), AIAdaptOverlayProps, Alert(), AlertDescription(), AlertTitle(), alertVariants, Badge(), badgeVariants (+1 more)
+
+### Community 23 - "Community 23"
+Cohesion: 0.15
+Nodes (10): CoverLetterBuilderProps, CoverLetterPreview, CVPreview, initialCoverLetter, LeftTab, RightTab, TabsContent(), TabsList() (+2 more)
+
 ### Community 24 - "Community 24"
 Cohesion: 0.5
 Nodes (4): SidebarMenuButton, Tooltip Component, TooltipContent, TooltipTrigger
 
 ## Knowledge Gaps
-- **179 isolated node(s):** `eslintConfig`, `withNextIntl`, `nextConfig`, `config`, `pool` (+174 more)
+- **183 isolated node(s):** `graphify`, `CVPreview`, `CoverLetterPreview`, `LeftTab`, `RightTab` (+178 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **20 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **21 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `cn()` connect `Community 5` to `Community 0`, `Community 3`?**
-  _High betweenness centrality (0.142) - this node is a cross-community bridge._
+- **Why does `cn()` connect `Community 5` to `Community 0`, `Community 3`, `Community 4`, `Community 12`, `Community 14`, `Community 17`, `Community 21`, `Community 23`?**
+  _High betweenness centrality (0.139) - this node is a cross-community bridge._
 - **Are the 3 inferred relationships involving `CV Types` (e.g. with `AI Adapt Overlay` and `CVTemplate`) actually correct?**
   _`CV Types` has 3 INFERRED edges - model-reasoned connections that need verification._
 - **Are the 3 inferred relationships involving `CVInteractiveCanvas` (e.g. with `useMarquee` and `CVTemplate`) actually correct?**
   _`CVInteractiveCanvas` has 3 INFERRED edges - model-reasoned connections that need verification._
-- **What connects `eslintConfig`, `withNextIntl`, `nextConfig` to the rest of the system?**
-  _179 weakly-connected nodes found - possible documentation gaps or missing edges._
+- **What connects `graphify`, `CVPreview`, `CoverLetterPreview` to the rest of the system?**
+  _183 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `Community 0` be split into smaller, more focused modules?**
-  _Cohesion score 0.05 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.07 - nodes in this community are weakly interconnected._
 - **Should `Community 1` be split into smaller, more focused modules?**
   _Cohesion score 0.07 - nodes in this community are weakly interconnected._
 - **Should `Community 2` be split into smaller, more focused modules?**

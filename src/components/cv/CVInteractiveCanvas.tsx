@@ -11,13 +11,15 @@ import {
   getSectionBlockIds,
   getParentSectionId,
   addCustomSection,
+  dedupePages,
+  hasDuplicateSections,
   computePaginatedFlow,
   getColumnSections,
   getPageBlockIds,
 } from "@/lib/cv-layout";
 import { cn } from "@/lib/utils";
-import { Maximize2, MoveUpRight, Copy, EyeOff, RotateCcw, SquarePlus } from "lucide-react";
-import { CVPageScaleWrapper, PT_TO_PX, A4_HEIGHT_PX, ptsToPx } from "./cv-canvas-primitives";
+import { Maximize2, MoveUpRight, MoveRight, Copy, EyeOff, RotateCcw, SquarePlus } from "lucide-react";
+import { CVPageScaleWrapper, PT_TO_PX, A4_WIDTH_PX, A4_HEIGHT_PX, ptsToPx, SELECTION_COLOR } from "./cv-canvas-primitives";
 import { AbsoluteBlock } from "./canvas/AbsoluteBlock";
 import { BlockContent, type BlockTheme } from "./canvas/BlockContent";
 import { CanvasToolbar, ZOOM_MIN, ZOOM_MAX } from "./canvas/CanvasToolbar";
@@ -81,6 +83,10 @@ export default function CVInteractiveCanvas({ data, onChange, template, onOverfl
     [template, structuralKey, layout.sidebarWidth, pagesKey]
   );
 
+  // Résout un drop drag-and-drop inter-pages (assigné plus bas, une fois
+  // moveSectionToPage défini ; mis à jour à chaque rendu via la ref).
+  const resolveDropRef = useRef<((blockId: string, clientX: number, clientY: number, screenDx: number, screenDy: number) => boolean) | null>(null);
+
   const {
     selectedIds,
     setSelectedIds,
@@ -92,7 +98,7 @@ export default function CVInteractiveCanvas({ data, onChange, template, onOverfl
     startDrag,
     startResize,
     startSidebarResize,
-  } = useCanvasInteractions({ data, defaultPositions, onChange });
+  } = useCanvasInteractions({ data, defaultPositions, onChange, resolveDropRef });
 
   const { autoHeight, resetPosition, canDuplicate, duplicateItem, hideSectionOf } =
     useBlockActions({ data, defaultPositions, onChange });
@@ -110,6 +116,15 @@ export default function CVInteractiveCanvas({ data, onChange, template, onOverfl
     const el = document.querySelector(`[data-block-id="${blockId}"]`) as HTMLElement | null;
     return el ? el.offsetHeight / PT_TO_PX : null;
   }, []);
+
+  // Auto-réparation : un layout corrompu (section référencée 2× après un
+  // déplacement) provoque des clés dupliquées et des blocs empilés. On dé-duplique.
+  useEffect(() => {
+    if (hasDuplicateSections(layout.pages)) {
+      onChange({ ...data, layout: { ...layout, pages: dedupePages(layout.pages) } });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pagesKey]);
 
   // Construit un layout paginé : positions reflowées + blocs répartis sur
   // autant de pages que nécessaire (aucun bloc ne dépasse la hauteur A4).
@@ -217,6 +232,16 @@ export default function CVInteractiveCanvas({ data, onChange, template, onOverfl
         return;
       }
 
+      // Ctrl/Cmd + D → duplique le 1er élément duplicable sélectionné
+      if ((e.ctrlKey || e.metaKey) && (e.key === "d" || e.key === "D")) {
+        const duplicable = selectedIds.find(canDuplicate);
+        if (duplicable) {
+          e.preventDefault();
+          duplicateItem(duplicable);
+        }
+        return;
+      }
+
       const step = e.shiftKey ? 10 : 1;
       const dx = e.key === "ArrowLeft" ? -step : e.key === "ArrowRight" ? step : 0;
       const dy = e.key === "ArrowUp" ? -step : e.key === "ArrowDown" ? step : 0;
@@ -236,7 +261,7 @@ export default function CVInteractiveCanvas({ data, onChange, template, onOverfl
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [selectedIds, layout, data, defaultPositions, onChange, hideSectionOf, clearSelection]);
+  }, [selectedIds, layout, data, defaultPositions, onChange, hideSectionOf, clearSelection, canDuplicate, duplicateItem]);
 
   const addPage = () => {
     const nextPages = [...layout.pages, emptyLayoutPage()];
@@ -258,6 +283,120 @@ export default function CVInteractiveCanvas({ data, onChange, template, onOverfl
     if (!nextLayout) return;
     onChange({ ...data, layout: nextLayout });
   }, [data, layout, template, onChange, buildPaginatedLayout]);
+
+  /** Déplace la section parente d'un bloc vers une autre page (même colonne) et
+   *  recalcule les positions de ses blocs pour qu'ils se placent proprement sur
+   *  la page cible (sinon ils restent à leurs anciennes coordonnées). */
+  const moveSectionToPage = useCallback(
+    (blockId: string, targetPage: number) => {
+      const sectionId = getParentSectionId(blockId);
+      // Colonne d'origine (pour replacer la section dans la même colonne)
+      const fromSidebar = layout.pages.some((p) => p.sidebar.includes(sectionId));
+      const col = fromSidebar ? "sidebar" : "main";
+
+      const stripped = layout.pages.map((p) => ({
+        main: p.main.filter((s) => s !== sectionId),
+        sidebar: p.sidebar.filter((s) => s !== sectionId),
+      }));
+      if (!stripped[targetPage]) return;
+      stripped[targetPage] = { ...stripped[targetPage], [col]: [...stripped[targetPage][col], sectionId] };
+      const nextPages = dedupePages(stripped);
+
+      const nextData: CVData = { ...data, layout: { ...layout, pages: nextPages } };
+      // Recalcule les positions par défaut pour la nouvelle disposition, puis
+      // réinitialise uniquement les blocs de la section déplacée (avec leur
+      // nouvelle page — le routage par bloc lit position.page).
+      const recomputed = getDefaultPositions(template, nextData);
+      const moved = getSectionBlockIds(sectionId, nextData);
+      const nextPositions = { ...(layout.absolutePositions ?? {}) };
+      for (const bId of moved) {
+        const base = recomputed[bId] ?? nextPositions[bId];
+        if (base) nextPositions[bId] = { ...base, page: targetPage };
+      }
+
+      onChange({
+        ...nextData,
+        layout: { ...nextData.layout!, absolutePositions: nextPositions },
+      });
+      setActivePageIndex(targetPage);
+    },
+    [data, layout, template, onChange]
+  );
+
+  /** Page courante d'une section (pour masquer l'option "page actuelle"). */
+  const pageOfSection = useCallback(
+    (blockId: string): number => {
+      const sectionId = getParentSectionId(blockId);
+      return layout.pages.findIndex((p) => p.main.includes(sectionId) || p.sidebar.includes(sectionId));
+    },
+    [layout.pages]
+  );
+
+  /** Page d'origine "logique" d'un bloc : sa surcharge position.page, sinon la
+   *  page de sa section (header → page 0). */
+  const homePageOf = useCallback(
+    (id: string): number => {
+      const ov = layout.absolutePositions?.[id]?.page;
+      if (ov !== undefined && ov >= 0 && ov < layout.pages.length) return ov;
+      const sp = pageOfSection(id);
+      return sp === -1 ? 0 : sp;
+    },
+    [layout.absolutePositions, layout.pages.length, pageOfSection]
+  );
+
+  // Drag-and-drop inter-pages, à la Canva : seul(s) le(s) bloc(s) déplacé(s)
+  // changent de page (pas toute la section). Chaque bloc atterrit là où était
+  // son fantôme (position écran convertie en coordonnées pt de la page cible).
+  const resolveDrop = useCallback(
+    (blockId: string, clientX: number, clientY: number, screenDx: number, screenDy: number): boolean => {
+      if (layout.pages.length < 2) return false;
+      const pageEl = document
+        .elementsFromPoint(clientX, clientY)
+        .find((el) => el instanceof HTMLElement && el.dataset.pageIndex !== undefined) as HTMLElement | undefined;
+      if (!pageEl) return false;
+      const targetPage = Number(pageEl.dataset.pageIndex);
+      if (targetPage === homePageOf(blockId)) return false; // drop sur sa propre page → commit normal
+
+      const contentEl = pageEl.querySelector("[data-cv-page-content]") as HTMLElement | null;
+      if (!contentEl) return false;
+      const contentRect = contentEl.getBoundingClientRect();
+      const scale = contentRect.width / A4_WIDTH_PX;
+      if (!scale) return false;
+
+      const group = selectedIds.includes(blockId) ? selectedIds : [blockId];
+      const positions = { ...(layout.absolutePositions ?? defaultPositions) };
+      let changed = false;
+
+      const HEADER = new Set(["photo", "name", "role", "techLine"]);
+      for (const id of group) {
+        if (HEADER.has(id)) continue; // le header reste sur la page 1
+        const el = document.querySelector(`[data-block-id="${id}"]`) as HTMLElement | null;
+        if (!el) continue;
+        const r = el.getBoundingClientRect();
+        // Position écran finale du fantôme = position d'origine + déplacement
+        const ptX = Math.max(0, Math.round((r.left + screenDx - contentRect.left) / scale / PT_TO_PX));
+        const ptY = Math.max(0, Math.round((r.top + screenDy - contentRect.top) / scale / PT_TO_PX));
+        const cur = positions[id] ?? defaultPositions[id] ?? { x: ptX, y: ptY, w: 150 };
+        // Si le bloc retombe sur la page de sa section (mode pages), la
+        // surcharge devient inutile ; en mode autoPaginated, page fait foi.
+        const sp = pageOfSection(id);
+        const home = sp === -1 ? 0 : sp;
+        const pageOverride = !layout.autoPaginated && home === targetPage ? undefined : targetPage;
+        positions[id] = { ...cur, x: ptX, y: ptY, page: pageOverride };
+        changed = true;
+      }
+      if (!changed) return false;
+
+      onChange({ ...data, layout: { ...layout, absolutePositions: positions } });
+      setActivePageIndex(targetPage);
+      return true;
+    },
+    [data, layout, defaultPositions, selectedIds, onChange, homePageOf, pageOfSection]
+  );
+
+  useEffect(() => {
+    resolveDropRef.current = resolveDrop;
+  }, [resolveDrop]);
 
   const savedPositions = layout.absolutePositions ?? {};
   const absolutePositions: Record<string, BlockPos> = useMemo(
@@ -379,6 +518,19 @@ export default function CVInteractiveCanvas({ data, onChange, template, onOverfl
     if (canDuplicate(menu.blockId)) {
       const blockId = menu.blockId;
       items.push({ label: "Dupliquer l'élément", icon: Copy, onClick: () => duplicateItem(blockId) });
+    }
+    // Déplacer la section vers une autre page
+    if (isSectionBlock(menu.blockId) && layout.pages.length > 1) {
+      const blockId = menu.blockId;
+      const current = pageOfSection(blockId);
+      layout.pages.forEach((_, pageIdx) => {
+        if (pageIdx === current) return;
+        items.push({
+          label: `Déplacer vers la page ${pageIdx + 1}`,
+          icon: MoveRight,
+          onClick: () => moveSectionToPage(blockId, pageIdx),
+        });
+      });
     }
     if (isSectionBlock(menu.blockId)) {
       const blockId = menu.blockId;
@@ -507,10 +659,18 @@ export default function CVInteractiveCanvas({ data, onChange, template, onOverfl
 
                 {snapGuides.map((g, i) =>
                   g.orientation === "vertical" ? (
-                    <div key={`sg-${i}`} className="absolute top-0 bottom-0 w-px bg-primary/50 z-40 pointer-events-none" style={{ left: ptsToPx(g.position) }} />
+                    <div key={`sg-${i}`} className="absolute top-0 bottom-0 w-px z-40 pointer-events-none" style={{ left: ptsToPx(g.position), backgroundColor: SELECTION_COLOR }} />
                   ) : (
-                    <div key={`sg-${i}`} className="absolute left-0 right-0 h-px bg-primary/50 z-40 pointer-events-none" style={{ top: ptsToPx(g.position) }} />
+                    <div key={`sg-${i}`} className="absolute left-0 right-0 h-px z-40 pointer-events-none" style={{ top: ptsToPx(g.position), backgroundColor: SELECTION_COLOR }} />
                   )
+                )}
+
+                {/* Indique les pages comme zones de dépôt pendant un drag */}
+                {isDragging && layout.pages.length > 1 && (
+                  <div
+                    className="absolute inset-0 pointer-events-none rounded-sm z-[5]"
+                    style={{ outline: `2px dashed ${SELECTION_COLOR}55`, outlineOffset: 3 }}
+                  />
                 )}
 
                 {pageBlockIds.map(renderBlock)}
@@ -523,8 +683,8 @@ export default function CVInteractiveCanvas({ data, onChange, template, onOverfl
       {/* Lasso de sélection */}
       {marqueeRect && (
         <div
-          className="fixed border border-primary bg-primary/10 z-[90] pointer-events-none rounded-sm"
-          style={marqueeRect}
+          className="fixed z-[90] pointer-events-none rounded-sm"
+          style={{ ...marqueeRect, border: `1px solid ${SELECTION_COLOR}`, backgroundColor: `${SELECTION_COLOR}1a` }}
         />
       )}
 
