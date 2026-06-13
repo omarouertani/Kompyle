@@ -862,7 +862,7 @@ export default function CVInteractiveCanvas({ data, onChange: onChangeProp, temp
               <div
                 id={`cv-page-${pageIndex}`}
                 className={cn(
-                  "w-full text-zinc-800 text-left box-border relative",
+                  "cv-page-shadow w-full text-zinc-800 text-left box-border relative rounded-[2px]",
                   activePageIndex === pageIndex && layout.pages.length > 1 && "ring-2 ring-primary/30 ring-offset-2 rounded-sm"
                 )}
                 style={{ color: textColor, fontFamily: fontStack, backgroundColor: pageBg, minHeight: `${pageHeightPx}px` }}

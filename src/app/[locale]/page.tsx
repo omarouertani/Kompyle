@@ -10,7 +10,6 @@ import Header from "@/components/Header";
 import {
   Sparkles,
   PencilRuler,
-  Wand2,
   RotateCcw,
   Loader2,
   FileText,
@@ -35,12 +34,14 @@ import {
   SelectContent,
   SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
 
 import { useProfileManager } from "@/hooks/use-profile-manager";
-import { useAIProviderConfig, PROVIDER_MODELS } from "@/hooks/use-ai-provider-config";
+import { useAIProviderConfig, PROVIDER_MODELS, PROVIDER_META } from "@/hooks/use-ai-provider-config";
+import type { AIProvider } from "@/types/cv";
 import { useAISubmission } from "@/hooks/use-ai-submission";
 import { StatusBanner } from "@/components/cv/status-banner";
 
@@ -160,72 +161,68 @@ export default function AdaptPage() {
               disabled={profile.status === "loading"}
             />
 
-            <div className="flex gap-2">
-              <Button
-                variant={aiConfig.provider === "gemini" ? "default" : "outline"}
-                size="sm"
-                className="flex-1"
-                onClick={() => aiConfig.handleProviderChange("gemini")}
-                disabled={profile.status === "loading"}
-              >
-                {t("btn_gemini")}
-              </Button>
-              <Button
-                variant={aiConfig.provider === "groq" ? "default" : "outline"}
-                size="sm"
-                className="flex-1"
-                onClick={() => aiConfig.handleProviderChange("groq")}
-                disabled={profile.status === "loading"}
-              >
-                {t("btn_groq")}
-              </Button>
-              <Button
-                variant={aiConfig.provider === "mistral" ? "default" : "outline"}
-                size="sm"
-                className="flex-1"
-                onClick={() => aiConfig.handleProviderChange("mistral")}
-                disabled={profile.status === "loading"}
-              >
-                {t("btn_mistral")}
-              </Button>
-            </div>
-
-            <div className="flex flex-col gap-1.5 animate-in fade-in slide-in-from-top-1 duration-200">
+            {/* ── Sélection unifiée du modèle IA (fournisseur + modèle) ── */}
+            <div className="flex flex-col gap-1.5">
               <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground pl-0.5">
                 {t("label_model")}
               </span>
-              <Select value={aiConfig.model} onValueChange={(val) => val && aiConfig.setModel(val)} disabled={profile.status === "loading"}>
-                <SelectTrigger className="w-full h-9 rounded-lg border border-border bg-muted/40 hover:bg-muted/60 transition-colors">
-                  <SelectValue />
+              <Select value={aiConfig.model} onValueChange={(val) => val && aiConfig.selectModel(val)} disabled={profile.status === "loading"}>
+                <SelectTrigger className="w-full h-11 rounded-xl border border-border bg-muted/40 hover:bg-muted/60 transition-colors px-3">
+                  <span className="flex items-center gap-2.5 min-w-0">
+                    <span
+                      className="size-2.5 rounded-full shrink-0 ring-2 ring-offset-1 ring-offset-background"
+                      style={{ backgroundColor: PROVIDER_META[aiConfig.provider].color, boxShadow: `0 0 0 2px ${PROVIDER_META[aiConfig.provider].color}30` }}
+                    />
+                    <span className="flex flex-col items-start min-w-0 leading-tight">
+                      <span className="text-[10px] text-muted-foreground truncate">{PROVIDER_META[aiConfig.provider].label}</span>
+                      <SelectValue className="text-sm font-semibold" />
+                    </span>
+                  </span>
                 </SelectTrigger>
-                <SelectContent className="bg-popover border border-border shadow-md rounded-lg p-1">
-                  <SelectGroup>
-                    {PROVIDER_MODELS[aiConfig.provider].map((m) => (
-                      <SelectItem key={m.id} value={m.id} className="cursor-pointer">
-                        {m.name}
-                      </SelectItem>
-                    ))}
-                  </SelectGroup>
+                <SelectContent alignItemWithTrigger={false} className="border border-border shadow-xl rounded-xl p-1.5">
+                  {(Object.keys(PROVIDER_MODELS) as AIProvider[]).map((prov) => (
+                    <SelectGroup key={prov}>
+                      <SelectLabel className="flex items-center gap-2 px-2 pt-2 pb-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                        <span className="size-2 rounded-full" style={{ backgroundColor: PROVIDER_META[prov].color }} />
+                        {PROVIDER_META[prov].label}
+                      </SelectLabel>
+                      {PROVIDER_MODELS[prov].map((m) => (
+                        <SelectItem key={m.id} value={m.id} className="cursor-pointer rounded-lg text-sm">
+                          {m.name}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            {/* ── Hiérarchie d'actions : Adapter CV (primaire) · Créer Lettre (secondaire) ── */}
+            <div className="flex flex-col gap-2.5">
               <Button
+                size="lg"
                 onClick={() => { setRefineHistory([]); handleAdaptCV(); }}
                 disabled={profile.status === "loading" || !jobDescription.trim()}
-                className="gap-2"
+                className="w-full gap-2 h-12 text-sm font-semibold shadow-md shadow-primary/25 bg-gradient-to-b from-primary to-primary/90 hover:shadow-lg hover:shadow-primary/30 transition-all"
               >
-                {profile.status === "loading" ? <Loader2 size={16} className="animate-spin" /> : <Wand2 size={16} />}
+                {profile.status === "loading" && profile.loadingType === "cv" ? (
+                  <Loader2 size={17} className="animate-spin" />
+                ) : (
+                  <Sparkles size={17} />
+                )}
                 {t("btn_adapt")}
               </Button>
               <Button
                 variant="outline"
-                className="gap-2 text-primary border-primary/20 hover:bg-primary/5"
+                className="w-full gap-2 h-10 text-primary border-primary/30 hover:bg-primary/5 hover:border-primary/50"
                 onClick={() => { setRefineHistory([]); handleGenerateLetter(); }}
                 disabled={profile.status === "loading" || !jobDescription.trim()}
               >
-                <Mail size={16} />
+                {profile.status === "loading" && profile.loadingType === "letter" ? (
+                  <Loader2 size={16} className="animate-spin" />
+                ) : (
+                  <Mail size={16} />
+                )}
                 {t("btn_letter")}
               </Button>
             </div>
@@ -328,6 +325,13 @@ export default function AdaptPage() {
   return (
     <div className="flex flex-col h-screen bg-background text-foreground font-sans overflow-hidden">
       <Header />
+
+      {/* Feedback global : barre de progression pendant une action IA */}
+      <div className="relative h-0.5 shrink-0 z-30">
+        {profile.status === "loading" && (
+          <div className="progress-indeterminate absolute inset-x-0 top-0 h-0.5" role="progressbar" aria-label="Traitement IA en cours" />
+        )}
+      </div>
 
       <SidebarProvider
         open={isSidebarOpen}
