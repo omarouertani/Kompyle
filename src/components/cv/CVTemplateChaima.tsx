@@ -7,9 +7,11 @@ import {
   Text,
   Link,
   KeepTogether,
+  PdfThemeProvider,
+  defaultPdfTheme,
 } from "@/components/pdf-primitives";
 import { Svg, Circle, Path, Image } from "@react-pdf/renderer";
-import { registerPdfFont, ACTIVE_PDF_FONT } from "@/utils/pdf-fonts";
+import { registerPdfFont, ACTIVE_PDF_FONT, resolvePdfFontFamily } from "@/utils/pdf-fonts";
 import type { CVData, CVTheme } from "@/types/cv";
 import { defaultLayout, getDefaultPositions, getDefaultPhotoPosition, getPageBlockIds, dedupePages } from "@/lib/cv-layout";
 import { wrapText, formatUrl, displayUrl, DiffText } from "@/utils/pdf-text-utils";
@@ -35,6 +37,7 @@ const getStyles = (theme?: CVTheme, sidebarWidth = 165) => {
       paddingLeft: 0,
       paddingRight: 0,
       flexDirection: "row",
+      backgroundColor: theme?.pageBg || "#ffffff",
     },
     body: {
       flexDirection: "row",
@@ -198,6 +201,35 @@ const getStyles = (theme?: CVTheme, sidebarWidth = 165) => {
     skillTagText: {
       fontSize: baseFontSize - 1.5,
       color: "#3f3f46",
+    },
+    skillListText: {
+      fontSize: baseFontSize - 1,
+      color: "#3f3f46",
+      lineHeight: lh,
+    },
+    skillBarRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      marginBottom: 2.5,
+    },
+    skillBarLabel: {
+      flex: 1,
+      fontSize: baseFontSize - 1,
+      color: textColor,
+      paddingRight: 6,
+      lineHeight: lh,
+    },
+    skillBarTrack: {
+      width: 36,
+      height: 2.5,
+      borderRadius: 1.25,
+      backgroundColor: "#e4e4e7",
+    },
+    skillBarFill: {
+      width: "75%",
+      height: "100%",
+      borderRadius: 1.25,
+      backgroundColor: primaryColor,
     },
 
     /* ---------- Languages & Certifications ---------- */
@@ -400,6 +432,40 @@ const renderContact: SectionRenderer = (data, isSidebar, styles, originalData, p
 const renderSkills: SectionRenderer = (data, isSidebar, styles, originalData, part, itemIndex) => {
   const { skills } = data;
   const h2Style = isSidebar ? styles.h2Sidebar : styles.h2Main;
+  // Le template Chaima affiche les tags par défaut (rendu historique) ;
+  // theme.skillMode permet de basculer en texte ou en barres.
+  const mode = data.layout?.theme?.skillMode ?? "tags";
+
+  const renderItems = (group: (typeof skills)[number]) => {
+    if (mode === "text") {
+      return <Text style={styles.skillListText}>{group.items}</Text>;
+    }
+    const itemsArray = group.items.split(",").map((item) => item.trim()).filter(Boolean);
+    if (mode === "bars") {
+      return (
+        <View>
+          {itemsArray.map((item, idx) => (
+            <View key={idx} style={styles.skillBarRow}>
+              <Text style={styles.skillBarLabel}>{item}</Text>
+              <View style={styles.skillBarTrack}>
+                <View style={styles.skillBarFill} />
+              </View>
+            </View>
+          ))}
+        </View>
+      );
+    }
+    return (
+      <View style={styles.skillsContainer}>
+        {itemsArray.map((item, idx) => (
+          <View key={idx} style={styles.skillTag}>
+            <Text style={styles.skillTagText}>{item}</Text>
+          </View>
+        ))}
+      </View>
+    );
+  };
+
   if (part === "title") {
     return <Text style={h2Style}>{sectionTitle(data, "skills", "Compétences")}</Text>;
   }
@@ -407,38 +473,22 @@ const renderSkills: SectionRenderer = (data, isSidebar, styles, originalData, pa
     const i = itemIndex ?? 0;
     const group = skills[i];
     if (!group) return null;
-    const itemsArray = group.items.split(",").map((item) => item.trim()).filter(Boolean);
     return (
       <KeepTogether key={group.id ?? i} style={styles.skillGroup}>
         <Text style={styles.skillCat}>{group.category}</Text>
-        <View style={styles.skillsContainer}>
-          {itemsArray.map((item, idx) => (
-            <View key={idx} style={styles.skillTag}>
-              <Text style={styles.skillTagText}>{item}</Text>
-            </View>
-          ))}
-        </View>
+        {renderItems(group)}
       </KeepTogether>
     );
   }
   return (
     <>
       <Text style={h2Style}>{sectionTitle(data, "skills", "Compétences")}</Text>
-      {skills.map((group, i) => {
-        const itemsArray = group.items.split(",").map((item) => item.trim()).filter(Boolean);
-        return (
-          <KeepTogether key={group.id ?? i} style={styles.skillGroup}>
-            <Text style={styles.skillCat}>{group.category}</Text>
-            <View style={styles.skillsContainer}>
-              {itemsArray.map((item, idx) => (
-                <View key={idx} style={styles.skillTag}>
-                  <Text style={styles.skillTagText}>{item}</Text>
-                </View>
-              ))}
-            </View>
-          </KeepTogether>
-        );
-      })}
+      {skills.map((group, i) => (
+        <KeepTogether key={group.id ?? i} style={styles.skillGroup}>
+          <Text style={styles.skillCat}>{group.category}</Text>
+          {renderItems(group)}
+        </KeepTogether>
+      ))}
     </>
   );
 };
@@ -792,8 +842,12 @@ const CVTemplateChaima: React.FC<CVTemplateChaimaProps> = ({ data, originalData 
   const layout = data.layout ?? defaultLayout();
   const sidebarWidth = layout.sidebarWidth ?? 175;
   const styles = getStyles(layout.theme, sidebarWidth);
+  // Police du thème (canvas) → famille PDF enregistrée, injectée via le
+  // contexte du thème PDF (toutes les primitives en héritent).
+  const pdfFontFamily = resolvePdfFontFamily(layout.theme?.fontFamily);
 
   return (
+    <PdfThemeProvider value={{ ...defaultPdfTheme, fontFamily: pdfFontFamily }}>
     <Document
       title={`${personalInfo.name} — ${personalInfo.role} (CV)`}
       author={personalInfo.name}
@@ -984,6 +1038,7 @@ const CVTemplateChaima: React.FC<CVTemplateChaimaProps> = ({ data, originalData 
         );
       })}
     </Document>
+    </PdfThemeProvider>
   );
 };
 

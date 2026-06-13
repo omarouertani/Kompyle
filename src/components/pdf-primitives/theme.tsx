@@ -28,7 +28,18 @@ export const defaultPdfTheme: PdfTheme = {
   smallScale: 0.875,
 };
 
-// No React context needed — the theme is a single global constant.
-// PdfThemeProvider is kept as a no-op for backwards compatibility.
-export const PdfThemeProvider = ({ children }: { children: React.ReactNode; value?: PdfTheme }) => children;
-export const usePdfTheme = (): PdfTheme => defaultPdfTheme;
+// Surcharge du thème sans React context (createContext est interdit dans le
+// graphe serveur de Next, où la route render-pdf importe ce module).
+// PdfThemeProvider pose la valeur dans une variable de module au moment où le
+// reconciler react-pdf le rend ; tous ses descendants (rendus de façon
+// SYNCHRONE, pas de Suspense dans l'arbre) la lisent via usePdfTheme.
+// Les awaits de react-pdf (polices) n'arrivent qu'après la construction de
+// l'arbre, donc deux requêtes concurrentes ne peuvent pas s'entrelacer ici.
+let currentPdfTheme: PdfTheme = defaultPdfTheme;
+
+export const PdfThemeProvider = ({ children, value }: { children: React.ReactNode; value?: PdfTheme }) => {
+  currentPdfTheme = value ?? defaultPdfTheme;
+  return children;
+};
+
+export const usePdfTheme = (): PdfTheme => currentPdfTheme;
