@@ -55,6 +55,28 @@ export const getStyles = (theme?: CVTheme, sidebarWidth = 165, variant: CVTempla
       marginBottom: 1,
     },
 
+    /* ---------- Canadian header contact line ---------- */
+    contactHeader: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      alignItems: "center",
+      marginTop: 2,
+    },
+    contactHeaderItem: {
+      fontSize: baseFontSize - 0.5,
+      color: "#444444",
+    },
+    contactHeaderLink: {
+      fontSize: baseFontSize - 0.5,
+      color: "#444444",
+      textDecoration: "none",
+    },
+    contactHeaderSep: {
+      fontSize: baseFontSize - 0.5,
+      color: "#aaaaaa",
+      marginHorizontal: 4,
+    },
+
     /* ---------- Two-column layout ---------- */
     body: {
       flexDirection: "row",

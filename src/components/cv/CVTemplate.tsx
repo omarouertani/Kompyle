@@ -5,13 +5,14 @@ import {
   View,
   Text,
   Image,
+  Link,
   PdfThemeProvider,
   defaultPdfTheme,
 } from "@/components/pdf-primitives";
 import { registerPdfFont, ACTIVE_PDF_FONT, resolvePdfFontFamily } from "@/utils/pdf-fonts";
 import type { CVData } from "@/types/cv";
 import { defaultLayout, DEFAULT_SIDEBAR_WIDTH, getDefaultPositions, getDefaultPhotoPosition, dedupePages, getPageBlockIds } from "@/lib/cv-layout";
-import { DiffText } from "@/utils/pdf-text-utils";
+import { DiffText, formatUrl, displayUrl } from "@/utils/pdf-text-utils";
 import { getStyles, type CVTemplateVariant } from "./template/classic-styles";
 import {
   SECTION_RENDERERS,
@@ -51,8 +52,35 @@ const CVTemplate: React.FC<CVTemplateProps> = ({ data, originalData, variant = "
   // contexte du thème PDF (toutes les primitives en héritent).
   const pdfFontFamily = resolvePdfFontFamily(layout.theme?.fontFamily);
 
-  const useAbsolute = layout.useAbsolutePositioning || false;
-  const absolutePositions = layout.absolutePositions || getDefaultPositions("default", data);
+  // Le PDF rend depuis les positions absolues dès qu'elles existent, afin que la
+  // sortie PDF corresponde EXACTEMENT à ce que l'utilisateur voit dans le canvas
+  // (mêmes coordonnées, même hauteur de page A4) — fini l'écart d'espacement
+  // entre l'aperçu canvas et le PDF.
+  const useAbsolute =
+    layout.useAbsolutePositioning ||
+    !!(layout.absolutePositions && Object.keys(layout.absolutePositions).length > 0);
+  const absolutePositions = layout.absolutePositions || getDefaultPositions(isCanadian ? "canadian" : "default", data);
+
+  /** En-tête canadien : ligne de coordonnées minimaliste, sans étiquettes —
+   *  Téléphone · Email · LinkedIn · Ville/Province. Email et LinkedIn restent
+   *  cliquables (liens), le reste en texte sélectionnable (ATS-friendly). */
+  const renderCanadianContact = (): React.ReactNode => {
+    const parts: React.ReactNode[] = [];
+    const push = (node: React.ReactNode) => {
+      if (parts.length > 0) {
+        parts.push(
+          <Text key={`sep-${parts.length}`} style={styles.contactHeaderSep}>·</Text>
+        );
+      }
+      parts.push(node);
+    };
+    if (personalInfo.phone) push(<Text key="phone" style={styles.contactHeaderItem}>{personalInfo.phone}</Text>);
+    if (personalInfo.email) push(<Link key="email" src={`mailto:${personalInfo.email}`} style={styles.contactHeaderLink}>{personalInfo.email}</Link>);
+    if (personalInfo.linkedin) push(<Link key="linkedin" src={formatUrl(personalInfo.linkedin)} style={styles.contactHeaderLink}>{displayUrl(personalInfo.linkedin, true)}</Link>);
+    if (personalInfo.location) push(<Text key="location" style={styles.contactHeaderItem}>{personalInfo.location}</Text>);
+    if (parts.length === 0) return null;
+    return <View style={styles.contactHeader}>{parts}</View>;
+  };
 
 
   const renderAbsoluteBlock = (blockId: string) => {
@@ -127,6 +155,7 @@ const CVTemplate: React.FC<CVTemplateProps> = ({ data, originalData, variant = "
     const namePos = absolutePositions.name || { x: 24, y: 16, w: 450 };
     const rolePos = absolutePositions.role || { x: 24, y: 46, w: 450 };
     const techPos = absolutePositions.techLine || { x: 24, y: 64, w: 450 };
+    const contactPos = absolutePositions.contactLine || { x: 24, y: 64, w: 547 };
     const photoPos = absolutePositions.photo || getDefaultPhotoPosition("default", sidebarWidth);
 
     return (
@@ -141,14 +170,20 @@ const CVTemplate: React.FC<CVTemplateProps> = ({ data, originalData, variant = "
           <Text style={styles.role}>{personalInfo.role}</Text>
         </View>
 
-        {/* Tech Line */}
-        <View style={{ position: "absolute", left: techPos.x, top: techPos.y, width: techPos.w }}>
-          <DiffText
-            oldText={originalData?.personalInfo.techLine}
-            newText={personalInfo.techLine}
-            style={styles.techLine}
-          />
-        </View>
+        {/* Tech Line (classique/moderne) ou ligne de coordonnées (canadien) */}
+        {isCanadian ? (
+          <View style={{ position: "absolute", left: contactPos.x, top: contactPos.y, width: contactPos.w }}>
+            {renderCanadianContact()}
+          </View>
+        ) : (
+          <View style={{ position: "absolute", left: techPos.x, top: techPos.y, width: techPos.w }}>
+            <DiffText
+              oldText={originalData?.personalInfo.techLine}
+              newText={personalInfo.techLine}
+              style={styles.techLine}
+            />
+          </View>
+        )}
 
         {/* Photo */}
         {showPhoto && (
@@ -199,16 +234,20 @@ const CVTemplate: React.FC<CVTemplateProps> = ({ data, originalData, variant = "
 
         return (
           <Page key={pageIndex} size="A4" style={styles.page}>
-            {/* Header (nom / rôle / techLine) : uniquement sur la 1re page. */}
+            {/* Header (nom / rôle / techLine|coordonnées) : uniquement sur la 1re page. */}
             {pageIndex === 0 && (
               <View style={styles.header}>
                 <Text style={styles.h1}>{personalInfo.name}</Text>
                 <Text style={styles.role}>{personalInfo.role}</Text>
-                <DiffText
-                  oldText={originalData?.personalInfo.techLine}
-                  newText={personalInfo.techLine}
-                  style={styles.techLine}
-                />
+                {isCanadian ? (
+                  renderCanadianContact()
+                ) : (
+                  <DiffText
+                    oldText={originalData?.personalInfo.techLine}
+                    newText={personalInfo.techLine}
+                    style={styles.techLine}
+                  />
+                )}
               </View>
             )}
 

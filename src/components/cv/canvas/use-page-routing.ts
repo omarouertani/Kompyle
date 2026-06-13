@@ -124,7 +124,7 @@ export function usePageRouting({
       const positions = { ...(layout.absolutePositions ?? defaultPositions) };
       let changed = false;
 
-      const HEADER = new Set(["photo", "name", "role", "techLine"]);
+      const HEADER = new Set(["photo", "name", "role", "techLine", "contactLine"]);
       for (const m of members) {
         if (HEADER.has(m.id)) continue; // le header reste sur la page 1
         const screenLeft = primaryLeft + m.relLeft;
