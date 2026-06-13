@@ -49,6 +49,7 @@ export interface Education {
   customMarginBottom?: number;
   degree: string;
   institution: string;
+  date?: string;
 }
 
 // ─── Layout (sections & pages, modèle inspiré de Reactive Resume) ────────────
@@ -71,10 +72,16 @@ export interface LayoutPage {
   sidebar: string[];
 }
 
+export type CVFontFamily = "sans" | "serif" | "modern" | "mono";
+export type SkillMode = "text" | "tags" | "bars";
+
 export interface CVTheme {
   primaryColor?: string; // Couleur principale (titres, accents, puces)
   textColor?: string;    // Couleur du texte principal
   sidebarBg?: string;    // Couleur de fond de la barre latérale
+  pageBg?: string;       // Couleur de fond de la page (blanc, ivoire...)
+  fontFamily?: CVFontFamily; // Famille de police du CV
+  skillMode?: SkillMode; // Rendu des compétences : texte, tags ou barres
   fontSize?: number;     // Taille du texte de base (pt)
   headingSize?: number;  // Taille des titres (pt)
   sectionMargin?: number;// Espacement entre les sections (pt)
@@ -87,6 +94,8 @@ export interface ElementPosition {
   w?: number;
   h?: number; // hauteur explicite (pt) — sinon auto selon le contenu
   page?: number; // index de page (0-based) en mode pagination auto
+  fontScale?: number; // échelle de police (resize diagonal) — 1 par défaut
+  locked?: boolean;   // bloc verrouillé : ni drag ni resize
 }
 
 export interface CVLayout {

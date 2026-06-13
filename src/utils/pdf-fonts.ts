@@ -1,4 +1,5 @@
 import { Font } from "@react-pdf/renderer";
+import type { CVFontFamily } from "@/types/cv";
 
 /**
  * Système de polices PDF de Kompyle — version chirurgicale de la logique
@@ -140,4 +141,21 @@ export function registerPdfFont(family: PdfFontFamily | string = ACTIVE_PDF_FONT
   Font.register(definition);
   registeredFamilies.add(definition.family);
   return definition.family;
+}
+
+/**
+ * Mapping de la police choisie sur le canvas (theme.fontFamily) vers une
+ * famille PDF. Serif et mono utilisent les polices standard du PDF (aucun
+ * téléchargement) ; « modern » utilise Inter, équivalent PDF d'IBM Plex Sans.
+ */
+const CV_FONT_TO_PDF: Record<CVFontFamily, PdfFontFamily | string> = {
+  sans: "Carlito",
+  serif: "Times-Roman",
+  modern: "Inter",
+  mono: "Courier",
+};
+
+/** Enregistre (si besoin) et renvoie la famille PDF correspondant au thème. */
+export function resolvePdfFontFamily(font?: CVFontFamily): string {
+  return registerPdfFont(CV_FONT_TO_PDF[font ?? "sans"] ?? ACTIVE_PDF_FONT);
 }

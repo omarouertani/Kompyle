@@ -8,8 +8,10 @@ import {
   Link,
   KeepTogether,
   Image,
+  PdfThemeProvider,
+  defaultPdfTheme,
 } from "@/components/pdf-primitives";
-import { registerPdfFont, ACTIVE_PDF_FONT } from "@/utils/pdf-fonts";
+import { registerPdfFont, ACTIVE_PDF_FONT, resolvePdfFontFamily } from "@/utils/pdf-fonts";
 import type { CVData, CVTheme } from "@/types/cv";
 import { defaultLayout, DEFAULT_SIDEBAR_WIDTH, getDefaultPositions, getDefaultPhotoPosition, dedupePages, getPageBlockIds } from "@/lib/cv-layout";
 import { wrapText, formatUrl, displayUrl, DiffText } from "@/utils/pdf-text-utils";
@@ -33,6 +35,7 @@ const getStyles = (theme?: CVTheme, sidebarWidth = 165) => {
       paddingBottom: 12,
       paddingLeft: 24,
       paddingRight: 24,
+      backgroundColor: theme?.pageBg || "#ffffff",
     },
 
     /* ---------- Header ---------- */
@@ -141,6 +144,47 @@ const getStyles = (theme?: CVTheme, sidebarWidth = 165) => {
       fontSize: baseFontSize,
       color: "#555555",
       lineHeight: lh,
+    },
+    skillTagWrap: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+    },
+    skillTag: {
+      borderWidth: 0.75,
+      borderColor: primaryColor,
+      borderRadius: 6,
+      paddingVertical: 1.5,
+      paddingHorizontal: 5,
+      marginRight: 3,
+      marginBottom: 3,
+    },
+    skillTagText: {
+      fontSize: baseFontSize - 0.5,
+      color: "#3f3f46",
+    },
+    skillBarRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      marginBottom: 2.5,
+    },
+    skillBarLabel: {
+      flex: 1,
+      fontSize: baseFontSize - 0.5,
+      color: textColor,
+      paddingRight: 6,
+      lineHeight: lh,
+    },
+    skillBarTrack: {
+      width: 36,
+      height: 2.5,
+      borderRadius: 1.25,
+      backgroundColor: "#e4e4e7",
+    },
+    skillBarFill: {
+      width: "75%",
+      height: "100%",
+      borderRadius: 1.25,
+      backgroundColor: primaryColor,
     },
 
     /* ---------- Side block (languages, education) ---------- */
@@ -316,6 +360,46 @@ const renderContact: SectionRenderer = (data, styles, originalData, part) => {
 
 const renderSkills: SectionRenderer = (data, styles, originalData, part, itemIndex) => {
   const { skills } = data;
+  const mode = data.layout?.theme?.skillMode ?? "text";
+
+  // Items d'un groupe selon le mode choisi (texte brut, tags ou barres).
+  const renderItems = (group: (typeof skills)[number], i: number) => {
+    if (mode === "tags") {
+      const itemsArray = group.items.split(",").map((s) => s.trim()).filter(Boolean);
+      return (
+        <View style={styles.skillTagWrap}>
+          {itemsArray.map((item, idx) => (
+            <View key={idx} style={styles.skillTag}>
+              <Text style={styles.skillTagText}>{item}</Text>
+            </View>
+          ))}
+        </View>
+      );
+    }
+    if (mode === "bars") {
+      const itemsArray = group.items.split(",").map((s) => s.trim()).filter(Boolean);
+      return (
+        <View>
+          {itemsArray.map((item, idx) => (
+            <View key={idx} style={styles.skillBarRow}>
+              <Text style={styles.skillBarLabel}>{item}</Text>
+              <View style={styles.skillBarTrack}>
+                <View style={styles.skillBarFill} />
+              </View>
+            </View>
+          ))}
+        </View>
+      );
+    }
+    return (
+      <DiffText
+        oldText={originalData?.skills[i]?.items}
+        newText={group.items}
+        style={styles.skillList}
+      />
+    );
+  };
+
   if (part === "title") {
     return <Text style={styles.h2}>{sectionTitle(data, "skills", "Skills")}</Text>;
   }
@@ -329,11 +413,7 @@ const renderSkills: SectionRenderer = (data, styles, originalData, part, itemInd
         style={[styles.skillGroup, i === skills.length - 1 ? styles.skillGroupLast : {}]}
       >
         <Text style={styles.skillCat}>{group.category}</Text>
-        <DiffText
-          oldText={originalData?.skills[i]?.items}
-          newText={group.items}
-          style={styles.skillList}
-        />
+        {renderItems(group, i)}
       </KeepTogether>
     );
   }
@@ -346,11 +426,7 @@ const renderSkills: SectionRenderer = (data, styles, originalData, part, itemInd
           style={[styles.skillGroup, i === skills.length - 1 ? styles.skillGroupLast : {}]}
         >
           <Text style={styles.skillCat}>{group.category}</Text>
-          <DiffText
-            oldText={originalData?.skills[i]?.items}
-            newText={group.items}
-            style={styles.skillList}
-          />
+          {renderItems(group, i)}
         </KeepTogether>
       ))}
     </>
@@ -397,6 +473,7 @@ const renderEducation: SectionRenderer = (data, styles, originalData, part, item
       >
         <Text style={styles.sideBlockLead}>{edu.degree}</Text>
         <Text style={styles.sideBlockSub}>{edu.institution}</Text>
+        {edu.date ? <Text style={styles.sideBlockSub}>{edu.date}</Text> : null}
       </KeepTogether>
     );
   }
@@ -414,6 +491,7 @@ const renderEducation: SectionRenderer = (data, styles, originalData, part, item
         >
           <Text style={styles.sideBlockLead}>{edu.degree}</Text>
           <Text style={styles.sideBlockSub}>{edu.institution}</Text>
+          {edu.date ? <Text style={styles.sideBlockSub}>{edu.date}</Text> : null}
         </KeepTogether>
       ))}
     </>
@@ -687,6 +765,9 @@ const CVTemplate: React.FC<CVTemplateProps> = ({ data, originalData }) => {
   const layout = data.layout ?? defaultLayout();
   const sidebarWidth = layout.sidebarWidth ?? DEFAULT_SIDEBAR_WIDTH;
   const styles = getStyles(layout.theme, sidebarWidth);
+  // Police du thème (canvas) → famille PDF enregistrée, injectée via le
+  // contexte du thème PDF (toutes les primitives en héritent).
+  const pdfFontFamily = resolvePdfFontFamily(layout.theme?.fontFamily);
 
   const useAbsolute = layout.useAbsolutePositioning || false;
   const absolutePositions = layout.absolutePositions || getDefaultPositions("default", data);
@@ -800,6 +881,7 @@ const CVTemplate: React.FC<CVTemplateProps> = ({ data, originalData }) => {
   };
 
   return (
+    <PdfThemeProvider value={{ ...defaultPdfTheme, fontFamily: pdfFontFamily }}>
     <Document
       title={`${personalInfo.name} — ${personalInfo.role} (CV)`}
       author={personalInfo.name}
@@ -867,6 +949,7 @@ const CVTemplate: React.FC<CVTemplateProps> = ({ data, originalData }) => {
         );
       })}
     </Document>
+    </PdfThemeProvider>
   );
 };
 

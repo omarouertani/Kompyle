@@ -84,6 +84,12 @@ export function useCanvasInteractions({ data, defaultPositions, onChange, resolv
         return;
       }
 
+      // Bloc verrouillé : sélectionnable (pour le déverrouiller) mais pas déplaçable
+      if (currentPos.locked) {
+        setSelectedIds([id]);
+        return;
+      }
+
       // Drag groupé si le bloc cliqué fait partie de la sélection courante
       const group = selectedIdsRef.current.includes(id) ? selectedIdsRef.current : [id];
       setSelectedIds(group);
@@ -211,6 +217,7 @@ export function useCanvasInteractions({ data, defaultPositions, onChange, resolv
     (e: React.MouseEvent, id: string, currentPos: BlockPos, edge: ResizeEdge) => {
       e.preventDefault();
       e.stopPropagation();
+      if (currentPos.locked) return;
       setIsResizing(true);
       const startMouseX = e.clientX;
       const startMouseY = e.clientY;
@@ -232,6 +239,11 @@ export function useCanvasInteractions({ data, defaultPositions, onChange, resolv
       const resizesH = edge.includes("n") || edge.includes("s");
       const isLeft = edge.includes("w");
       const isTop = edge.includes("n");
+      // Resize diagonal (coin) : le texte suit la largeur via fontScale.
+      // Resize latéral/vertical : conteneur seul, comportement inchangé.
+      const isCorner = resizesW && resizesH;
+      const startFontScale = currentPos.fontScale ?? 1;
+      let pendingFontScale = startFontScale;
 
       const handleMouseMove = (moveEvent: MouseEvent) => {
         if (rafId) return;
@@ -257,6 +269,10 @@ export function useCanvasInteractions({ data, defaultPositions, onChange, resolv
             }
           }
 
+          if (isCorner && startW > 0) {
+            pendingFontScale = Math.max(0.4, Math.min(3, startFontScale * (pendingW / startW)));
+          }
+
           if (blockEl) {
             if (resizesW) {
               blockEl.style.width = `${pendingW * PT_TO_PX}px`;
@@ -268,13 +284,22 @@ export function useCanvasInteractions({ data, defaultPositions, onChange, resolv
               blockEl.style.minHeight = `${pendingH * PT_TO_PX}px`;
               if (isTop) blockEl.style.top = `${pendingY * PT_TO_PX}px`;
             }
+            if (isCorner) {
+              // Aperçu live : zoom CSS sur le contenu (commité en fontScale au mouseup)
+              const content = blockEl.firstElementChild as HTMLElement | null;
+              if (content) content.style.zoom = String(pendingFontScale / startFontScale);
+            }
           }
         });
       };
 
       const handleMouseUp = () => {
         if (rafId) cancelAnimationFrame(rafId);
-        if (blockEl) blockEl.style.willChange = "";
+        if (blockEl) {
+          blockEl.style.willChange = "";
+          const content = blockEl.firstElementChild as HTMLElement | null;
+          if (content) content.style.zoom = "";
+        }
         setIsResizing(false);
         window.removeEventListener("mousemove", handleMouseMove);
         window.removeEventListener("mouseup", handleMouseUp);
@@ -285,6 +310,7 @@ export function useCanvasInteractions({ data, defaultPositions, onChange, resolv
             y: Math.round(pendingY),
             w: Math.round(pendingW),
             ...(resizesH ? { h: Math.round(pendingH) } : {}),
+            ...(isCorner ? { fontScale: Math.round(pendingFontScale * 100) / 100 } : {}),
           },
         });
       };

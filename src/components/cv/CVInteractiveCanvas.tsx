@@ -16,13 +16,15 @@ import {
   computePaginatedFlow,
   getColumnSections,
   getPageBlockIds,
+  getSectionLabel,
 } from "@/lib/cv-layout";
 import { cn } from "@/lib/utils";
-import { Maximize2, MoveUpRight, MoveRight, Copy, EyeOff, RotateCcw, SquarePlus } from "lucide-react";
+import { Maximize2, MoveUpRight, MoveRight, Copy, EyeOff, RotateCcw, SquarePlus, Lock, LockOpen } from "lucide-react";
 import { CVPageScaleWrapper, PT_TO_PX, A4_WIDTH_PX, A4_HEIGHT_PX, ptsToPx, SELECTION_COLOR } from "./cv-canvas-primitives";
 import { AbsoluteBlock } from "./canvas/AbsoluteBlock";
 import { BlockContent, type BlockTheme } from "./canvas/BlockContent";
-import { CanvasToolbar, ZOOM_MIN, ZOOM_MAX } from "./canvas/CanvasToolbar";
+import { CanvasToolbar, ZOOM_MIN, ZOOM_MAX, type CanvasBackground } from "./canvas/CanvasToolbar";
+import { FONT_FAMILIES } from "./canvas/ThemePanel";
 import { ContextMenu, type ContextMenuItem } from "./canvas/ContextMenu";
 import { useCanvasInteractions } from "./canvas/use-canvas-interactions";
 import { useBlockActions } from "./canvas/use-block-actions";
@@ -43,7 +45,54 @@ function isSectionBlock(blockId: string): boolean {
   return ALL_SECTION_IDS.includes(parent as SectionId) || parent.startsWith("custom_");
 }
 
-export default function CVInteractiveCanvas({ data, onChange, template, onOverflowChange }: CVInteractiveCanvasProps) {
+const HISTORY_LIMIT = 30;
+/** Fenêtre de coalescence des snapshots d'historique (sliders, reflows). */
+const HISTORY_COALESCE_MS = 400;
+
+export default function CVInteractiveCanvas({ data, onChange: onChangeProp, template, onOverflowChange }: CVInteractiveCanvasProps) {
+  // ── Undo / Redo ───────────────────────────────────────────────────────────
+  // Pile de snapshots CVData poussée avant chaque mutation. Les mutations
+  // rapprochées (<400 ms : drag de slider, auto-reflow consécutif à une
+  // édition) sont coalescées en un seul pas d'annulation.
+  const presentRef = useRef(data);
+  useEffect(() => {
+    presentRef.current = data;
+  }, [data]);
+  const undoStack = useRef<CVData[]>([]);
+  const redoStack = useRef<CVData[]>([]);
+  const lastPushTs = useRef(0);
+
+  const onChange = useCallback(
+    (next: CVData) => {
+      const now = Date.now();
+      if (now - lastPushTs.current > HISTORY_COALESCE_MS) {
+        undoStack.current.push(presentRef.current);
+        if (undoStack.current.length > HISTORY_LIMIT) undoStack.current.shift();
+        redoStack.current = [];
+      }
+      lastPushTs.current = now;
+      onChangeProp(next);
+    },
+    [onChangeProp]
+  );
+
+  const undo = useCallback(() => {
+    const prev = undoStack.current.pop();
+    if (!prev) return;
+    redoStack.current.push(presentRef.current);
+    lastPushTs.current = 0; // la prochaine mutation repart sur un nouveau pas
+    onChangeProp(prev);
+  }, [onChangeProp]);
+
+  const redo = useCallback(() => {
+    const next = redoStack.current.pop();
+    if (!next) return;
+    undoStack.current.push(presentRef.current);
+    if (undoStack.current.length > HISTORY_LIMIT) undoStack.current.shift();
+    lastPushTs.current = 0;
+    onChangeProp(next);
+  }, [onChangeProp]);
+
   const layout = data.layout ?? defaultLayout();
   const theme = layout.theme ?? {};
   const isChaima = template === "chaima";
@@ -53,6 +102,8 @@ export default function CVInteractiveCanvas({ data, onChange, template, onOverfl
   const sidebarBg = theme.sidebarBg || (isChaima ? "#f4f4f5" : "transparent");
   const sidebarWidth = layout.sidebarWidth ?? (isChaima ? 175 : 165);
   const photoSize = getDefaultPhotoPosition(template, sidebarWidth).w;
+  const pageBg = theme.pageBg || "#ffffff";
+  const fontStack = FONT_FAMILIES[theme.fontFamily ?? "sans"].stack;
 
   const blockTheme: BlockTheme = {
     isChaima,
@@ -61,6 +112,7 @@ export default function CVInteractiveCanvas({ data, onChange, template, onOverfl
     headingFontSize: theme.headingSize ?? 12,
     lineHeight: theme.lineHeight ?? 1.2,
     photoSize,
+    skillMode: theme.skillMode,
   };
 
   const pagesKey = useMemo(
@@ -110,6 +162,8 @@ export default function CVInteractiveCanvas({ data, onChange, template, onOverfl
   // Clampé au nombre de pages réel (évite un index orphelin après suppression)
   const activePageIndex = Math.min(rawPageIndex, layout.pages.length - 1);
   const [menu, setMenu] = useState<{ x: number; y: number; blockId: string | null } | null>(null);
+  const [canvasBg, setCanvasBg] = useState<CanvasBackground>("neutral");
+  const [isExporting, setIsExporting] = useState(false);
 
   // Mesure la hauteur réelle d'un bloc rendu (offsetHeight est pré-scale).
   const measureHeightPt = useCallback((blockId: string): number | null => {
@@ -199,6 +253,29 @@ export default function CVInteractiveCanvas({ data, onChange, template, onOverfl
   // Ctrl/Cmd + molette → zoom
   const canvasContainerRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  // Échelle finale (baseScale × zoom) rapportée par le wrapper — sert au
+  // calcul du zoom « Ajuster à l'écran ».
+  const finalScaleRef = useRef(1);
+  const onScaleChange = useCallback(
+    (s: number) => {
+      finalScaleRef.current = s;
+      handleScaleChange(s);
+    },
+    [handleScaleChange]
+  );
+
+  // Zoom « Ajuster » : la page remplit la largeur visible du canvas.
+  const fitToScreen = useCallback(() => {
+    const el = scrollContainerRef.current;
+    if (!el) return;
+    setZoom((currentZoom) => {
+      const baseScale = currentZoom > 0 ? finalScaleRef.current / currentZoom : 1;
+      if (!baseScale) return 1;
+      const desired = (el.clientWidth - 48) / A4_WIDTH_PX;
+      return Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, desired / baseScale));
+    });
+  }, []);
   useEffect(() => {
     const el = scrollContainerRef.current;
     if (!el) return;
@@ -212,12 +289,31 @@ export default function CVInteractiveCanvas({ data, onChange, template, onOverfl
     return () => el.removeEventListener("wheel", handler);
   }, []);
 
-  // Raccourcis clavier : Échap, Suppr (masquer), flèches (déplacer la sélection)
+  // Raccourcis clavier : Ctrl+Z/Y (undo/redo), Échap, Suppr (masquer),
+  // flèches (déplacer la sélection)
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (selectedIds.length === 0) return;
       const target = e.target as HTMLElement;
-      if (target.isContentEditable || target.tagName === "INPUT" || target.tagName === "TEXTAREA") return;
+      const isEditingText = target.isContentEditable || target.tagName === "INPUT" || target.tagName === "TEXTAREA";
+
+      // Undo / Redo — actifs même sans sélection ; on laisse l'undo natif
+      // dans les champs texte en cours d'édition.
+      if ((e.ctrlKey || e.metaKey) && (e.key === "z" || e.key === "Z")) {
+        if (isEditingText) return;
+        e.preventDefault();
+        if (e.shiftKey) redo();
+        else undo();
+        return;
+      }
+      if ((e.ctrlKey || e.metaKey) && (e.key === "y" || e.key === "Y")) {
+        if (isEditingText) return;
+        e.preventDefault();
+        redo();
+        return;
+      }
+
+      if (selectedIds.length === 0) return;
+      if (isEditingText) return;
 
       if (e.key === "Escape") {
         clearSelection();
@@ -248,12 +344,13 @@ export default function CVInteractiveCanvas({ data, onChange, template, onOverfl
       if (dx === 0 && dy === 0) return;
 
       e.preventDefault();
-      const positions = layout.absolutePositions ?? defaultPositions;
+      const positions: Record<string, BlockPos> = layout.absolutePositions ?? defaultPositions;
       const updates: Record<string, BlockPos> = {};
       for (const id of selectedIds) {
         const pos = positions[id];
-        if (pos) updates[id] = { ...pos, x: Math.max(0, pos.x + dx), y: Math.max(0, pos.y + dy) };
+        if (pos && !pos.locked) updates[id] = { ...pos, x: Math.max(0, pos.x + dx), y: Math.max(0, pos.y + dy) };
       }
+      if (Object.keys(updates).length === 0) return;
       onChange({
         ...data,
         layout: { ...layout, absolutePositions: { ...positions, ...updates } },
@@ -261,7 +358,7 @@ export default function CVInteractiveCanvas({ data, onChange, template, onOverfl
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [selectedIds, layout, data, defaultPositions, onChange, hideSectionOf, clearSelection, canDuplicate, duplicateItem]);
+  }, [selectedIds, layout, data, defaultPositions, onChange, hideSectionOf, clearSelection, canDuplicate, duplicateItem, undo, redo]);
 
   const addPage = () => {
     const nextPages = [...layout.pages, emptyLayoutPage()];
@@ -307,6 +404,72 @@ export default function CVInteractiveCanvas({ data, onChange, template, onOverfl
       if (opts?.reflow) realignAfterRender();
     },
     [realignAfterRender]
+  );
+
+  // ── Export PDF / PNG depuis la toolbar ────────────────────────────────────
+  const exportFileBase = `CV_${data.personalInfo.name.replace(/\s+/g, "_") || "Kompyle"}`;
+
+  const exportPdf = useCallback(async () => {
+    setIsExporting(true);
+    try {
+      const res = await fetch("/api/render-pdf", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ data, template }),
+      });
+      if (!res.ok) throw new Error(`Server returned ${res.status}`);
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${exportFileBase}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("PDF export failed:", err);
+    } finally {
+      setIsExporting(false);
+    }
+  }, [data, template, exportFileBase]);
+
+  const exportPng = useCallback(async () => {
+    const pageEl = document.getElementById(`cv-page-${activePageIndex}`);
+    if (!pageEl) return;
+    setIsExporting(true);
+    try {
+      const { toPng } = await import("html-to-image");
+      const dataUrl = await toPng(pageEl, {
+        pixelRatio: 2,
+        backgroundColor: theme.pageBg || "#ffffff",
+      });
+      const a = document.createElement("a");
+      a.href = dataUrl;
+      a.download = `${exportFileBase}_page${activePageIndex + 1}.png`;
+      a.click();
+    } catch (err) {
+      console.error("PNG export failed:", err);
+    } finally {
+      setIsExporting(false);
+    }
+  }, [activePageIndex, theme.pageBg, exportFileBase]);
+
+  /** Verrouille / déverrouille un groupe de blocs (protège des drags accidentels). */
+  const toggleLock = useCallback(
+    (ids: string[]) => {
+      const positions: Record<string, BlockPos> = layout.absolutePositions ?? defaultPositions;
+      const anyUnlocked = ids.some((id) => !positions[id]?.locked);
+      const updates: Record<string, BlockPos> = {};
+      for (const id of ids) {
+        const pos = positions[id] ?? defaultPositions[id];
+        if (pos) updates[id] = { ...pos, locked: anyUnlocked };
+      }
+      if (Object.keys(updates).length === 0) return;
+      onChange({
+        ...data,
+        layout: { ...layout, absolutePositions: { ...positions, ...updates } },
+      });
+    },
+    [data, layout, defaultPositions, onChange]
   );
 
   /** Déplace la section parente d'un bloc vers une autre page (même colonne) et
@@ -540,6 +703,14 @@ export default function CVInteractiveCanvas({ data, onChange, template, onOverfl
       items.push({ label: "Hauteur auto", icon: Maximize2, onClick: () => autoHeight(targets) });
     }
     items.push({ label: "Position par défaut", icon: MoveUpRight, onClick: () => resetPosition(targets) });
+    {
+      const allLocked = targets.every((id) => ((savedPositions[id] ?? defaultPositions[id]) as BlockPos | undefined)?.locked);
+      items.push({
+        label: allLocked ? "Déverrouiller" : "Verrouiller le bloc",
+        icon: allLocked ? LockOpen : Lock,
+        onClick: () => toggleLock(targets),
+      });
+    }
     if (canDuplicate(menu.blockId)) {
       const blockId = menu.blockId;
       items.push({ label: "Dupliquer l'élément", icon: Copy, onClick: () => duplicateItem(blockId) });
@@ -575,21 +746,47 @@ export default function CVInteractiveCanvas({ data, onChange, template, onOverfl
     return items;
   };
 
-  const renderBlock = (id: string) => (
-    <AbsoluteBlock
-      key={id}
-      id={id}
-      pos={resolvePos(id)}
-      isSelected={selectedIds.includes(id)}
-      isInteracting={isDragging || isResizing}
-      onDragStart={startDrag}
-      onResizeStart={startResize}
-      onResetHeight={(blockId) => autoHeight([blockId])}
-      onContextMenu={openBlockMenu}
-    >
-      <BlockContent blockId={id} data={data} theme={blockTheme} onChange={onChange} />
-    </AbsoluteBlock>
-  );
+  /** Nom lisible d'un bloc (label affiché au survol). */
+  const blockLabel = (id: string): string => {
+    const HEADER_LABELS: Record<string, string> = {
+      photo: "Photo",
+      name: "Nom",
+      role: "Titre",
+      techLine: "Technologies",
+    };
+    if (HEADER_LABELS[id]) return HEADER_LABELS[id];
+    return getSectionLabel(getParentSectionId(id), data);
+  };
+
+  const renderBlock = (id: string) => {
+    const pos = resolvePos(id);
+    // Resize diagonal : le texte du bloc suit l'échelle sauvegardée
+    const fs = pos.fontScale ?? 1;
+    const themeForBlock: BlockTheme =
+      fs === 1
+        ? blockTheme
+        : {
+            ...blockTheme,
+            baseFontSize: blockTheme.baseFontSize * fs,
+            headingFontSize: blockTheme.headingFontSize * fs,
+          };
+    return (
+      <AbsoluteBlock
+        key={id}
+        id={id}
+        pos={pos}
+        isSelected={selectedIds.includes(id)}
+        isInteracting={isDragging || isResizing}
+        label={blockLabel(id)}
+        onDragStart={startDrag}
+        onResizeStart={startResize}
+        onResetHeight={(blockId) => autoHeight([blockId])}
+        onContextMenu={openBlockMenu}
+      >
+        <BlockContent blockId={id} data={data} theme={themeForBlock} onChange={onChange} />
+      </AbsoluteBlock>
+    );
+  };
 
   const headerBlockIds = [
     ...(data.personalInfo.photo || isChaima ? ["photo"] : []),
@@ -610,7 +807,7 @@ export default function CVInteractiveCanvas({ data, onChange, template, onOverfl
   return (
     <div
       ref={canvasContainerRef}
-      className="flex-1 flex flex-col bg-muted/40 rounded-xl border border-border/40 select-none overflow-hidden w-full"
+      className="relative flex-1 flex flex-col bg-muted/40 rounded-xl border border-border/40 select-none overflow-hidden w-full"
       onMouseDown={handleBackgroundMouseDown}
     >
       <CanvasToolbar
@@ -618,17 +815,30 @@ export default function CVInteractiveCanvas({ data, onChange, template, onOverfl
         activePageIndex={activePageIndex}
         zoom={zoom}
         theme={theme}
+        canvasBg={canvasBg}
+        isExporting={isExporting}
         onThemeChange={updateTheme}
         onSelectPage={setActivePageIndex}
         onAddPage={addPage}
         onRemovePage={removePage}
         onZoomChange={setZoom}
+        onZoomFit={fitToScreen}
         onRealign={realign}
+        onCanvasBgChange={setCanvasBg}
+        onExportPdf={exportPdf}
+        onExportPng={exportPng}
       />
 
       <div
         ref={scrollContainerRef}
         className="flex-1 overflow-auto p-4 flex flex-col gap-6 min-h-0 w-full scrollbar-thin"
+        style={
+          canvasBg === "dots"
+            ? { backgroundImage: "radial-gradient(circle, rgba(99,102,241,0.22) 1px, transparent 1px)", backgroundSize: "18px 18px" }
+            : canvasBg === "grid"
+              ? { backgroundImage: "linear-gradient(rgba(99,102,241,0.10) 1px, transparent 1px), linear-gradient(90deg, rgba(99,102,241,0.10) 1px, transparent 1px)", backgroundSize: "24px 24px" }
+              : undefined
+        }
         onContextMenu={openCanvasMenu}
       >
         {layout.pages.map((page, pageIndex) => {
@@ -645,7 +855,7 @@ export default function CVInteractiveCanvas({ data, onChange, template, onOverfl
               key={pageIndex}
               zoom={zoom}
               pageIndex={pageIndex}
-              onScaleChange={handleScaleChange}
+              onScaleChange={onScaleChange}
               fitToContainer
               minContentHeightPx={pageHeightPx}
             >
@@ -655,7 +865,7 @@ export default function CVInteractiveCanvas({ data, onChange, template, onOverfl
                   "w-full text-zinc-800 text-left box-border relative",
                   activePageIndex === pageIndex && layout.pages.length > 1 && "ring-2 ring-primary/30 ring-offset-2 rounded-sm"
                 )}
-                style={{ color: textColor, fontFamily: "'Carlito', sans-serif", minHeight: `${pageHeightPx}px` }}
+                style={{ color: textColor, fontFamily: fontStack, backgroundColor: pageBg, minHeight: `${pageHeightPx}px` }}
               >
                 {hasSidebar && sidebarBg !== "transparent" && (
                   <div
@@ -707,6 +917,26 @@ export default function CVInteractiveCanvas({ data, onChange, template, onOverfl
         })}
       </div>
 
+      {/* Info-bar de sélection : nom + X/Y/W/H du bloc sélectionné */}
+      {selectedIds.length === 1 && !isDragging && !isResizing && (() => {
+        const id = selectedIds[0];
+        const pos = absolutePositions[id];
+        if (!pos) return null;
+        const h = pos.h ?? Math.round(measureHeightPt(id) ?? 0);
+        const w = pos.w ?? 150;
+        return (
+          <div className="absolute bottom-2 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2.5 px-2.5 py-1 rounded-md bg-background/95 border border-border/80 shadow-md text-[10px] font-mono text-muted-foreground pointer-events-none">
+            <span className="font-sans font-semibold text-foreground max-w-36 truncate">{blockLabel(id)}</span>
+            {pos.locked && <Lock size={9} className="text-foreground" />}
+            <span>X {Math.round(pos.x)}</span>
+            <span>Y {Math.round(pos.y)}</span>
+            <span>L {Math.round(w)}</span>
+            <span>H {Math.round(h)}</span>
+            <span className="text-border">pt</span>
+          </div>
+        );
+      })()}
+
       {/* Lasso de sélection */}
       {marqueeRect && (
         <div
@@ -716,6 +946,7 @@ export default function CVInteractiveCanvas({ data, onChange, template, onOverfl
       )}
 
       {/* Menu contextuel */}
+      {/* eslint-disable-next-line react-hooks/refs -- les piles d'historique ne sont lues que dans les onClick, pas au rendu */}
       {menu && <ContextMenu x={menu.x} y={menu.y} items={menuItems()} onClose={() => setMenu(null)} />}
     </div>
   );

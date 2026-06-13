@@ -2,6 +2,7 @@
 
 import React from "react";
 import { cn } from "@/lib/utils";
+import { Lock } from "lucide-react";
 import { ptsToPx, SELECTION_COLOR } from "../cv-canvas-primitives";
 import type { BlockPos } from "./snap";
 import type { ResizeEdge } from "./use-canvas-interactions";
@@ -24,6 +25,8 @@ interface AbsoluteBlockProps {
   pos: BlockPos;
   isSelected: boolean;
   isInteracting: boolean;
+  /** Nom de section affiché au survol du bloc. */
+  label?: string;
   onDragStart: (e: React.MouseEvent, id: string, pos: BlockPos) => void;
   onResizeStart: (e: React.MouseEvent, id: string, pos: BlockPos, edge: ResizeEdge) => void;
   onResetHeight?: (id: string, pos: BlockPos) => void;
@@ -39,12 +42,14 @@ export function AbsoluteBlock({
   pos,
   isSelected,
   isInteracting,
+  label,
   onDragStart,
   onResizeStart,
   onResetHeight,
   onContextMenu,
   children,
 }: AbsoluteBlockProps) {
+  const locked = !!pos.locked;
   return (
     <div
       data-block-id={id}
@@ -64,7 +69,8 @@ export function AbsoluteBlock({
         isSelected
           ? "shadow-md"
           : "border border-transparent hover:shadow-sm",
-        !isInteracting && "cursor-move"
+        !isInteracting && !locked && "cursor-move",
+        locked && "cursor-default"
       )}
       onMouseDown={(e) => onDragStart(e, id, pos)}
       onContextMenu={(e) => onContextMenu?.(e, id)}
@@ -76,9 +82,33 @@ export function AbsoluteBlock({
         />
       )}
 
+      {/* Label de section au survol (masqué pendant un drag/resize) */}
+      {label && !isInteracting && (
+        <div
+          className={cn(
+            "absolute -top-4 left-0 px-1 py-px rounded-sm text-[8px] font-semibold tracking-wide text-white pointer-events-none whitespace-nowrap z-50 transition-opacity flex items-center gap-0.5",
+            isSelected ? "opacity-100" : "opacity-0 group-hover/abs:opacity-100"
+          )}
+          style={{ backgroundColor: SELECTION_COLOR }}
+        >
+          {locked && <Lock size={7} />}
+          {label}
+        </div>
+      )}
+
+      {/* Indicateur de verrou (sans label) */}
+      {locked && !label && (
+        <div
+          className="absolute -top-4 right-0 p-0.5 rounded-sm text-white pointer-events-none z-50"
+          style={{ backgroundColor: SELECTION_COLOR }}
+        >
+          <Lock size={7} />
+        </div>
+      )}
+
       <div className="p-1">{children}</div>
 
-      {isSelected && HANDLES.map(({ edge, cursor, cls, corner }) => (
+      {isSelected && !locked && HANDLES.map(({ edge, cursor, cls, corner }) => (
         <div
           key={edge}
           className={cn("absolute z-40 rounded-[2px]", cls)}
