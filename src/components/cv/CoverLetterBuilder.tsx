@@ -1,8 +1,8 @@
 "use client";
 
 import React from "react";
-import type { CoverLetterData } from "@/types/cv";
-import { Building, FileText, Plus, X } from "lucide-react";
+import type { CoverLetterData, PersonalInfo } from "@/types/cv";
+import { Building, FileText, Plus, X, User } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,8 @@ import { Label } from "@/components/ui/label";
 interface CoverLetterBuilderProps {
   data: CoverLetterData;
   onChange: (newData: CoverLetterData) => void;
+  /** Infos expéditeur — toujours reprises du CV actif (nom, prénom, contact). */
+  personalInfo?: PersonalInfo;
 }
 
 /* ── Section heading component for consistent styling ── */
@@ -23,8 +25,8 @@ function SectionHeading({ icon: Icon, children }: { icon: React.ElementType; chi
   );
 }
 
-export default function CoverLetterBuilder({ data, onChange }: CoverLetterBuilderProps) {
-  
+export default function CoverLetterBuilder({ data, onChange, personalInfo }: CoverLetterBuilderProps) {
+
   const handleChange = (field: keyof CoverLetterData, value: string | string[]) => {
     onChange({ ...data, [field]: value });
   };
@@ -46,6 +48,28 @@ export default function CoverLetterBuilder({ data, onChange }: CoverLetterBuilde
 
   return (
     <div className="flex flex-col gap-12 pb-12">
+      {/* ── Expéditeur (repris du CV) ── */}
+      {personalInfo && (
+        <section>
+          <SectionHeading icon={User}>Expéditeur (depuis le CV)</SectionHeading>
+          <div className="border border-border/60 rounded-lg p-3.5 bg-muted/20 flex flex-col gap-0.5">
+            <span className="text-sm font-semibold text-foreground">
+              {personalInfo.name || "— Nom non renseigné dans le CV —"}
+            </span>
+            {personalInfo.role && <span className="text-xs text-muted-foreground">{personalInfo.role}</span>}
+            {(personalInfo.email || personalInfo.phone) && (
+              <span className="text-xs text-muted-foreground">
+                {[personalInfo.email, personalInfo.phone].filter(Boolean).join(" • ")}
+              </span>
+            )}
+            <p className="text-[10px] text-muted-foreground/70 mt-1.5">
+              Le nom, le titre et la signature de la lettre sont automatiquement repris des
+              informations personnelles du CV actif — modifiez-les dans l&apos;onglet Edit CV.
+            </p>
+          </div>
+        </section>
+      )}
+
       {/* ── En-tête (Destinataire & Date) ── */}
       <section>
         <SectionHeading icon={Building}>Informations du Destinataire</SectionHeading>
@@ -59,7 +83,7 @@ export default function CoverLetterBuilder({ data, onChange }: CoverLetterBuilde
             />
           </div>
           <div className="flex flex-col gap-2">
-            <Label>Nom de l'entreprise</Label>
+            <Label>Nom de l&apos;entreprise</Label>
             <Input
               value={data.recipientCompany}
               onChange={(e) => handleChange("recipientCompany", e.target.value)}
@@ -67,7 +91,7 @@ export default function CoverLetterBuilder({ data, onChange }: CoverLetterBuilde
             />
           </div>
           <div className="flex flex-col gap-2 col-span-2">
-            <Label>Adresse de l'entreprise (Optionnel)</Label>
+            <Label>Adresse de l&apos;entreprise (Optionnel)</Label>
             <Input
               value={data.recipientAddress || ""}
               onChange={(e) => handleChange("recipientAddress", e.target.value)}

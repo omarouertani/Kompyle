@@ -33,6 +33,7 @@ import {
   ChevronUp,
   Plus,
   Trash2,
+  Copy,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -90,14 +91,17 @@ function SortableItem({
   id,
   title,
   onDelete,
+  onDuplicate,
   children,
 }: {
   id: string;
   title: string;
   onDelete: () => void;
+  onDuplicate: () => void;
   children: React.ReactNode;
 }) {
-  const [isOpen, setIsOpen] = useState(false);
+  // Un élément fraîchement ajouté (titre vide) s'ouvre directement pour la saisie.
+  const [isOpen, setIsOpen] = useState(() => title.trim() === "");
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id });
 
   return (
@@ -110,6 +114,18 @@ function SortableItem({
           {title || "Nouvel élément"}
         </div>
         <div className="flex items-center gap-0.5">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-8 text-muted-foreground"
+            onClick={(e) => {
+              e.stopPropagation();
+              onDuplicate();
+            }}
+            title="Dupliquer"
+          >
+            <Copy size={14} />
+          </Button>
           <Button
             variant="ghost"
             size="icon"
@@ -142,6 +158,7 @@ function SortableSection<T extends { id?: string }>({
   onAdd,
   onReorder,
   onRemove,
+  onDuplicate,
   renderFields,
 }: {
   icon: React.ElementType;
@@ -152,6 +169,7 @@ function SortableSection<T extends { id?: string }>({
   onAdd: () => void;
   onReorder: (items: T[]) => void;
   onRemove: (id: string) => void;
+  onDuplicate: (id: string) => void;
   renderFields: (item: T) => React.ReactNode;
 }) {
   const sensors = useSensors(
@@ -174,7 +192,7 @@ function SortableSection<T extends { id?: string }>({
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={items.map((i) => i.id!)} strategy={verticalListSortingStrategy}>
           {items.map((item) => (
-            <SortableItem key={item.id} id={item.id!} title={getTitle(item)} onDelete={() => onRemove(item.id!)}>
+            <SortableItem key={item.id} id={item.id!} title={getTitle(item)} onDelete={() => onRemove(item.id!)} onDuplicate={() => onDuplicate(item.id!)}>
               {renderFields(item)}
             </SortableItem>
           ))}
@@ -203,6 +221,15 @@ export default function CVBuilder({ data, onChange }: CVBuilderProps) {
   const removeItem = (section: ListSection) => (id: string) => {
     const items = data[section] as { id?: string }[];
     setSection(section, items.filter((item) => item.id !== id));
+  };
+
+  /** Duplique un élément juste après l'original (avec un nouvel id). */
+  const duplicateItem = (section: ListSection) => (id: string) => {
+    const items = data[section] as { id?: string }[];
+    const idx = items.findIndex((item) => item.id === id);
+    if (idx === -1) return;
+    const copy = { ...items[idx], id: uuidv4() };
+    setSection(section, [...items.slice(0, idx + 1), copy, ...items.slice(idx + 1)]);
   };
 
   const updatePersonalInfo = (field: string, value: string) =>
@@ -299,6 +326,7 @@ export default function CVBuilder({ data, onChange }: CVBuilderProps) {
         onAdd={() => setSection("skills", [...data.skills, { id: uuidv4(), category: "", items: "" } satisfies SkillGroup])}
         onReorder={(items) => setSection("skills", items)}
         onRemove={removeItem("skills")}
+        onDuplicate={duplicateItem("skills")}
         renderFields={(group) => (
           <>
             <Field label="Catégorie" value={group.category} onChange={(v) => updateItem("skills", group.id!, { category: v })} />
@@ -350,6 +378,7 @@ export default function CVBuilder({ data, onChange }: CVBuilderProps) {
         onAdd={() => setSection("experiences", [...data.experiences, { id: uuidv4(), title: "", org: "", date: "", bullets: [] } satisfies Experience])}
         onReorder={(items) => setSection("experiences", items)}
         onRemove={removeItem("experiences")}
+        onDuplicate={duplicateItem("experiences")}
         renderFields={(exp) => (
           <>
             <Field label="Titre du poste" value={exp.title} onChange={(v) => updateItem("experiences", exp.id!, { title: v })} />
@@ -376,6 +405,7 @@ export default function CVBuilder({ data, onChange }: CVBuilderProps) {
         onAdd={() => setSection("projects", [...data.projects, { id: uuidv4(), title: "", description: "", stack: "" } satisfies Project])}
         onReorder={(items) => setSection("projects", items)}
         onRemove={removeItem("projects")}
+        onDuplicate={duplicateItem("projects")}
         renderFields={(proj) => (
           <>
             <Field label="Nom du projet" value={proj.title} onChange={(v) => updateItem("projects", proj.id!, { title: v })} />
@@ -395,6 +425,7 @@ export default function CVBuilder({ data, onChange }: CVBuilderProps) {
         onAdd={() => setSection("education", [...data.education, { id: uuidv4(), degree: "", institution: "" } satisfies Education])}
         onReorder={(items) => setSection("education", items)}
         onRemove={removeItem("education")}
+        onDuplicate={duplicateItem("education")}
         renderFields={(edu) => (
           <>
             <Field label="Diplôme" value={edu.degree} onChange={(v) => updateItem("education", edu.id!, { degree: v })} />

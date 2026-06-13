@@ -410,8 +410,9 @@ export function computeFlowPositions(
 
   const isChaima = template === "chaima";
   const layout = data.layout ?? defaultLayout();
-  const BLOCK_GAP = 6; // espacement entre blocs d'une même section (pt)
-  const SECTION_GAP = 14; // espacement supplémentaire entre sections (pt)
+  const BLOCK_GAP = 3; // espacement entre blocs d'une même section (pt)
+  // Espacement entre sections : piloté par le thème (slider "Espacement des sections")
+  const SECTION_GAP = layout.theme?.sectionMargin ?? 8;
 
   const stackColumn = (sectionIds: string[], startY: number) => {
     let y = startY;
@@ -480,8 +481,9 @@ export function computePaginatedFlow(
   const layout = data.layout ?? defaultLayout();
   const { sidebar: sidebarSections, main: mainSections } = getColumnSections(layout);
 
-  const BLOCK_GAP = 6;
-  const SECTION_GAP = 14;
+  const BLOCK_GAP = 3;
+  // Espacement entre sections : piloté par le thème (slider "Espacement des sections")
+  const SECTION_GAP = layout.theme?.sectionMargin ?? 8;
   const FIRST_START = isChaima ? 100 : 95; // sous le header / la photo
   const NEXT_START = 24; // haut des pages suivantes
   const PAGE_BOTTOM = A4_PAGE_HEIGHT_PT - 24; // marge basse

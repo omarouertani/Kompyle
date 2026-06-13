@@ -21,6 +21,8 @@ import {
   Save,
   Check,
   CloudOff,
+  Plus,
+  X,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -92,8 +94,20 @@ export default function AdaptPage() {
   const [refineInstruction, setRefineInstruction] = useState("");
   const [refineHistory, setRefineHistory] = useState<string[]>([]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isCreatingProfile, setIsCreatingProfile] = useState(false);
+  const [newProfileName, setNewProfileName] = useState("");
 
   const profile = useProfileManager(locale, t);
+
+  const submitNewProfile = async () => {
+    const name = newProfileName.trim();
+    if (!name) return;
+    setIsCreatingProfile(false);
+    setNewProfileName("");
+    await profile.createProfile(name);
+    // Ouvre directement l'éditeur manuel pour remplir le CV vierge
+    setActiveLeftTab("cv-builder");
+  };
   const aiConfig = useAIProviderConfig();
 
   const { handleAdaptCV, handleGenerateLetter, handleRefineCV, handleRefineLetter } = useAISubmission({
@@ -299,6 +313,7 @@ export default function AdaptPage() {
         return (
           <div className="p-6">
             <CoverLetterBuilder
+              personalInfo={profile.currentCV.personalInfo}
               data={profile.coverLetterData || initialCoverLetter}
               onChange={(newData) => {
                 profile.setCoverLetterData(newData);
@@ -324,7 +339,7 @@ export default function AdaptPage() {
           <SidebarHeader className="px-3 pt-3 pb-2 border-b border-border shrink-0 bg-sidebar flex flex-col gap-2.5">
             <div className="flex items-center justify-between px-1 bg-muted/40 rounded-lg p-1 border border-border/40">
               <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground pl-1.5">Profil actif :</span>
-              <div className="flex gap-1">
+              <div className="flex gap-1 items-center flex-wrap justify-end">
                 {(profile.profiles.length > 0
                   ? [...new Map(profile.profiles.map((p) => [p.slug, p])).values()]
                   : [{ slug: "omar", name: "Omar" }, { slug: "chaima", name: "Chaima" }]
@@ -339,6 +354,37 @@ export default function AdaptPage() {
                     {p.name.split(" ")[0]}
                   </Button>
                 ))}
+                {isCreatingProfile ? (
+                  <div className="flex items-center gap-1">
+                    <input
+                      autoFocus
+                      value={newProfileName}
+                      onChange={(e) => setNewProfileName(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") submitNewProfile();
+                        if (e.key === "Escape") { setIsCreatingProfile(false); setNewProfileName(""); }
+                      }}
+                      placeholder="Nom du profil…"
+                      className="h-6 w-28 px-2 text-xs rounded-md border border-border bg-input-bg focus:outline-none focus:ring-1 focus:ring-ring/40"
+                    />
+                    <Button variant="default" size="xs" className="h-6 px-2 text-xs" onClick={submitNewProfile} disabled={!newProfileName.trim()} title="Créer le profil vierge">
+                      <Check size={12} />
+                    </Button>
+                    <Button variant="ghost" size="xs" className="h-6 px-1.5 text-muted-foreground" onClick={() => { setIsCreatingProfile(false); setNewProfileName(""); }}>
+                      <X size={12} />
+                    </Button>
+                  </div>
+                ) : (
+                  <Button
+                    variant="ghost"
+                    size="xs"
+                    className="h-6 px-2 text-xs gap-1 text-muted-foreground hover:text-foreground"
+                    onClick={() => setIsCreatingProfile(true)}
+                    title="Nouveau profil (template vide, à remplir via Edit CV)"
+                  >
+                    <Plus size={12} />
+                  </Button>
+                )}
               </div>
             </div>
 

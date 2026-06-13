@@ -101,6 +101,11 @@ interface CoverLetterTemplateProps {
   personalInfo: PersonalInfo;
 }
 
+/** Remplace les placeholders de nom laissés par l'IA ("[Votre nom]",
+ *  "[Your Name]"…) par le vrai nom issu du CV. */
+const fillNamePlaceholders = (text: string, name: string): string =>
+  name ? text.replace(/\[\s*(votre\s+nom|your\s+name|nom\s+pr[ée]nom|pr[ée]nom\s+nom|name|nom)\s*\]/gi, name) : text;
+
 const CoverLetterTemplate: React.FC<CoverLetterTemplateProps> = ({ data, personalInfo }) => {
   return (
     <Document
@@ -150,13 +155,13 @@ const CoverLetterTemplate: React.FC<CoverLetterTemplateProps> = ({ data, persona
         {/* BODY PARAGRAPHS */}
         {data.paragraphs.map((para, i) => (
           <Text key={i} style={styles.paragraph}>
-            {para}
+            {fillNamePlaceholders(para, personalInfo.name)}
           </Text>
         ))}
 
         {/* SIGN OFF */}
         <View style={styles.signOffBlock}>
-          <Text style={styles.signOff}>{data.signOff}</Text>
+          <Text style={styles.signOff}>{fillNamePlaceholders(data.signOff, personalInfo.name)}</Text>
           <Text style={styles.signatureName}>{personalInfo.name}</Text>
         </View>
 
