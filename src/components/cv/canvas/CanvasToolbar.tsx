@@ -3,7 +3,7 @@
 import React from "react";
 import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
-import { Minus, Plus, Trash2, Sparkles, FilePlus, RotateCcw, Grid3x3, ImageDown, Loader2 } from "lucide-react";
+import { Minus, Plus, Trash2, Sparkles, FilePlus, RotateCcw, Grid3x3 } from "lucide-react";
 import type { CVTheme } from "@/types/cv";
 import { ThemePanel } from "./ThemePanel";
 
@@ -15,7 +15,6 @@ interface CanvasToolbarProps {
   zoom: number;
   theme: CVTheme;
   canvasBg: CanvasBackground;
-  isExporting: boolean;
   onThemeChange: (updates: Partial<CVTheme>, opts?: { reflow?: boolean }) => void;
   onSelectPage: (index: number) => void;
   onAddPage: () => void;
@@ -24,7 +23,6 @@ interface CanvasToolbarProps {
   onZoomFit: () => void;
   onRealign: () => void;
   onCanvasBgChange: (bg: CanvasBackground) => void;
-  onExportPng: () => void;
 }
 
 export const ZOOM_MIN = 0.3;
@@ -36,7 +34,6 @@ export function CanvasToolbar({
   zoom,
   theme,
   canvasBg,
-  isExporting,
   onThemeChange,
   onSelectPage,
   onAddPage,
@@ -45,7 +42,6 @@ export function CanvasToolbar({
   onZoomFit,
   onRealign,
   onCanvasBgChange,
-  onExportPng,
 }: CanvasToolbarProps) {
   const t = useTranslations("Canvas");
   const BG_LABELS: Record<CanvasBackground, string> = {
@@ -112,20 +108,6 @@ export function CanvasToolbar({
           </button>
           <button type="button" onClick={onZoomFit} className="px-1.5 py-0.5 hover:bg-background/80 text-muted-foreground hover:text-foreground h-6 text-[9px] font-medium flex items-center justify-center rounded" title={t("zoom_fit_tooltip")}>
             {t("zoom_fit")}
-          </button>
-        </div>
-
-        {/* Export PNG de la page active (le téléchargement PDF se fait depuis la barre principale). */}
-        <div className="flex items-center gap-0.5 bg-muted p-0.5 rounded-lg border border-border/80 shadow-sm">
-          <button
-            type="button"
-            onClick={onExportPng}
-            disabled={isExporting}
-            className="flex items-center gap-1 px-2.5 py-0.5 text-[9px] font-bold rounded-md bg-background hover:bg-muted/80 text-foreground transition-all shadow-sm h-6 disabled:opacity-50"
-            title={t("export_png_tooltip")}
-          >
-            {isExporting ? <Loader2 size={10} className="animate-spin" /> : <ImageDown size={10} />}
-            <span className="hidden sm:inline">{t("export_png")}</span>
           </button>
         </div>
       </div>
