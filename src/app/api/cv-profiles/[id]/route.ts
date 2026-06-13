@@ -24,26 +24,40 @@ export async function PUT(
 ) {
   const { id } = await params;
   const body = await req.json();
-  const { slug, name, locale, template, cv_data } = body;
+  const { slug, name, locale, template, cv_data, cover_letter } = body;
 
-  const { rows } = await pool.query(
-    `UPDATE cv_profiles
-     SET slug = COALESCE($2, slug),
-         name = COALESCE($3, name),
-         locale = COALESCE($4, locale),
-         template = COALESCE($5, template),
-         cv_data = COALESCE($6, cv_data),
-         updated_at = now()
-     WHERE id = $1
-     RETURNING *`,
-    [id, slug, name, locale, template, cv_data ? JSON.stringify(cv_data) : null]
-  );
+  try {
+    const { rows } = await pool.query(
+      `UPDATE cv_profiles
+       SET slug = COALESCE($2, slug),
+           name = COALESCE($3, name),
+           locale = COALESCE($4, locale),
+           template = COALESCE($5, template),
+           cv_data = COALESCE($6, cv_data),
+           cover_letter = COALESCE($7, cover_letter),
+           updated_at = now()
+       WHERE id = $1
+       RETURNING *`,
+      [
+        id,
+        slug,
+        name,
+        locale,
+        template,
+        cv_data ? JSON.stringify(cv_data) : null,
+        cover_letter !== undefined ? JSON.stringify(cover_letter) : null,
+      ]
+    );
 
-  if (rows.length === 0) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
+    if (rows.length === 0) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+
+    return NextResponse.json(rows[0]);
+  } catch (err) {
+    console.error("[cv-profiles PUT] error:", err);
+    return NextResponse.json({ error: "Could not update the profile." }, { status: 500 });
   }
-
-  return NextResponse.json(rows[0]);
 }
 
 export async function DELETE(

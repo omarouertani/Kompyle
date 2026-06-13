@@ -1,5 +1,18 @@
 import type { CVData, CVLayout, LayoutPage, SectionId } from "@/types/cv";
 
+/** Clés de template connues. "modern" remplace l'ancien "chaima" (conservé en
+ *  alias pour les anciennes lignes en base). "canadian" = CV sobre nord-américain. */
+export type TemplateKey = "default" | "modern" | "canadian";
+
+/** Vrai pour le template "Moderne" (anciennement nommé "chaima"). On accepte
+ *  encore l'ancien identifiant pour les CV déjà enregistrés en base. */
+export const isModernTemplate = (template: string): boolean =>
+  template === "modern" || template === "chaima";
+
+/** Normalise un identifiant de template legacy vers la nouvelle clé. */
+export const normalizeTemplate = (template?: string | null): string =>
+  template === "chaima" ? "modern" : template || "default";
+
 /**
  * Métadonnées des sections "built-in" + layout par défaut.
  * Partagé entre le template (rendu), le builder (gestionnaire de sections) et
@@ -110,7 +123,7 @@ export function emptyCV(template = "default"): CVData {
     education: [],
     experiences: [],
     projects: [],
-    layout: { ...defaultLayout(), theme: template === "chaima" ? { primaryColor: "#fbbf24", sidebarBg: "#f4f4f5" } : {} },
+    layout: { ...defaultLayout(), theme: isModernTemplate(template) ? { primaryColor: "#fbbf24", sidebarBg: "#f4f4f5" } : {} },
   };
 }
 
@@ -221,7 +234,7 @@ export function getDefaultPhotoPosition(
   template: string,
   sidebarWidth = DEFAULT_SIDEBAR_WIDTH
 ): { x: number; y: number; w: number } {
-  if (template === "chaima") {
+  if (isModernTemplate(template)) {
     return { x: 40, y: 24, w: 65 };
   }
   const photoSize = 60;
@@ -235,7 +248,7 @@ export function getDefaultPhotoPosition(
 
 /** Positions absolues calculées dynamiquement pour le Mode Canva */
 export function computeDefaultPositions(template: string, data: CVData): Record<string, { x: number; y: number; w: number }> {
-  const isChaima = template === "chaima";
+  const isChaima = isModernTemplate(template);
   const layout: Partial<CVLayout> = data?.layout ?? {};
   const sidebarWidth = layout.sidebarWidth ?? (isChaima ? 175 : 165);
   const pages: LayoutPage[] = layout.pages ?? [{ sidebar: ["contact", "skills", "languages", "education"], main: ["summary", "experience", "projects"] }];
@@ -244,7 +257,7 @@ export function computeDefaultPositions(template: string, data: CVData): Record<
 
   // Default header heights — alignés sur le rendu colonnes / PDF
   if (isChaima) {
-    positions["photo"] = getDefaultPhotoPosition("chaima", sidebarWidth);
+    positions["photo"] = getDefaultPhotoPosition("modern", sidebarWidth);
     positions["name"] = { x: 200, y: 20, w: 370 };
     positions["role"] = { x: 200, y: 48, w: 370 };
     positions["techLine"] = { x: 200, y: 66, w: 370 };
@@ -408,7 +421,7 @@ export function computeFlowPositions(
   const positions: Record<string, { x: number; y: number; w: number; h?: number }> = {};
   for (const [k, v] of Object.entries(base)) positions[k] = { ...v };
 
-  const isChaima = template === "chaima";
+  const isChaima = isModernTemplate(template);
   const layout = data.layout ?? defaultLayout();
   const BLOCK_GAP = 3; // espacement entre blocs d'une même section (pt)
   // Espacement entre sections : piloté par le thème (slider "Espacement des sections")
@@ -477,7 +490,7 @@ export function computePaginatedFlow(
   const positions: Record<string, { x: number; y: number; w: number; h?: number; page: number }> = {};
   for (const [k, v] of Object.entries(base)) positions[k] = { ...v, page: 0 };
 
-  const isChaima = template === "chaima";
+  const isChaima = isModernTemplate(template);
   const layout = data.layout ?? defaultLayout();
   const { sidebar: sidebarSections, main: mainSections } = getColumnSections(layout);
 
@@ -587,7 +600,7 @@ export function getDefaultPositions(template: string, data?: CVData): Record<str
   if (data) {
     return computeDefaultPositions(template, data);
   }
-  const isChaima = template === "chaima";
+  const isChaima = isModernTemplate(template);
   if (isChaima) {
     return {
       photo: { x: 40, y: 24, w: 65 },

@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { useTranslations } from "next-intl";
 import type { CoverLetterData, PersonalInfo } from "@/types/cv";
 import { Building, FileText, Plus, X, User } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -26,6 +27,7 @@ function SectionHeading({ icon: Icon, children }: { icon: React.ElementType; chi
 }
 
 export default function CoverLetterBuilder({ data, onChange, personalInfo }: CoverLetterBuilderProps) {
+  const t = useTranslations("LetterBuilder");
 
   const handleChange = (field: keyof CoverLetterData, value: string | string[]) => {
     onChange({ ...data, [field]: value });
@@ -38,7 +40,7 @@ export default function CoverLetterBuilder({ data, onChange, personalInfo }: Cov
   };
 
   const addParagraph = () => {
-    handleChange("paragraphs", [...data.paragraphs, "Nouveau paragraphe..."]);
+    handleChange("paragraphs", [...data.paragraphs, t("new_paragraph")]);
   };
 
   const removeParagraph = (index: number) => {
@@ -51,10 +53,10 @@ export default function CoverLetterBuilder({ data, onChange, personalInfo }: Cov
       {/* ── Expéditeur (repris du CV) ── */}
       {personalInfo && (
         <section>
-          <SectionHeading icon={User}>Expéditeur (depuis le CV)</SectionHeading>
+          <SectionHeading icon={User}>{t("sender_section")}</SectionHeading>
           <div className="border border-border/60 rounded-lg p-3.5 bg-muted/20 flex flex-col gap-0.5">
             <span className="text-sm font-semibold text-foreground">
-              {personalInfo.name || "— Nom non renseigné dans le CV —"}
+              {personalInfo.name || t("sender_no_name")}
             </span>
             {personalInfo.role && <span className="text-xs text-muted-foreground">{personalInfo.role}</span>}
             {(personalInfo.email || personalInfo.phone) && (
@@ -63,8 +65,7 @@ export default function CoverLetterBuilder({ data, onChange, personalInfo }: Cov
               </span>
             )}
             <p className="text-[10px] text-muted-foreground/70 mt-1.5">
-              Le nom, le titre et la signature de la lettre sont automatiquement repris des
-              informations personnelles du CV actif — modifiez-les dans l&apos;onglet Edit CV.
+              {t("sender_hint")}
             </p>
           </div>
         </section>
@@ -72,34 +73,34 @@ export default function CoverLetterBuilder({ data, onChange, personalInfo }: Cov
 
       {/* ── En-tête (Destinataire & Date) ── */}
       <section>
-        <SectionHeading icon={Building}>Informations du Destinataire</SectionHeading>
+        <SectionHeading icon={Building}>{t("recipient_section")}</SectionHeading>
         <div className="grid grid-cols-2 gap-5">
           <div className="flex flex-col gap-2">
-            <Label>Nom du destinataire</Label>
+            <Label>{t("recipient_name")}</Label>
             <Input
               value={data.recipientName}
               onChange={(e) => handleChange("recipientName", e.target.value)}
-              placeholder="Ex: M. Dupont ou Responsable Recrutement"
+              placeholder={t("recipient_name_ph")}
             />
           </div>
           <div className="flex flex-col gap-2">
-            <Label>Nom de l&apos;entreprise</Label>
+            <Label>{t("recipient_company")}</Label>
             <Input
               value={data.recipientCompany}
               onChange={(e) => handleChange("recipientCompany", e.target.value)}
-              placeholder="Ex: Tech Corp"
+              placeholder={t("recipient_company_ph")}
             />
           </div>
           <div className="flex flex-col gap-2 col-span-2">
-            <Label>Adresse de l&apos;entreprise (Optionnel)</Label>
+            <Label>{t("recipient_address")}</Label>
             <Input
               value={data.recipientAddress || ""}
               onChange={(e) => handleChange("recipientAddress", e.target.value)}
-              placeholder="Ex: 123 Rue de la Paix, 75000 Paris"
+              placeholder={t("recipient_address_ph")}
             />
           </div>
           <div className="flex flex-col gap-2">
-            <Label>Date</Label>
+            <Label>{t("date")}</Label>
             <Input
               value={data.date}
               onChange={(e) => handleChange("date", e.target.value)}
@@ -110,10 +111,10 @@ export default function CoverLetterBuilder({ data, onChange, personalInfo }: Cov
 
       {/* ── Corps de la Lettre ── */}
       <section>
-        <SectionHeading icon={FileText}>Objet & Corps de la Lettre</SectionHeading>
+        <SectionHeading icon={FileText}>{t("body_section")}</SectionHeading>
         <div className="flex flex-col gap-5">
           <div className="flex flex-col gap-2">
-            <Label>Objet de la lettre</Label>
+            <Label>{t("subject")}</Label>
             <Input
               value={data.subject}
               onChange={(e) => handleChange("subject", e.target.value)}
@@ -121,22 +122,22 @@ export default function CoverLetterBuilder({ data, onChange, personalInfo }: Cov
             />
           </div>
           <div className="flex flex-col gap-2">
-            <Label>Salutation</Label>
+            <Label>{t("salutation")}</Label>
             <Input
               value={data.salutation}
               onChange={(e) => handleChange("salutation", e.target.value)}
-              placeholder="Ex: Madame, Monsieur,"
+              placeholder={t("salutation_ph")}
             />
           </div>
-          
+
           <div className="flex flex-col gap-3 mt-2">
             <div className="flex justify-between items-center">
-              <Label>Paragraphes</Label>
+              <Label>{t("paragraphs")}</Label>
               <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground" onClick={addParagraph}>
-                <Plus size={14} /> Ajouter un paragraphe
+                <Plus size={14} /> {t("add_paragraph")}
               </Button>
             </div>
-            
+
             {data.paragraphs.map((para, i) => (
               <div key={i} className="flex gap-2.5 items-start">
                 <Textarea
@@ -145,12 +146,12 @@ export default function CoverLetterBuilder({ data, onChange, personalInfo }: Cov
                   rows={4}
                   className="flex-1 resize-y"
                 />
-                <Button 
-                  variant="ghost" 
+                <Button
+                  variant="ghost"
                   size="icon"
                   className="size-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 shrink-0 mt-1"
                   onClick={() => removeParagraph(i)}
-                  title="Supprimer ce paragraphe"
+                  title={t("remove_paragraph")}
                 >
                   <X size={16} />
                 </Button>
@@ -159,11 +160,11 @@ export default function CoverLetterBuilder({ data, onChange, personalInfo }: Cov
           </div>
 
           <div className="flex flex-col gap-2 mt-2">
-            <Label>Formule de politesse (Signature)</Label>
+            <Label>{t("signoff")}</Label>
             <Input
               value={data.signOff}
               onChange={(e) => handleChange("signOff", e.target.value)}
-              placeholder="Ex: Veuillez agréer, Madame, Monsieur..."
+              placeholder={t("signoff_ph")}
             />
           </div>
         </div>

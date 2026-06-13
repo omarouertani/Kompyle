@@ -432,7 +432,7 @@ const renderContact: SectionRenderer = (data, isSidebar, styles, originalData, p
 const renderSkills: SectionRenderer = (data, isSidebar, styles, originalData, part, itemIndex) => {
   const { skills } = data;
   const h2Style = isSidebar ? styles.h2Sidebar : styles.h2Main;
-  // Le template Chaima affiche les tags par défaut (rendu historique) ;
+  // Le template Moderne affiche les tags par défaut (rendu historique) ;
   // theme.skillMode permet de basculer en texte ou en barres.
   const mode = data.layout?.theme?.skillMode ?? "tags";
 
@@ -832,12 +832,12 @@ const renderColumn = (
   });
 };
 
-interface CVTemplateChaimaProps {
+interface CVTemplateModernProps {
   data: CVData;
   originalData?: CVData;
 }
 
-const CVTemplateChaima: React.FC<CVTemplateChaimaProps> = ({ data, originalData }) => {
+const CVTemplateModern: React.FC<CVTemplateModernProps> = ({ data, originalData }) => {
   const { personalInfo } = data;
   const layout = data.layout ?? defaultLayout();
   const sidebarWidth = layout.sidebarWidth ?? 175;
@@ -859,7 +859,7 @@ const CVTemplateChaima: React.FC<CVTemplateChaimaProps> = ({ data, originalData 
         const useAbsolute = layout.useAbsolutePositioning || false;
 
         if (useAbsolute) {
-          const absolutePositions = layout.absolutePositions || getDefaultPositions("chaima", data);
+          const absolutePositions = layout.absolutePositions || getDefaultPositions("modern", data);
           // Honore la pagination auto (position.page) si présente, sinon le
           // modèle historique section→page de `layout.pages`.
           const { sidebar: sidebarBlocks, main: mainBlocks } = getPageBlockIds(layout, data, pageIndex);
@@ -880,7 +880,7 @@ const CVTemplateChaima: React.FC<CVTemplateChaimaProps> = ({ data, originalData 
           // STEP: header + photo in absolute mode
           const renderAbsoluteHeaderAndPhoto = (pi: number) => {
             if (pi !== 0) return null;
-            const photoPos = absolutePositions.photo || getDefaultPhotoPosition("chaima", sidebarWidth);
+            const photoPos = absolutePositions.photo || getDefaultPhotoPosition("modern", sidebarWidth);
             const namePos = absolutePositions.name || { x: 200, y: 20, w: 370 };
             const rolePos = absolutePositions.role || { x: 200, y: 48, w: 370 };
             const techPos = absolutePositions.techLine || { x: 200, y: 66, w: 370 };
@@ -922,7 +922,7 @@ const CVTemplateChaima: React.FC<CVTemplateChaimaProps> = ({ data, originalData 
           };
 
           const renderAbsoluteBlock = (blockId: string, isSidebar: boolean) => {
-            const defaultPositions = getDefaultPositions("chaima", data);
+            const defaultPositions = getDefaultPositions("modern", data);
             const pos = absolutePositions[blockId] || defaultPositions[blockId];
             if (!pos) return null;
             // Position hors page A4 (842pt) : on ignore le bloc plutôt que de
@@ -1042,4 +1042,4 @@ const CVTemplateChaima: React.FC<CVTemplateChaimaProps> = ({ data, originalData 
   );
 };
 
-export default CVTemplateChaima;
+export default CVTemplateModern;

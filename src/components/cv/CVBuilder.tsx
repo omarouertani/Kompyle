@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   DndContext,
   closestCenter,
@@ -100,6 +101,7 @@ function SortableItem({
   onDuplicate: () => void;
   children: React.ReactNode;
 }) {
+  const t = useTranslations("Builder");
   // Un élément fraîchement ajouté (titre vide) s'ouvre directement pour la saisie.
   const [isOpen, setIsOpen] = useState(() => title.trim() === "");
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id });
@@ -111,7 +113,7 @@ function SortableItem({
           <GripVertical size={16} />
         </div>
         <div className="flex-1 font-medium text-sm cursor-pointer select-none text-foreground truncate" onClick={() => setIsOpen(!isOpen)}>
-          {title || "Nouvel élément"}
+          {title || t("item_new")}
         </div>
         <div className="flex items-center gap-0.5">
           <Button
@@ -122,7 +124,7 @@ function SortableItem({
               e.stopPropagation();
               onDuplicate();
             }}
-            title="Dupliquer"
+            title={t("duplicate")}
           >
             <Copy size={14} />
           </Button>
@@ -134,7 +136,7 @@ function SortableItem({
               e.stopPropagation();
               onDelete();
             }}
-            title="Supprimer"
+            title={t("delete")}
           >
             <Trash2 size={14} />
           </Button>
@@ -210,6 +212,7 @@ function SortableSection<T extends { id?: string }>({
 }
 
 export default function CVBuilder({ data, onChange }: CVBuilderProps) {
+  const t = useTranslations("Builder");
   const setSection = <T,>(section: ListSection, items: T[]) =>
     onChange({ ...data, [section]: items });
 
@@ -248,21 +251,21 @@ export default function CVBuilder({ data, onChange }: CVBuilderProps) {
 
       {/* ── Informations Personnelles ── */}
       <section>
-        <SectionHeading icon={User}>Informations Personnelles</SectionHeading>
+        <SectionHeading icon={User}>{t("section_personal")}</SectionHeading>
         <div className="grid grid-cols-2 gap-5">
-          <Field label="Nom complet" value={data.personalInfo.name} onChange={(v) => updatePersonalInfo("name", v)} />
-          <Field label="Titre" value={data.personalInfo.role} onChange={(v) => updatePersonalInfo("role", v)} />
-          <Field label="Technologies clés (sous-titre)" value={data.personalInfo.techLine} onChange={(v) => updatePersonalInfo("techLine", v)} className="col-span-2" />
-          <Field label="Résumé professionnel" value={data.personalInfo.summary} onChange={(v) => updatePersonalInfo("summary", v)} multiline rows={4} className="col-span-2" />
-          <Field label="Email" value={data.personalInfo.email} onChange={(v) => updatePersonalInfo("email", v)} />
-          <Field label="Téléphone" value={data.personalInfo.phone} onChange={(v) => updatePersonalInfo("phone", v)} />
-          <Field label="Localisation" value={data.personalInfo.location} onChange={(v) => updatePersonalInfo("location", v)} />
-          <Field label="LinkedIn (URL)" value={data.personalInfo.linkedin} onChange={(v) => updatePersonalInfo("linkedin", v)} />
-          <Field label="Portfolio (URL, optionnel)" value={data.personalInfo.portfolio ?? ""} onChange={(v) => updatePersonalInfo("portfolio", v)} className="col-span-2" />
+          <Field label={t("field_name")} value={data.personalInfo.name} onChange={(v) => updatePersonalInfo("name", v)} />
+          <Field label={t("field_role")} value={data.personalInfo.role} onChange={(v) => updatePersonalInfo("role", v)} />
+          <Field label={t("field_techline")} value={data.personalInfo.techLine} onChange={(v) => updatePersonalInfo("techLine", v)} className="col-span-2" />
+          <Field label={t("field_summary")} value={data.personalInfo.summary} onChange={(v) => updatePersonalInfo("summary", v)} multiline rows={4} className="col-span-2" />
+          <Field label={t("field_email")} value={data.personalInfo.email} onChange={(v) => updatePersonalInfo("email", v)} />
+          <Field label={t("field_phone")} value={data.personalInfo.phone} onChange={(v) => updatePersonalInfo("phone", v)} />
+          <Field label={t("field_location")} value={data.personalInfo.location} onChange={(v) => updatePersonalInfo("location", v)} />
+          <Field label={t("field_linkedin")} value={data.personalInfo.linkedin} onChange={(v) => updatePersonalInfo("linkedin", v)} />
+          <Field label={t("field_portfolio")} value={data.personalInfo.portfolio ?? ""} onChange={(v) => updatePersonalInfo("portfolio", v)} className="col-span-2" />
 
           {/* Uploader de photo de profil */}
           <div className="flex flex-col gap-2 col-span-2 border border-border/60 rounded-lg p-3 bg-muted/10 mt-1">
-            <Label className="font-semibold text-xs text-muted-foreground uppercase">Photo de profil</Label>
+            <Label className="font-semibold text-xs text-muted-foreground uppercase">{t("photo_label")}</Label>
             <div className="flex items-center gap-4 mt-1">
               {data.personalInfo.photo ? (
                 <div className="relative size-14 rounded-full overflow-hidden border border-border bg-card shadow-sm shrink-0">
@@ -273,7 +276,7 @@ export default function CVBuilder({ data, onChange }: CVBuilderProps) {
                     onClick={() => updatePersonalInfo("photo", "")}
                     className="absolute inset-0 bg-black/60 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center text-white text-[10px] font-medium"
                   >
-                    Supprimer
+                    {t("photo_remove")}
                   </button>
                 </div>
               ) : (
@@ -303,48 +306,48 @@ export default function CVBuilder({ data, onChange }: CVBuilderProps) {
                   className="w-fit"
                   onClick={() => document.getElementById("avatar-upload-input")?.click()}
                 >
-                  Choisir une photo
+                  {t("photo_choose")}
                 </Button>
-                <p className="text-[10px] text-muted-foreground">Format PNG ou JPG recommandé.</p>
+                <p className="text-[10px] text-muted-foreground">{t("photo_hint")}</p>
               </div>
             </div>
           </div>
 
-          <Field label="Date de naissance" value={data.personalInfo.birthDate ?? ""} onChange={(v) => updatePersonalInfo("birthDate", v)} placeholder="ex : 10/02/2001" />
-          <Field label="Certifications (séparées par des virgules)" value={data.personalInfo.certifications ?? ""} onChange={(v) => updatePersonalInfo("certifications", v)} placeholder="ex : CCNA 1, CCNA 2, ITIL" className="col-span-2" />
-          <Field label="Centres d'intérêt (séparés par des points · ou virgules)" value={data.personalInfo.interests ?? ""} onChange={(v) => updatePersonalInfo("interests", v)} placeholder="ex : Peinture Amatrice · Passion pour la lecture" className="col-span-2" />
+          <Field label={t("field_birthdate")} value={data.personalInfo.birthDate ?? ""} onChange={(v) => updatePersonalInfo("birthDate", v)} placeholder={t("field_birthdate_ph")} />
+          <Field label={t("field_certifications")} value={data.personalInfo.certifications ?? ""} onChange={(v) => updatePersonalInfo("certifications", v)} placeholder={t("field_certifications_ph")} className="col-span-2" />
+          <Field label={t("field_interests")} value={data.personalInfo.interests ?? ""} onChange={(v) => updatePersonalInfo("interests", v)} placeholder={t("field_interests_ph")} className="col-span-2" />
         </div>
       </section>
 
       {/* ── Compétences ── */}
       <SortableSection
         icon={Lightbulb}
-        heading="Compétences"
+        heading={t("section_skills")}
         items={data.skills}
         getTitle={(g) => g.category}
-        addLabel="Ajouter une catégorie"
+        addLabel={t("add_skill")}
         onAdd={() => setSection("skills", [...data.skills, { id: uuidv4(), category: "", items: "" } satisfies SkillGroup])}
         onReorder={(items) => setSection("skills", items)}
         onRemove={removeItem("skills")}
         onDuplicate={duplicateItem("skills")}
         renderFields={(group) => (
           <>
-            <Field label="Catégorie" value={group.category} onChange={(v) => updateItem("skills", group.id!, { category: v })} />
-            <Field label="Compétences (séparées par des virgules)" value={group.items} onChange={(v) => updateItem("skills", group.id!, { items: v })} multiline rows={2} />
+            <Field label={t("field_category")} value={group.category} onChange={(v) => updateItem("skills", group.id!, { category: v })} />
+            <Field label={t("field_skill_items")} value={group.items} onChange={(v) => updateItem("skills", group.id!, { items: v })} multiline rows={2} />
           </>
         )}
       />
 
       {/* ── Langues ── */}
       <section>
-        <SectionHeading icon={Languages}>Langues</SectionHeading>
+        <SectionHeading icon={Languages}>{t("section_languages")}</SectionHeading>
         <div className="flex flex-col gap-3 mb-5">
           {data.spokenLanguages.map((lang, i) => (
             <div key={i} className="flex gap-2 items-center">
               <Input
                 className="flex-1"
                 value={lang}
-                placeholder="ex : Français (natif)"
+                placeholder={t("lang_placeholder")}
                 onChange={(e) => updateLanguage(i, e.target.value)}
               />
               <Button
@@ -352,7 +355,7 @@ export default function CVBuilder({ data, onChange }: CVBuilderProps) {
                 size="icon"
                 className="size-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 shrink-0"
                 onClick={() => onChange({ ...data, spokenLanguages: data.spokenLanguages.filter((_, idx) => idx !== i) })}
-                title="Supprimer"
+                title={t("delete")}
               >
                 <Trash2 size={14} />
               </Button>
@@ -364,28 +367,28 @@ export default function CVBuilder({ data, onChange }: CVBuilderProps) {
           className="w-full border-dashed border-border/60 text-muted-foreground hover:text-foreground hover:border-border gap-2"
           onClick={() => onChange({ ...data, spokenLanguages: [...data.spokenLanguages, ""] })}
         >
-          <Plus size={15} /> Ajouter une langue
+          <Plus size={15} /> {t("add_language")}
         </Button>
       </section>
 
       {/* ── Expériences ── */}
       <SortableSection
         icon={Briefcase}
-        heading="Expériences"
+        heading={t("section_experiences")}
         items={data.experiences}
         getTitle={(e) => e.title}
-        addLabel="Ajouter une expérience"
+        addLabel={t("add_experience")}
         onAdd={() => setSection("experiences", [...data.experiences, { id: uuidv4(), title: "", org: "", date: "", bullets: [] } satisfies Experience])}
         onReorder={(items) => setSection("experiences", items)}
         onRemove={removeItem("experiences")}
         onDuplicate={duplicateItem("experiences")}
         renderFields={(exp) => (
           <>
-            <Field label="Titre du poste" value={exp.title} onChange={(v) => updateItem("experiences", exp.id!, { title: v })} />
-            <Field label="Entreprise" value={exp.org} onChange={(v) => updateItem("experiences", exp.id!, { org: v })} />
-            <Field label="Dates" value={exp.date} onChange={(v) => updateItem("experiences", exp.id!, { date: v })} />
+            <Field label={t("field_exp_title")} value={exp.title} onChange={(v) => updateItem("experiences", exp.id!, { title: v })} />
+            <Field label={t("field_exp_org")} value={exp.org} onChange={(v) => updateItem("experiences", exp.id!, { org: v })} />
+            <Field label={t("field_exp_date")} value={exp.date} onChange={(v) => updateItem("experiences", exp.id!, { date: v })} />
             <Field
-              label="Missions & Réalisations (1 par ligne)"
+              label={t("field_exp_bullets")}
               value={exp.bullets.join("\n")}
               onChange={(v) => updateItem("experiences", exp.id!, { bullets: v.split("\n").filter((b) => b.trim() !== "") })}
               multiline
@@ -398,19 +401,19 @@ export default function CVBuilder({ data, onChange }: CVBuilderProps) {
       {/* ── Projets ── */}
       <SortableSection
         icon={Rocket}
-        heading="Projets"
+        heading={t("section_projects")}
         items={data.projects}
         getTitle={(p) => p.title}
-        addLabel="Ajouter un projet"
+        addLabel={t("add_project")}
         onAdd={() => setSection("projects", [...data.projects, { id: uuidv4(), title: "", description: "", stack: "" } satisfies Project])}
         onReorder={(items) => setSection("projects", items)}
         onRemove={removeItem("projects")}
         onDuplicate={duplicateItem("projects")}
         renderFields={(proj) => (
           <>
-            <Field label="Nom du projet" value={proj.title} onChange={(v) => updateItem("projects", proj.id!, { title: v })} />
-            <Field label="Description" value={proj.description} onChange={(v) => updateItem("projects", proj.id!, { description: v })} multiline rows={4} />
-            <Field label="Stack Technique" value={proj.stack || ""} onChange={(v) => updateItem("projects", proj.id!, { stack: v })} />
+            <Field label={t("field_proj_title")} value={proj.title} onChange={(v) => updateItem("projects", proj.id!, { title: v })} />
+            <Field label={t("field_proj_desc")} value={proj.description} onChange={(v) => updateItem("projects", proj.id!, { description: v })} multiline rows={4} />
+            <Field label={t("field_proj_stack")} value={proj.stack || ""} onChange={(v) => updateItem("projects", proj.id!, { stack: v })} />
           </>
         )}
       />
@@ -418,19 +421,19 @@ export default function CVBuilder({ data, onChange }: CVBuilderProps) {
       {/* ── Formations ── */}
       <SortableSection
         icon={GraduationCap}
-        heading="Formations"
+        heading={t("section_education")}
         items={data.education}
         getTitle={(e) => e.degree}
-        addLabel="Ajouter une formation"
+        addLabel={t("add_education")}
         onAdd={() => setSection("education", [...data.education, { id: uuidv4(), degree: "", institution: "" } satisfies Education])}
         onReorder={(items) => setSection("education", items)}
         onRemove={removeItem("education")}
         onDuplicate={duplicateItem("education")}
         renderFields={(edu) => (
           <>
-            <Field label="Diplôme" value={edu.degree} onChange={(v) => updateItem("education", edu.id!, { degree: v })} />
-            <Field label="Institution" value={edu.institution} onChange={(v) => updateItem("education", edu.id!, { institution: v })} />
-            <Field label="Date" value={edu.date ?? ""} onChange={(v) => updateItem("education", edu.id!, { date: v })} />
+            <Field label={t("field_edu_degree")} value={edu.degree} onChange={(v) => updateItem("education", edu.id!, { degree: v })} />
+            <Field label={t("field_edu_institution")} value={edu.institution} onChange={(v) => updateItem("education", edu.id!, { institution: v })} />
+            <Field label={t("field_edu_date")} value={edu.date ?? ""} onChange={(v) => updateItem("education", edu.id!, { date: v })} />
           </>
         )}
       />
