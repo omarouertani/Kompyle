@@ -584,7 +584,7 @@ export default function AdaptPage() {
                 onChange={profile.setCurrentCV}
                 originalData={profile.isAdapted ? profile.originalCV : null}
                 template={profile.selectedTemplate}
-                onTemplateChange={profile.setSelectedTemplate}
+                onTemplateChange={profile.changeTemplate}
                 isAdapting={profile.loadingType === "cv"}
                 versions={profile.versions}
                 mainProfileId={profile.mainProfileId}

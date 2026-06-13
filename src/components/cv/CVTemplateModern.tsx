@@ -54,7 +54,12 @@ const CVTemplateModern: React.FC<CVTemplateModernProps> = ({ data, originalData 
       {dedupePages(layout.pages).map((page, pageIndex) => {
         const hasSidebar = page.sidebar.some((id) => SECTION_RENDERERS[id]);
 
-        const useAbsolute = layout.useAbsolutePositioning || false;
+        // Le PDF rend depuis les positions absolues dès qu'elles existent, afin
+        // que la sortie PDF corresponde EXACTEMENT à ce que l'utilisateur voit
+        // dans le canvas (mêmes coordonnées, même hauteur de page A4).
+        const useAbsolute =
+          layout.useAbsolutePositioning ||
+          !!(layout.absolutePositions && Object.keys(layout.absolutePositions).length > 0);
 
         if (useAbsolute) {
           const absolutePositions = layout.absolutePositions || getDefaultPositions("modern", data);

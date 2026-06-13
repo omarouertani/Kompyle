@@ -131,7 +131,8 @@
     "block_photo": "Photo",
     "block_name": "Nom",
     "block_role": "Titre",
-    "block_techline": "Technologies"
+    "block_techline": "Technologies",
+    "block_contactline": "Coordonnées"
   },
   "Builder": {
     "section_personal": "Informations Personnelles",

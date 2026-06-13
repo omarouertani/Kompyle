@@ -79,6 +79,32 @@ export function BlockContent({ blockId, data, theme, onChange }: BlockContentPro
     );
   }
 
+  // Ligne de coordonnées du CV canadien : téléphone · email · LinkedIn · ville.
+  // En-tête minimaliste sans étiquettes, optimisé pour la lecture ATS.
+  if (blockId === "contactLine") {
+    const items: { field: string; value: string; placeholder: string }[] = [
+      { field: "phone", value: personalInfo.phone, placeholder: "Téléphone" },
+      { field: "email", value: personalInfo.email, placeholder: "Email" },
+      { field: "linkedin", value: personalInfo.linkedin, placeholder: "LinkedIn" },
+      { field: "location", value: personalInfo.location, placeholder: "Ville, Province" },
+    ];
+    return (
+      <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-zinc-600" style={{ fontSize: toPx(baseFontSize - 0.5), lineHeight: lh }}>
+        {items.map(({ field, value, placeholder }, i) => (
+          <React.Fragment key={field}>
+            {i > 0 && <span className="text-zinc-300 select-none">·</span>}
+            <EditableText
+              value={value}
+              onChange={(v) => updatePersonalInfo(field, v)}
+              placeholder={placeholder}
+              className="text-zinc-600"
+            />
+          </React.Fragment>
+        ))}
+      </div>
+    );
+  }
+
   if (blockId === "photo") {
     return (
       <div className="flex justify-center items-center">
@@ -186,7 +212,7 @@ export function BlockContent({ blockId, data, theme, onChange }: BlockContentPro
         <EditableText value={group.category} onChange={(v) => updateSkillGroup(idx, "category", v)} className="font-bold text-zinc-800" style={{ fontSize: toPx(baseFontSize), lineHeight: lh }} placeholder="Catégorie" />
 
         {mode === "text" && (
-          <EditableText value={group.items} onChange={(v) => updateSkillGroup(idx, "items", v)} className="text-zinc-600 mt-0.5" style={{ fontSize: toPx(baseFontSize), lineHeight: lh }} placeholder="Compétence 1, Compétence 2..." />
+          <EditableText value={group.items} onChange={(v) => updateSkillGroup(idx, "items", v)} className="text-zinc-600 mt-0.5 break-words" style={{ fontSize: toPx(baseFontSize), lineHeight: lh }} placeholder="Compétence 1, Compétence 2..." />
         )}
 
         {mode === "tags" && (
@@ -245,7 +271,7 @@ export function BlockContent({ blockId, data, theme, onChange }: BlockContentPro
               next[i] = v;
               onChange({ ...data, spokenLanguages: next });
             }}
-            className="text-zinc-800"
+            className="text-zinc-800 break-words"
             style={{ fontSize: toPx(baseFontSize), lineHeight: lh }}
             placeholder="ex: Français (Natif)"
           />
@@ -260,8 +286,8 @@ export function BlockContent({ blockId, data, theme, onChange }: BlockContentPro
     if (!edu) return null;
     return (
       <div className="flex flex-col w-full text-left">
-        <EditableText value={edu.degree} onChange={(v) => updateEducation(idx, "degree", v)} className="font-bold text-zinc-900 leading-snug" style={{ fontSize: toPx(baseFontSize) }} placeholder="Diplôme" />
-        <EditableText value={edu.institution} onChange={(v) => updateEducation(idx, "institution", v)} className="text-zinc-600 italic leading-snug mt-0.5" style={{ fontSize: toPx(baseFontSize) }} placeholder="Institution" />
+        <EditableText value={edu.degree} onChange={(v) => updateEducation(idx, "degree", v)} className="font-bold text-zinc-900 leading-snug break-words" style={{ fontSize: toPx(baseFontSize) }} placeholder="Diplôme" />
+        <EditableText value={edu.institution} onChange={(v) => updateEducation(idx, "institution", v)} className="text-zinc-600 italic leading-snug mt-0.5 break-words" style={{ fontSize: toPx(baseFontSize) }} placeholder="Institution" />
         <EditableText value={edu.date ?? ""} onChange={(v) => updateEducation(idx, "date", v)} className="text-zinc-500 leading-snug mt-0.5" style={{ fontSize: toPx(baseFontSize - 1) }} placeholder="2020 — 2023" />
       </div>
     );

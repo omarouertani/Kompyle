@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import type { CVData, CoverLetterData } from "@/types/cv";
-import { defaultLayout, emptyCV, normalizeTemplate } from "@/lib/cv-layout";
+import { defaultLayout, emptyCV, normalizeTemplate, migrateLayoutForTemplate } from "@/lib/cv-layout";
 import { v4 as uuidv4 } from "uuid";
 
 const injectIds = (data: CVData): CVData => ({
@@ -254,6 +254,16 @@ export function useProfileManager(locale: string, t: (key: string, values?: Reco
     setSelectedProfile(profile);
     setCoverLetterData(null);
     // le useEffect [selectedProfile] recharge le profil principal
+  }, []);
+
+  /** Change de template ET aligne la structure du layout. Le CV canadien est
+   *  mono-colonne (sans photo) ; basculer vers/depuis lui réinitialise la
+   *  structure des pages tout en préservant le thème et les titres renommés.
+   *  Les bascules entre templates de même structure (default ↔ modern) ne
+   *  touchent pas au layout. */
+  const changeTemplate = useCallback((template: string) => {
+    setSelectedTemplate(template);
+    setCurrentCV((prev) => migrateLayoutForTemplate(prev, template));
   }, []);
 
   /** Crée un nouveau profil principal à partir d'un template VIDE, le
@@ -584,6 +594,7 @@ export function useProfileManager(locale: string, t: (key: string, values?: Reco
     selectedProfile,
     selectedTemplate,
     setSelectedTemplate,
+    changeTemplate,
     currentCV,
     setCurrentCV,
     originalCV,

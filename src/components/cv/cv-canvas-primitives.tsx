@@ -3,9 +3,15 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { cn } from "@/lib/utils";
 
-export const PT_TO_PX = 1.33;
-export const A4_WIDTH_PX = 794;
-export const A4_HEIGHT_PX = 1123;
+// Conversion EXACTE des points PDF (72 dpi) en pixels CSS (96 dpi) : 96/72.
+// Le rendu PDF (react-pdf) place les blocs en points ; le canvas applique ce
+// même facteur → un bloc à (x, y) pt tombe au même endroit dans les deux.
+export const PT_TO_PX = 96 / 72;
+// Dimensions NATIVES d'une page A4 PDF (595.28 × 841.89 pt) converties en
+// pixels. La page du canvas a ainsi EXACTEMENT la taille d'une page PDF : ce
+// que tu vois en édition correspond au rendu PDF final.
+export const A4_WIDTH_PX = 595.28 * PT_TO_PX;  // ≈ 793.7
+export const A4_HEIGHT_PX = 841.89 * PT_TO_PX; // ≈ 1122.5
 
 /** Couleur de sélection du canvas (indigo) — indépendante du thème du CV,
  *  pour rester lisible quelle que soit la couleur d'accent choisie. */

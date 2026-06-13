@@ -9,6 +9,11 @@ export type TemplateKey = "default" | "modern" | "canadian";
 export const isModernTemplate = (template: string): boolean =>
   template === "modern" || template === "chaima";
 
+/** Vrai pour le template "Canadien" : CV sobre, sans photo, mono-colonne,
+ *  optimisé pour la lecture par les logiciels ATS. */
+export const isCanadianTemplate = (template: string): boolean =>
+  template === "canadian";
+
 /** Normalise un identifiant de template legacy vers la nouvelle clé. */
 export const normalizeTemplate = (template?: string | null): string =>
   template === "chaima" ? "modern" : template || "default";
@@ -62,6 +67,66 @@ export function defaultLayout(): CVLayout {
         main: ["summary", "experience", "projects"],
       },
     ],
+  };
+}
+
+/**
+ * Layout du CV canadien (nord-américain) : une SEULE colonne pleine largeur,
+ * sections empilées de haut en bas dans l'ordre attendu par les recruteurs et
+ * les ATS canadiens — Résumé professionnel, Compétences clés, Expériences,
+ * Éducation. Aucune barre latérale, aucune photo. Les coordonnées (téléphone,
+ * email, LinkedIn, ville/province) sont rendues dans l'en-tête via le bloc
+ * `contactLine`, pas dans une section dédiée.
+ */
+export function canadianLayout(): CVLayout {
+  return {
+    sidebarWidth: DEFAULT_SIDEBAR_WIDTH,
+    pages: [
+      {
+        sidebar: [],
+        main: ["summary", "skills", "experience", "education"],
+      },
+    ],
+    sectionTitles: {
+      summary: "Résumé professionnel",
+      skills: "Compétences clés",
+      experience: "Expériences professionnelles",
+      education: "Éducation",
+    },
+    theme: { skillMode: "text" },
+  };
+}
+
+/** Vrai si le layout est mono-colonne (signature du CV canadien) : aucune
+ *  section en barre latérale sur l'ensemble des pages. */
+export function isCanadianLayout(layout: CVLayout): boolean {
+  return layout.pages.length > 0 && layout.pages.every((p) => p.sidebar.length === 0);
+}
+
+/**
+ * Aligne la structure du layout sur le template choisi lors d'un changement de
+ * modèle. Le passage de/vers le CV canadien change radicalement la mise en page
+ * (mono-colonne ↔ deux colonnes) : on réinitialise la structure des pages tout
+ * en préservant le thème et les titres de sections renommés. Les positions
+ * absolues éventuelles sont effacées (elles n'ont plus de sens dans la nouvelle
+ * structure). Les bascules entre templates de MÊME structure (default ↔ modern)
+ * ne touchent à rien.
+ */
+export function migrateLayoutForTemplate(data: CVData, template: string): CVData {
+  const layout = data.layout ?? defaultLayout();
+  const wantsCanadian = isCanadianTemplate(template);
+  const isCanadian = isCanadianLayout(layout);
+
+  if (wantsCanadian === isCanadian) return data;
+
+  const base = wantsCanadian ? canadianLayout() : defaultLayout();
+  return {
+    ...data,
+    layout: {
+      ...base,
+      theme: layout.theme ?? base.theme,
+      sectionTitles: { ...base.sectionTitles, ...layout.sectionTitles },
+    },
   };
 }
 
@@ -123,7 +188,9 @@ export function emptyCV(template = "default"): CVData {
     education: [],
     experiences: [],
     projects: [],
-    layout: { ...defaultLayout(), theme: isModernTemplate(template) ? { primaryColor: "#fbbf24", sidebarBg: "#f4f4f5" } : {} },
+    layout: isCanadianTemplate(template)
+      ? canadianLayout()
+      : { ...defaultLayout(), theme: isModernTemplate(template) ? { primaryColor: "#fbbf24", sidebarBg: "#f4f4f5" } : {} },
   };
 }
 
@@ -221,7 +288,7 @@ export function estimateAbsolutePageHeightPt(
       h = 18 + Math.ceil(desc / 52) * 13 + (data.projects?.[idx]?.stack ? 12 : 0);
     } else if (id === "name") h = 22;
     else if (id === "role") h = 16;
-    else if (id === "techLine") h = 14;
+    else if (id === "techLine" || id === "contactLine") h = 14;
 
     maxBottom = Math.max(maxBottom, pos.y + h);
   }
@@ -249,14 +316,27 @@ export function getDefaultPhotoPosition(
 /** Positions absolues calculées dynamiquement pour le Mode Canva */
 export function computeDefaultPositions(template: string, data: CVData): Record<string, { x: number; y: number; w: number }> {
   const isChaima = isModernTemplate(template);
+  const isCanadian = isCanadianTemplate(template);
   const layout: Partial<CVLayout> = data?.layout ?? {};
   const sidebarWidth = layout.sidebarWidth ?? (isChaima ? 175 : 165);
-  const pages: LayoutPage[] = layout.pages ?? [{ sidebar: ["contact", "skills", "languages", "education"], main: ["summary", "experience", "projects"] }];
+  const defaultPages: LayoutPage[] = isCanadian
+    ? canadianLayout().pages
+    : [{ sidebar: ["contact", "skills", "languages", "education"], main: ["summary", "experience", "projects"] }];
+  const pages: LayoutPage[] = layout.pages ?? defaultPages;
+
+  // Pleine largeur de contenu (page A4 moins les marges latérales de 24 pt).
+  const CANADIAN_X = 24;
+  const CANADIAN_W = 547;
 
   const positions: Record<string, { x: number; y: number; w: number }> = {};
 
   // Default header heights — alignés sur le rendu colonnes / PDF
-  if (isChaima) {
+  if (isCanadian) {
+    // En-tête minimaliste : nom + titre + ligne de coordonnées (pas de photo).
+    positions["name"] = { x: CANADIAN_X, y: 12, w: CANADIAN_W };
+    positions["role"] = { x: CANADIAN_X, y: 44, w: CANADIAN_W };
+    positions["contactLine"] = { x: CANADIAN_X, y: 64, w: CANADIAN_W };
+  } else if (isChaima) {
     positions["photo"] = getDefaultPhotoPosition("modern", sidebarWidth);
     positions["name"] = { x: 200, y: 20, w: 370 };
     positions["role"] = { x: 200, y: 48, w: 370 };
@@ -271,9 +351,12 @@ export function computeDefaultPositions(template: string, data: CVData): Record<
   // Iterate through pages
   pages.forEach((page, pageIndex) => {
     // Stack sidebar:
+    // Marges internes (gauche/droite) pour que le contenu reste CONTENU dans la
+    // largeur de la barre latérale (et son fond) au lieu de déborder à droite.
+    // Classique et moderne alignés sur le même principe d'encart.
     let sidebarY = pageIndex === 0 ? (isChaima ? 100 : 95) : 20;
-    const sidebarX = isChaima ? 12 : 24;
-    const sidebarW = isChaima ? sidebarWidth - 24 : sidebarWidth;
+    const sidebarX = isChaima ? 12 : 16;
+    const sidebarW = isChaima ? sidebarWidth - 24 : sidebarWidth - 32;
 
     page.sidebar.forEach((sectionId: string) => {
       // 1. Title
@@ -325,8 +408,8 @@ export function computeDefaultPositions(template: string, data: CVData): Record<
 
     // Stack main:
     let mainY = pageIndex === 0 ? (isChaima ? 100 : 95) : 20;
-    const mainX = isChaima ? sidebarWidth + 20 : sidebarWidth + 30;
-    const mainW = isChaima ? 595 - sidebarWidth - 35 : 595 - sidebarWidth - 54;
+    const mainX = isCanadian ? CANADIAN_X : isChaima ? sidebarWidth + 20 : sidebarWidth + 30;
+    const mainW = isCanadian ? CANADIAN_W : isChaima ? 595 - sidebarWidth - 35 : 595 - sidebarWidth - 54;
 
     page.main.forEach((sectionId: string) => {
       // 1. Title
@@ -422,6 +505,7 @@ export function computeFlowPositions(
   for (const [k, v] of Object.entries(base)) positions[k] = { ...v };
 
   const isChaima = isModernTemplate(template);
+  const isCanadian = isCanadianTemplate(template);
   const layout = data.layout ?? defaultLayout();
   const BLOCK_GAP = 3; // espacement entre blocs d'une même section (pt)
   // Espacement entre sections : piloté par le thème (slider "Espacement des sections")
@@ -441,10 +525,11 @@ export function computeFlowPositions(
     });
   };
 
-  // En-tête (nom / rôle / techLine) : empilé par hauteur mesurée. Sans ça, un
-  // nom ou un titre sur 2 lignes chevauche la ligne suivante.
+  // En-tête : empilé par hauteur mesurée. Sans ça, un nom ou un titre sur 2
+  // lignes chevauche la ligne suivante. Le CV canadien remplace techLine par
+  // la ligne de coordonnées (contactLine).
   let headerY = positions["name"]?.y ?? (isChaima ? 20 : 12);
-  for (const id of ["name", "role", "techLine"]) {
+  for (const id of getHeaderStackIds(isCanadian)) {
     if (!positions[id]) continue;
     positions[id] = { ...positions[id], y: Math.round(headerY), h: undefined };
     const h = measureHeightPt(id);
@@ -491,6 +576,7 @@ export function computePaginatedFlow(
   for (const [k, v] of Object.entries(base)) positions[k] = { ...v, page: 0 };
 
   const isChaima = isModernTemplate(template);
+  const isCanadian = isCanadianTemplate(template);
   const layout = data.layout ?? defaultLayout();
   const { sidebar: sidebarSections, main: mainSections } = getColumnSections(layout);
 
@@ -510,7 +596,7 @@ export function computePaginatedFlow(
 
   // En-tête (page 0 uniquement) : empilé par hauteur mesurée.
   let headerY = positions["name"]?.y ?? (isChaima ? 20 : 12);
-  for (const id of ["name", "role", "techLine"]) {
+  for (const id of getHeaderStackIds(isCanadian)) {
     if (!positions[id]) continue;
     positions[id] = { ...positions[id], y: Math.round(headerY), h: undefined, page: 0 };
     headerY += (measureHeightPt(id) ?? 16) + 3;
@@ -640,6 +726,18 @@ export function getDefaultPositions(template: string, data?: CVData): Record<str
   if (data) {
     return computeDefaultPositions(template, data);
   }
+  if (isCanadianTemplate(template)) {
+    return {
+      name: { x: 24, y: 12, w: 547 },
+      role: { x: 24, y: 44, w: 547 },
+      contactLine: { x: 24, y: 64, w: 547 },
+      title_summary: { x: 24, y: 95, w: 547 },
+      content_summary: { x: 24, y: 112, w: 547 },
+      title_skills: { x: 24, y: 200, w: 547 },
+      title_experience: { x: 24, y: 320, w: 547 },
+      title_education: { x: 24, y: 600, w: 547 },
+    };
+  }
   const isChaima = isModernTemplate(template);
   if (isChaima) {
     return {
@@ -684,6 +782,13 @@ export function getDefaultPositions(template: string, data?: CVData): Record<str
       title_projects: { x: 212, y: 550, w: 360 },
     };
   }
+}
+
+/** Ids des blocs d'en-tête empilés verticalement sur la page 0, dans l'ordre.
+ *  Le CV canadien remplace la ligne « technologies » (techLine) par une ligne
+ *  de coordonnées (contactLine) — convention nord-américaine. */
+export function getHeaderStackIds(isCanadian: boolean): string[] {
+  return isCanadian ? ["name", "role", "contactLine"] : ["name", "role", "techLine"];
 }
 
 export function getSectionBlockIds(sectionId: string, data: CVData): string[] {

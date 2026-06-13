@@ -240,12 +240,13 @@ export default function CVInteractiveCanvas({ data, onChange: onChangeProp, temp
       name: t("block_name"),
       role: t("block_role"),
       techLine: t("block_techline"),
+      contactLine: t("block_contactline"),
     };
     if (HEADER_LABELS[id]) return HEADER_LABELS[id];
     return getSectionLabel(getParentSectionId(id), data);
   };
 
-  const headerBlockIds = getHeaderBlockIds(data, isChaima);
+  const headerBlockIds = getHeaderBlockIds(data, template);
 
   const renderBlock = (id: string) => (
     <CanvasBlock
