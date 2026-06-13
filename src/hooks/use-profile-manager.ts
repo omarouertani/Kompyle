@@ -212,6 +212,49 @@ export function useProfileManager(locale: string, t: (key: string, values?: Reco
     // le useEffect [selectedProfile] recharge le profil principal
   }, []);
 
+  /** Crée un nouveau profil principal à partir d'un template VIDE, le
+   *  sauvegarde en base, puis bascule dessus — les données se remplissent
+   *  ensuite via l'onglet "Edit CV". */
+  const createProfile = useCallback(
+    async (name: string, template = "default"): Promise<boolean> => {
+      const trimmed = name.trim();
+      if (!trimmed) return false;
+      const slug =
+        trimmed.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "")
+          .replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || `profil-${Date.now()}`;
+
+      const blank = injectIds(emptyCV(template));
+      blank.personalInfo = { ...blank.personalInfo, name: trimmed };
+
+      try {
+        const res = await fetch("/api/cv-profiles", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            slug,
+            name: trimmed,
+            locale,
+            template,
+            cv_data: blank,
+            is_adaptation: false,
+            parent_id: null,
+          }),
+        });
+        if (!res.ok) throw new Error("create failed");
+        await fetchProfiles();
+        setCoverLetterData(null);
+        setSelectedProfile(slug); // le useEffect recharge le profil créé
+        return true;
+      } catch {
+        // DB indisponible : on ouvre quand même un CV vierge en mémoire
+        setCoverLetterData(null);
+        setSelectedProfile(slug);
+        return false;
+      }
+    },
+    [locale, fetchProfiles]
+  );
+
   /** Bascule entre CV principal et une adaptation (dropdown de versions). */
   const selectVersion = useCallback(
     (id: string) => {
@@ -414,6 +457,7 @@ export function useProfileManager(locale: string, t: (key: string, values?: Reco
     loadingType,
     setLoadingType,
     handleProfileChange,
+    createProfile,
     handleReset,
     profiles,
     profilesLoading,

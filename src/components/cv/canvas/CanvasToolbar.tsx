@@ -3,11 +3,15 @@
 import React from "react";
 import { cn } from "@/lib/utils";
 import { Minus, Plus, Trash2, Sparkles, FilePlus, RotateCcw } from "lucide-react";
+import type { CVTheme } from "@/types/cv";
+import { ThemePanel } from "./ThemePanel";
 
 interface CanvasToolbarProps {
   pageCount: number;
   activePageIndex: number;
   zoom: number;
+  theme: CVTheme;
+  onThemeChange: (updates: Partial<CVTheme>, opts?: { reflow?: boolean }) => void;
   onSelectPage: (index: number) => void;
   onAddPage: () => void;
   onRemovePage: () => void;
@@ -22,6 +26,8 @@ export function CanvasToolbar({
   pageCount,
   activePageIndex,
   zoom,
+  theme,
+  onThemeChange,
   onSelectPage,
   onAddPage,
   onRemovePage,
@@ -53,8 +59,10 @@ export function CanvasToolbar({
           )}
         </div>
 
-        {/* Réaligner + Zoom */}
+        {/* Thème + Réaligner + Zoom */}
         <div className="flex items-center gap-0.5 bg-muted p-0.5 rounded-lg border border-border/80 shadow-sm">
+          <ThemePanel theme={theme} onThemeChange={onThemeChange} />
+          <div className="w-px h-3 bg-border/60 mx-0.5" />
           <button type="button" onClick={onRealign} className="flex items-center gap-1 px-2 py-0.5 text-[9px] font-bold rounded-md bg-background hover:bg-muted/80 text-foreground transition-all shadow-sm h-6" title="Réaligner tous les blocs">
             <RotateCcw size={10} />
             <span className="hidden sm:inline">Réaligner</span>

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect, useMemo, useCallback } from "react";
-import type { CVData, SectionId, CVLayout } from "@/types/cv";
+import type { CVData, SectionId, CVLayout, CVTheme } from "@/types/cv";
 import {
   defaultLayout,
   emptyLayoutPage,
@@ -283,6 +283,31 @@ export default function CVInteractiveCanvas({ data, onChange, template, onOverfl
     if (!nextLayout) return;
     onChange({ ...data, layout: nextLayout });
   }, [data, layout, template, onChange, buildPaginatedLayout]);
+
+  // Réalignement différé : attend que le DOM reflète le dernier onChange
+  // (double rAF) avant de mesurer — utilisé après un changement de thème.
+  const realignAfterRender = useCallback(() => {
+    requestAnimationFrame(() =>
+      requestAnimationFrame(() => {
+        const { data: d, layout: l, template: tpl, onChange: oc } = reflowRefs.current;
+        const nextLayout = buildPaginatedLayout(d, l, tpl);
+        if (nextLayout) oc({ ...d, layout: nextLayout });
+      })
+    );
+  }, [buildPaginatedLayout]);
+
+  /** Mise à jour du thème depuis la toolbar. `reflow` : les tailles/espacements
+   *  ont changé → on réaligne les blocs sur leurs nouvelles hauteurs réelles. */
+  const updateTheme = useCallback(
+    (updates: Partial<CVTheme>, opts?: { reflow?: boolean }) => {
+      const { data: d, layout: l, onChange: oc } = reflowRefs.current;
+      if (Object.keys(updates).length > 0) {
+        oc({ ...d, layout: { ...l, theme: { ...(l.theme ?? {}), ...updates } } });
+      }
+      if (opts?.reflow) realignAfterRender();
+    },
+    [realignAfterRender]
+  );
 
   /** Déplace la section parente d'un bloc vers une autre page (même colonne) et
    *  recalcule les positions de ses blocs pour qu'ils se placent proprement sur
@@ -592,6 +617,8 @@ export default function CVInteractiveCanvas({ data, onChange, template, onOverfl
         pageCount={layout.pages.length}
         activePageIndex={activePageIndex}
         zoom={zoom}
+        theme={theme}
+        onThemeChange={updateTheme}
         onSelectPage={setActivePageIndex}
         onAddPage={addPage}
         onRemovePage={removePage}
