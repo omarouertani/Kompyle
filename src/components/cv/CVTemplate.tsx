@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import {
   Document,
   StyleSheet,
@@ -16,7 +16,7 @@ import { wrapText, formatUrl, displayUrl, DiffText } from "@/utils/pdf-text-util
 
 registerPdfFont(ACTIVE_PDF_FONT);
 
-// ─── Dynamic Styles Generator ────────────────────────────────────────────────
+// â”€â”€â”€ Dynamic Styles Generator â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const getStyles = (theme?: CVTheme, sidebarWidth = 165) => {
   const primaryColor = theme?.primaryColor || "#1a1a1a";
   const textColor = theme?.textColor || "#27272a";
@@ -258,11 +258,11 @@ const getStyles = (theme?: CVTheme, sidebarWidth = 165) => {
   });
 };
 
-// ─── Section renderers ───────────────────────────────────────────────────────
+// â”€â”€â”€ Section renderers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 type SectionRenderer = (data: CVData, styles: any, originalData?: CVData, part?: "title" | "content" | "item", itemIndex?: number) => React.ReactNode;
 
-/** Titre d'une section dans le PDF : renommage utilisateur sinon libellé par défaut. */
+/** Titre d'une section dans le PDF : renommage utilisateur sinon libellÃ© par dÃ©faut. */
 const sectionTitle = (data: CVData, id: string, fallback: string): string =>
   data.layout?.sectionTitles?.[id] ?? fallback;
 
@@ -396,7 +396,7 @@ const renderEducation: SectionRenderer = (data, styles, originalData, part, item
         ]}
       >
         <Text style={styles.sideBlockLead}>{edu.degree}</Text>
-        <Text style={styles.sideBlockSub}>{edu.institution}</Text>
+        <Text style={styles.sideBlockSub}>{edu.institution}</Text>{edu.date ? <Text style={styles.sideBlockSub}>{edu.date}</Text> : null}
       </KeepTogether>
     );
   }
@@ -413,7 +413,7 @@ const renderEducation: SectionRenderer = (data, styles, originalData, part, item
           ]}
         >
           <Text style={styles.sideBlockLead}>{edu.degree}</Text>
-          <Text style={styles.sideBlockSub}>{edu.institution}</Text>
+          <Text style={styles.sideBlockSub}>{edu.institution}</Text>{edu.date ? <Text style={styles.sideBlockSub}>{edu.date}</Text> : null}
         </KeepTogether>
       ))}
     </>
@@ -461,7 +461,7 @@ const renderExperience: SectionRenderer = (data, styles, originalData, part, ite
           <View style={styles.entryHeadLeft}>
             <Text>
               <Text style={styles.entryTitle}>{exp.title}</Text>
-              <Text> — </Text>
+              <Text> â€” </Text>
               <Text style={styles.entryOrg}>{exp.org}</Text>
             </Text>
           </View>
@@ -479,7 +479,7 @@ const renderExperience: SectionRenderer = (data, styles, originalData, part, ite
                 j === exp.bullets.length - 1 ? { marginBottom: 0 } : {},
               ]}
             >
-              <Text style={styles.bulletMarker}>•</Text>
+              <Text style={styles.bulletMarker}>â€¢</Text>
               <DiffText
                 oldText={originalData?.experiences[i]?.bullets[j]}
                 newText={bullet}
@@ -508,7 +508,7 @@ const renderExperience: SectionRenderer = (data, styles, originalData, part, ite
             <View style={styles.entryHeadLeft}>
               <Text>
                 <Text style={styles.entryTitle}>{exp.title}</Text>
-                <Text> — </Text>
+                <Text> â€” </Text>
                 <Text style={styles.entryOrg}>{exp.org}</Text>
               </Text>
             </View>
@@ -526,7 +526,7 @@ const renderExperience: SectionRenderer = (data, styles, originalData, part, ite
                   j === exp.bullets.length - 1 ? { marginBottom: 0 } : {},
                 ]}
               >
-                <Text style={styles.bulletMarker}>•</Text>
+                <Text style={styles.bulletMarker}>â€¢</Text>
                 <DiffText
                   oldText={originalData?.experiences[i]?.bullets[j]}
                   newText={bullet}
@@ -634,12 +634,12 @@ const renderInterests: SectionRenderer = (data, styles, originalData, part) => {
   const showContent = !part || part === "content";
   return (
     <>
-      {showTitle && <Text style={styles.h2}>{sectionTitle(data, "interests", "Intérêts")}</Text>}
+      {showTitle && <Text style={styles.h2}>{sectionTitle(data, "interests", "IntÃ©rÃªts")}</Text>}
       {showContent && (
         <View style={styles.sideBlock}>
-          {personalInfo.interests.split(/[·,]/).map((interest, i) => (
+          {personalInfo.interests.split(/[Â·,]/).map((interest, i) => (
             <Text key={i} style={styles.sideBlockText}>
-              • {interest.trim()}
+              â€¢ {interest.trim()}
             </Text>
           ))}
         </View>
@@ -648,7 +648,7 @@ const renderInterests: SectionRenderer = (data, styles, originalData, part) => {
   );
 };
 
-// Registre : ID de section → renderer. Ajouter une section = une entrée ici.
+// Registre : ID de section â†’ renderer. Ajouter une section = une entrÃ©e ici.
 const SECTION_RENDERERS: Record<string, SectionRenderer> = {
   contact: renderContact,
   skills: renderSkills,
@@ -661,7 +661,7 @@ const SECTION_RENDERERS: Record<string, SectionRenderer> = {
   interests: renderInterests,
 };
 
-// Rend une colonne (liste d'IDs de sections), en gérant la marge du dernier élément.
+// Rend une colonne (liste d'IDs de sections), en gÃ©rant la marge du dernier Ã©lÃ©ment.
 const renderColumn = (ids: string[], data: CVData, styles: any, originalData?: CVData) => {
   const known = ids.filter((id) => SECTION_RENDERERS[id]);
   return known.map((id, i) => {
@@ -675,7 +675,7 @@ const renderColumn = (ids: string[], data: CVData, styles: any, originalData?: C
   });
 };
 
-// ─── Component ──────────────────────────────────────────────────────────────
+// â”€â”€â”€ Component â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 interface CVTemplateProps {
   data: CVData;
@@ -696,7 +696,7 @@ const CVTemplate: React.FC<CVTemplateProps> = ({ data, originalData }) => {
     const defaultPositions = getDefaultPositions("default", data);
     const pos = absolutePositions[blockId] || defaultPositions[blockId];
     if (!pos) return null;
-    // Position hors page A4 (842pt) : on ignore le bloc plutôt que de casser
+    // Position hors page A4 (842pt) : on ignore le bloc plutÃ´t que de casser
     // le rendu PDF (page blanche). Le canvas signale la limite (ligne ambre).
     if (pos.y >= 842 || pos.x >= 595) return null;
 
@@ -801,17 +801,17 @@ const CVTemplate: React.FC<CVTemplateProps> = ({ data, originalData }) => {
 
   return (
     <Document
-      title={`${personalInfo.name} — ${personalInfo.role} (CV)`}
+      title={`${personalInfo.name} â€” ${personalInfo.role} (CV)`}
       author={personalInfo.name}
       subject={personalInfo.role}
     >
       {dedupePages(layout.pages).map((page, pageIndex) => {
-        // Pas de section en colonne latérale → la colonne principale occupe
-        // toute la largeur (équivalent du `fullWidth` de Reactive Resume).
+        // Pas de section en colonne latÃ©rale â†’ la colonne principale occupe
+        // toute la largeur (Ã©quivalent du `fullWidth` de Reactive Resume).
         const hasSidebar = page.sidebar.some((id) => SECTION_RENDERERS[id]);
 
         if (useAbsolute) {
-          // Honore la pagination auto (position.page) si présente.
+          // Honore la pagination auto (position.page) si prÃ©sente.
           const { sidebar: sidebarBlocks, main: mainBlocks } = getPageBlockIds(layout, data, pageIndex);
           const hasSidebarAbs = sidebarBlocks.length > 0;
           const sidebarBgStyle = {
@@ -835,7 +835,7 @@ const CVTemplate: React.FC<CVTemplateProps> = ({ data, originalData }) => {
 
         return (
           <Page key={pageIndex} size="A4" style={styles.page}>
-            {/* Header (nom / rôle / techLine) : uniquement sur la 1re page. */}
+            {/* Header (nom / rÃ´le / techLine) : uniquement sur la 1re page. */}
             {pageIndex === 0 && (
               <View style={styles.header}>
                 <Text style={styles.h1}>{personalInfo.name}</Text>

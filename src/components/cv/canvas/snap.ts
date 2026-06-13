@@ -9,7 +9,17 @@ export interface SnapGuide {
   position: number;
 }
 
-export type BlockPos = { x: number; y: number; w?: number; h?: number };
+export type BlockPos = {
+  x: number;
+  y: number;
+  w?: number;
+  h?: number;
+  page?: number;
+  /** Échelle de police appliquée au contenu (resize diagonal). */
+  fontScale?: number;
+  /** Bloc verrouillé : ni drag ni resize. */
+  locked?: boolean;
+};
 
 export function findSnapGuides(
   dragId: string,

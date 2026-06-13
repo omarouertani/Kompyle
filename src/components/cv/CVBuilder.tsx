@@ -430,6 +430,7 @@ export default function CVBuilder({ data, onChange }: CVBuilderProps) {
           <>
             <Field label="Diplôme" value={edu.degree} onChange={(v) => updateItem("education", edu.id!, { degree: v })} />
             <Field label="Institution" value={edu.institution} onChange={(v) => updateItem("education", edu.id!, { institution: v })} />
+            <Field label="Date" value={edu.date ?? ""} onChange={(v) => updateItem("education", edu.id!, { date: v })} />
           </>
         )}
       />

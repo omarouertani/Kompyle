@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import type { CVData, CVTheme, Experience, Project, Education, SkillGroup } from "@/types/cv";
+import type { CVData, CVTheme, Experience, Project, Education, SkillGroup, SkillMode } from "@/types/cv";
 import { cn } from "@/lib/utils";
 import { Trash2, PlusCircle } from "lucide-react";
 import { EditableText, ptsToPx } from "../cv-canvas-primitives";
@@ -15,6 +15,7 @@ export interface BlockTheme {
   headingFontSize: number;
   lineHeight: number;
   photoSize: number;
+  skillMode?: SkillMode;
 }
 
 interface BlockContentProps {
@@ -28,7 +29,7 @@ interface BlockContentProps {
  *  (title_*, content_*, skill_N, experience_N, project_N, education_N,
  *  name, role, techLine, photo). Retourne null si l'id est inconnu. */
 export function BlockContent({ blockId, data, theme, onChange }: BlockContentProps) {
-  const { isChaima, primaryColor, baseFontSize, headingFontSize, lineHeight: lh, photoSize } = theme;
+  const { isChaima, primaryColor, baseFontSize, headingFontSize, lineHeight: lh, photoSize, skillMode } = theme;
   const { personalInfo } = data;
   const toPx = ptsToPx;
 
@@ -169,10 +170,65 @@ export function BlockContent({ blockId, data, theme, onChange }: BlockContentPro
     const idx = parseInt(blockId.split("_")[1]);
     const group = data.skills[idx];
     if (!group) return null;
+
+    const mode = skillMode ?? "text";
+    const items = group.items.split(",").map((s) => s.trim()).filter(Boolean);
+    const commitItems = (next: string[]) =>
+      updateSkillGroup(idx, "items", next.map((s) => s.trim()).filter(Boolean).join(", "));
+    const updateItemAt = (i: number, v: string) => {
+      const next = [...items];
+      next[i] = v;
+      commitItems(next);
+    };
+
     return (
       <div className="flex flex-col w-full text-left">
         <EditableText value={group.category} onChange={(v) => updateSkillGroup(idx, "category", v)} className="font-bold text-zinc-800" style={{ fontSize: toPx(baseFontSize), lineHeight: lh }} placeholder="Catégorie" />
-        <EditableText value={group.items} onChange={(v) => updateSkillGroup(idx, "items", v)} className="text-zinc-600 mt-0.5" style={{ fontSize: toPx(baseFontSize), lineHeight: lh }} placeholder="Compétence 1, Compétence 2..." />
+
+        {mode === "text" && (
+          <EditableText value={group.items} onChange={(v) => updateSkillGroup(idx, "items", v)} className="text-zinc-600 mt-0.5" style={{ fontSize: toPx(baseFontSize), lineHeight: lh }} placeholder="Compétence 1, Compétence 2..." />
+        )}
+
+        {mode === "tags" && (
+          <div className="flex flex-wrap gap-1 mt-1 group/tags">
+            {items.map((item, i) => (
+              <span
+                key={`${i}_${item}`}
+                className="inline-flex items-center rounded-full border px-1.5 py-px"
+                style={{
+                  fontSize: toPx(baseFontSize - 0.5),
+                  lineHeight: lh,
+                  borderColor: `${primaryColor}66`,
+                  backgroundColor: `${primaryColor}14`,
+                  color: "#3f3f46",
+                }}
+              >
+                <EditableText value={item} onChange={(v) => updateItemAt(i, v)} placeholder="Compétence" />
+              </span>
+            ))}
+            <button
+              type="button"
+              onClick={() => commitItems([...items, "Nouvelle compétence"])}
+              className="opacity-0 group-hover/tags:opacity-100 text-zinc-400 hover:text-primary transition-opacity z-30"
+              title="Ajouter une compétence"
+            >
+              <PlusCircle size={11} />
+            </button>
+          </div>
+        )}
+
+        {mode === "bars" && (
+          <div className="flex flex-col gap-1 mt-1">
+            {items.map((item, i) => (
+              <div key={`${i}_${item}`} className="flex items-center gap-2">
+                <EditableText value={item} onChange={(v) => updateItemAt(i, v)} className="text-zinc-700 flex-1 min-w-0" style={{ fontSize: toPx(baseFontSize - 0.5), lineHeight: lh }} placeholder="Compétence" />
+                <div className="h-[3px] w-12 shrink-0 rounded-full overflow-hidden" style={{ backgroundColor: `${primaryColor}26` }}>
+                  <div className="h-full rounded-full" style={{ width: "75%", backgroundColor: primaryColor }} />
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     );
   }
@@ -206,6 +262,7 @@ export function BlockContent({ blockId, data, theme, onChange }: BlockContentPro
       <div className="flex flex-col w-full text-left">
         <EditableText value={edu.degree} onChange={(v) => updateEducation(idx, "degree", v)} className="font-bold text-zinc-900 leading-snug" style={{ fontSize: toPx(baseFontSize) }} placeholder="Diplôme" />
         <EditableText value={edu.institution} onChange={(v) => updateEducation(idx, "institution", v)} className="text-zinc-600 italic leading-snug mt-0.5" style={{ fontSize: toPx(baseFontSize) }} placeholder="Institution" />
+        <EditableText value={edu.date ?? ""} onChange={(v) => updateEducation(idx, "date", v)} className="text-zinc-500 leading-snug mt-0.5" style={{ fontSize: toPx(baseFontSize - 1) }} placeholder="2020 — 2023" />
       </div>
     );
   }

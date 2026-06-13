@@ -658,7 +658,7 @@ const renderEducation: SectionRenderer = (data, isSidebar, styles, originalData,
         ]}
       >
         <Text style={styles.eduDegree}>{edu.degree}</Text>
-        <Text style={styles.eduInstitution}>{edu.institution}</Text>
+        <Text style={styles.eduInstitution}>{edu.institution}</Text>{edu.date ? <Text style={styles.eduInstitution}>{edu.date}</Text> : null}
       </KeepTogether>
     );
   }
@@ -675,7 +675,7 @@ const renderEducation: SectionRenderer = (data, isSidebar, styles, originalData,
           ]}
         >
           <Text style={styles.eduDegree}>{edu.degree}</Text>
-          <Text style={styles.eduInstitution}>{edu.institution}</Text>
+          <Text style={styles.eduInstitution}>{edu.institution}</Text>{edu.date ? <Text style={styles.eduInstitution}>{edu.date}</Text> : null}
         </KeepTogether>
       ))}
     </>
