@@ -21,14 +21,16 @@ import {
   isModernTemplate,
 } from "@/lib/cv-layout";
 import { cn } from "@/lib/utils";
-import { Maximize2, MoveUpRight, MoveRight, Copy, EyeOff, RotateCcw, SquarePlus, Lock, LockOpen } from "lucide-react";
+import { Maximize2, MoveUpRight, MoveRight, Copy, EyeOff, RotateCcw, SquarePlus, Lock, LockOpen, Group, Ungroup } from "lucide-react";
 import { CVPageScaleWrapper, PT_TO_PX, A4_WIDTH_PX, A4_HEIGHT_PX, ptsToPx, SELECTION_COLOR } from "./cv-canvas-primitives";
 import { AbsoluteBlock } from "./canvas/AbsoluteBlock";
 import { BlockContent, type BlockTheme } from "./canvas/BlockContent";
 import { CanvasToolbar, ZOOM_MIN, ZOOM_MAX, type CanvasBackground } from "./canvas/CanvasToolbar";
 import { FONT_FAMILIES } from "./canvas/ThemePanel";
 import { ContextMenu, type ContextMenuItem } from "./canvas/ContextMenu";
-import { useCanvasInteractions } from "./canvas/use-canvas-interactions";
+import { SnapGuides } from "./canvas/SnapGuides";
+import { MultiSelectToolbar, type AlignKind } from "./canvas/MultiSelectToolbar";
+import { useCanvasInteractions, type GrabOffset, type DropMember } from "./canvas/use-canvas-interactions";
 import { useBlockActions } from "./canvas/use-block-actions";
 import { useMarquee } from "./canvas/use-marquee";
 import type { BlockPos } from "./canvas/snap";
@@ -140,7 +142,7 @@ export default function CVInteractiveCanvas({ data, onChange: onChangeProp, temp
 
   // Résout un drop drag-and-drop inter-pages (assigné plus bas, une fois
   // moveSectionToPage défini ; mis à jour à chaque rendu via la ref).
-  const resolveDropRef = useRef<((blockId: string, clientX: number, clientY: number, screenDx: number, screenDy: number) => boolean) | null>(null);
+  const resolveDropRef = useRef<((primaryId: string, clientX: number, clientY: number, grab: GrabOffset, members: DropMember[]) => boolean) | null>(null);
 
   const {
     selectedIds,
@@ -166,7 +168,10 @@ export default function CVInteractiveCanvas({ data, onChange: onChangeProp, temp
   const activePageIndex = Math.min(rawPageIndex, layout.pages.length - 1);
   const [menu, setMenu] = useState<{ x: number; y: number; blockId: string | null } | null>(null);
   const [canvasBg, setCanvasBg] = useState<CanvasBackground>("neutral");
-  const [isExporting, setIsExporting] = useState(false);
+  // Pan « style Canva » : Espace maintenu + glisser → défilement du canvas.
+  const spaceHeldRef = useRef(false);
+  const [isSpaceHeld, setIsSpaceHeld] = useState(false);
+  const [isPanningActive, setIsPanningActive] = useState(false);
 
   // Mesure la hauteur réelle d'un bloc rendu (offsetHeight est pré-scale).
   const measureHeightPt = useCallback((blockId: string): number | null => {
@@ -292,6 +297,95 @@ export default function CVInteractiveCanvas({ data, onChange: onChangeProp, temp
     return () => el.removeEventListener("wheel", handler);
   }, []);
 
+  // ── Pan (Espace + glisser), façon Canva ────────────────────────────────────
+  // La touche Espace maintenue arme le mode panoramique : le curseur passe en
+  // « main » et un glissé fait défiler le canvas (utile en zoom élevé).
+  useEffect(() => {
+    const down = (e: KeyboardEvent) => {
+      if (e.code !== "Space" || spaceHeldRef.current) return;
+      const target = e.target as HTMLElement;
+      if (target.isContentEditable || target.tagName === "INPUT" || target.tagName === "TEXTAREA") return;
+      spaceHeldRef.current = true;
+      setIsSpaceHeld(true);
+      e.preventDefault(); // empêche le scroll natif de la page
+    };
+    const up = (e: KeyboardEvent) => {
+      if (e.code !== "Space") return;
+      spaceHeldRef.current = false;
+      setIsSpaceHeld(false);
+      setIsPanningActive(false);
+    };
+    window.addEventListener("keydown", down);
+    window.addEventListener("keyup", up);
+    return () => {
+      window.removeEventListener("keydown", down);
+      window.removeEventListener("keyup", up);
+    };
+  }, []);
+
+  // Démarre un panoramique : capté en phase de capture pour passer AVANT les
+  // handlers de drag des blocs / le lasso (stopPropagation).
+  const handlePanCapture = useCallback((e: React.MouseEvent) => {
+    if (!spaceHeldRef.current || e.button !== 0) return;
+    const el = scrollContainerRef.current;
+    if (!el) return;
+    e.preventDefault();
+    e.stopPropagation();
+    setIsPanningActive(true);
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const startLeft = el.scrollLeft;
+    const startTop = el.scrollTop;
+    const move = (me: MouseEvent) => {
+      el.scrollLeft = startLeft - (me.clientX - startX);
+      el.scrollTop = startTop - (me.clientY - startY);
+    };
+    const up = () => {
+      setIsPanningActive(false);
+      window.removeEventListener("mousemove", move);
+      window.removeEventListener("mouseup", up);
+    };
+    window.addEventListener("mousemove", move);
+    window.addEventListener("mouseup", up);
+  }, []);
+
+  // ── Groupement (Ctrl+G / Ctrl+Shift+G) ─────────────────────────────────────
+  // Défini avant le handler clavier qui les référence dans ses dépendances.
+  /** La sélection courante contient-elle au moins un bloc groupé ? */
+  const selectionHasGroup = useMemo(
+    () => selectedIds.some((id) => layout.absolutePositions?.[id]?.groupId),
+    [selectedIds, layout.absolutePositions]
+  );
+
+  const groupSelected = useCallback(() => {
+    if (selectedIds.length < 2) return;
+    const positions: Record<string, BlockPos> = { ...defaultPositions, ...(layout.absolutePositions ?? {}) };
+    const gid = `g_${Date.now().toString(36)}_${Math.floor(Math.random() * 1e4).toString(36)}`;
+    const updates: Record<string, BlockPos> = {};
+    for (const id of selectedIds) {
+      const pos = positions[id] ?? defaultPositions[id];
+      if (pos) updates[id] = { ...pos, groupId: gid };
+    }
+    if (Object.keys(updates).length === 0) return;
+    onChange({ ...data, layout: { ...layout, absolutePositions: { ...positions, ...updates } } });
+  }, [selectedIds, layout, defaultPositions, data, onChange]);
+
+  const ungroupSelected = useCallback(() => {
+    const positions: Record<string, BlockPos> = { ...defaultPositions, ...(layout.absolutePositions ?? {}) };
+    const gids = new Set(selectedIds.map((id) => positions[id]?.groupId).filter(Boolean) as string[]);
+    if (gids.size === 0) return;
+    const updates: Record<string, BlockPos> = {};
+    for (const [k, v] of Object.entries(positions)) {
+      if (v.groupId && gids.has(v.groupId)) {
+        const { groupId: _drop, ...rest } = v;
+        void _drop;
+        updates[k] = rest;
+      }
+    }
+    if (Object.keys(updates).length === 0) return;
+    onChange({ ...data, layout: { ...layout, absolutePositions: { ...positions, ...updates } } });
+  }, [selectedIds, layout, defaultPositions, data, onChange]);
+
   // Raccourcis clavier : Ctrl+Z/Y (undo/redo), Échap, Suppr (masquer),
   // flèches (déplacer la sélection)
   useEffect(() => {
@@ -315,8 +409,24 @@ export default function CVInteractiveCanvas({ data, onChange: onChangeProp, temp
         return;
       }
 
+      // Ctrl/Cmd + 0 → « Ajuster à la largeur visible » (actif sans sélection)
+      if ((e.ctrlKey || e.metaKey) && e.key === "0") {
+        if (isEditingText) return;
+        e.preventDefault();
+        fitToScreen();
+        return;
+      }
+
       if (selectedIds.length === 0) return;
       if (isEditingText) return;
+
+      // Ctrl/Cmd + G → grouper · Ctrl/Cmd + Shift + G → dégrouper
+      if ((e.ctrlKey || e.metaKey) && (e.key === "g" || e.key === "G")) {
+        e.preventDefault();
+        if (e.shiftKey) ungroupSelected();
+        else groupSelected();
+        return;
+      }
 
       if (e.key === "Escape") {
         clearSelection();
@@ -361,7 +471,7 @@ export default function CVInteractiveCanvas({ data, onChange: onChangeProp, temp
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [selectedIds, layout, data, defaultPositions, onChange, hideSectionOf, clearSelection, canDuplicate, duplicateItem, undo, redo]);
+  }, [selectedIds, layout, data, defaultPositions, onChange, hideSectionOf, clearSelection, canDuplicate, duplicateItem, undo, redo, fitToScreen, groupSelected, ungroupSelected]);
 
   const addPage = () => {
     const nextPages = [...layout.pages, emptyLayoutPage()];
@@ -409,30 +519,6 @@ export default function CVInteractiveCanvas({ data, onChange: onChangeProp, temp
     [realignAfterRender]
   );
 
-  // ── Export PDF / PNG depuis la toolbar ────────────────────────────────────
-  const exportFileBase = `CV_${data.personalInfo.name.replace(/\s+/g, "_") || "Kompyle"}`;
-
-  const exportPng = useCallback(async () => {
-    const pageEl = document.getElementById(`cv-page-${activePageIndex}`);
-    if (!pageEl) return;
-    setIsExporting(true);
-    try {
-      const { toPng } = await import("html-to-image");
-      const dataUrl = await toPng(pageEl, {
-        pixelRatio: 2,
-        backgroundColor: theme.pageBg || "#ffffff",
-      });
-      const a = document.createElement("a");
-      a.href = dataUrl;
-      a.download = `${exportFileBase}_page${activePageIndex + 1}.png`;
-      a.click();
-    } catch (err) {
-      console.error("PNG export failed:", err);
-    } finally {
-      setIsExporting(false);
-    }
-  }, [activePageIndex, theme.pageBg, exportFileBase]);
-
   /** Verrouille / déverrouille un groupe de blocs (protège des drags accidentels). */
   const toggleLock = useCallback(
     (ids: string[]) => {
@@ -450,6 +536,78 @@ export default function CVInteractiveCanvas({ data, onChange: onChangeProp, temp
       });
     },
     [data, layout, defaultPositions, onChange]
+  );
+
+  // ── Alignement / distribution de la multi-sélection ────────────────────────
+  const alignSelected = useCallback(
+    (kind: AlignKind) => {
+      if (selectedIds.length < 2) return;
+      const positions: Record<string, BlockPos> = { ...defaultPositions, ...(layout.absolutePositions ?? {}) };
+      const rects = selectedIds
+        .map((id) => {
+          const p = positions[id] ?? defaultPositions[id];
+          if (!p || p.locked) return null;
+          const w = p.w ?? 150;
+          const h = p.h ?? measureHeightPt(id) ?? 20;
+          return { id, x: p.x, y: p.y, w, h, p };
+        })
+        .filter((r): r is { id: string; x: number; y: number; w: number; h: number; p: BlockPos } => r !== null);
+      if (rects.length < 2) return;
+
+      const updates: Record<string, BlockPos> = {};
+      const setX = (id: string, p: BlockPos, x: number) => (updates[id] = { ...p, x: Math.round(Math.max(0, x)) });
+      const setY = (id: string, p: BlockPos, y: number) => (updates[id] = { ...p, y: Math.round(Math.max(0, y)) });
+
+      if (kind === "left") {
+        const m = Math.min(...rects.map((r) => r.x));
+        rects.forEach((r) => setX(r.id, r.p, m));
+      } else if (kind === "right") {
+        const m = Math.max(...rects.map((r) => r.x + r.w));
+        rects.forEach((r) => setX(r.id, r.p, m - r.w));
+      } else if (kind === "centerH") {
+        const minX = Math.min(...rects.map((r) => r.x));
+        const maxX = Math.max(...rects.map((r) => r.x + r.w));
+        const cx = (minX + maxX) / 2;
+        rects.forEach((r) => setX(r.id, r.p, cx - r.w / 2));
+      } else if (kind === "top") {
+        const m = Math.min(...rects.map((r) => r.y));
+        rects.forEach((r) => setY(r.id, r.p, m));
+      } else if (kind === "bottom") {
+        const m = Math.max(...rects.map((r) => r.y + r.h));
+        rects.forEach((r) => setY(r.id, r.p, m - r.h));
+      } else if (kind === "middleV") {
+        const minY = Math.min(...rects.map((r) => r.y));
+        const maxY = Math.max(...rects.map((r) => r.y + r.h));
+        const cy = (minY + maxY) / 2;
+        rects.forEach((r) => setY(r.id, r.p, cy - r.h / 2));
+      } else if (kind === "distV") {
+        const sorted = [...rects].sort((a, b) => a.y - b.y);
+        const top = sorted[0].y;
+        const bottom = sorted[sorted.length - 1].y + sorted[sorted.length - 1].h;
+        const totalH = sorted.reduce((s, r) => s + r.h, 0);
+        const gap = (bottom - top - totalH) / (sorted.length - 1);
+        let y = top;
+        sorted.forEach((r) => {
+          setY(r.id, r.p, y);
+          y += r.h + gap;
+        });
+      } else if (kind === "distH") {
+        const sorted = [...rects].sort((a, b) => a.x - b.x);
+        const left = sorted[0].x;
+        const right = sorted[sorted.length - 1].x + sorted[sorted.length - 1].w;
+        const totalW = sorted.reduce((s, r) => s + r.w, 0);
+        const gap = (right - left - totalW) / (sorted.length - 1);
+        let x = left;
+        sorted.forEach((r) => {
+          setX(r.id, r.p, x);
+          x += r.w + gap;
+        });
+      }
+
+      if (Object.keys(updates).length === 0) return;
+      onChange({ ...data, layout: { ...layout, absolutePositions: { ...positions, ...updates } } });
+    },
+    [selectedIds, layout, defaultPositions, data, onChange, measureHeightPt]
   );
 
   /** Déplace la section parente d'un bloc vers une autre page (même colonne) et
@@ -516,14 +674,15 @@ export default function CVInteractiveCanvas({ data, onChange: onChangeProp, temp
   // changent de page (pas toute la section). Chaque bloc atterrit là où était
   // son fantôme (position écran convertie en coordonnées pt de la page cible).
   const resolveDrop = useCallback(
-    (blockId: string, clientX: number, clientY: number, screenDx: number, screenDy: number): boolean => {
+    (primaryId: string, clientX: number, clientY: number, grab: GrabOffset, members: DropMember[]): boolean => {
       if (layout.pages.length < 2) return false;
+      // La page cible est déterminée par la position EXACTE du curseur (pivot).
       const pageEl = document
         .elementsFromPoint(clientX, clientY)
         .find((el) => el instanceof HTMLElement && el.dataset.pageIndex !== undefined) as HTMLElement | undefined;
       if (!pageEl) return false;
       const targetPage = Number(pageEl.dataset.pageIndex);
-      if (targetPage === homePageOf(blockId)) return false; // drop sur sa propre page → commit normal
+      if (targetPage === homePageOf(primaryId)) return false; // drop sur sa propre page → commit normal
 
       const contentEl = pageEl.querySelector("[data-cv-page-content]") as HTMLElement | null;
       if (!contentEl) return false;
@@ -531,26 +690,28 @@ export default function CVInteractiveCanvas({ data, onChange: onChangeProp, temp
       const scale = contentRect.width / A4_WIDTH_PX;
       if (!scale) return false;
 
-      const group = selectedIds.includes(blockId) ? selectedIds : [blockId];
+      // Pivot curseur : coin supérieur gauche du bloc pivot reposé sous le
+      // curseur (cursor − grab), puis chaque membre conserve son offset relatif.
+      const primaryLeft = clientX - grab.dx;
+      const primaryTop = clientY - grab.dy;
+
       const positions = { ...(layout.absolutePositions ?? defaultPositions) };
       let changed = false;
 
       const HEADER = new Set(["photo", "name", "role", "techLine"]);
-      for (const id of group) {
-        if (HEADER.has(id)) continue; // le header reste sur la page 1
-        const el = document.querySelector(`[data-block-id="${id}"]`) as HTMLElement | null;
-        if (!el) continue;
-        const r = el.getBoundingClientRect();
-        // Position écran finale du fantôme = position d'origine + déplacement
-        const ptX = Math.max(0, Math.round((r.left + screenDx - contentRect.left) / scale / PT_TO_PX));
-        const ptY = Math.max(0, Math.round((r.top + screenDy - contentRect.top) / scale / PT_TO_PX));
-        const cur = positions[id] ?? defaultPositions[id] ?? { x: ptX, y: ptY, w: 150 };
+      for (const m of members) {
+        if (HEADER.has(m.id)) continue; // le header reste sur la page 1
+        const screenLeft = primaryLeft + m.relLeft;
+        const screenTop = primaryTop + m.relTop;
+        const ptX = Math.max(0, Math.round((screenLeft - contentRect.left) / scale / PT_TO_PX));
+        const ptY = Math.max(0, Math.round((screenTop - contentRect.top) / scale / PT_TO_PX));
+        const cur = positions[m.id] ?? defaultPositions[m.id] ?? { x: ptX, y: ptY, w: 150 };
         // Si le bloc retombe sur la page de sa section (mode pages), la
         // surcharge devient inutile ; en mode autoPaginated, page fait foi.
-        const sp = pageOfSection(id);
+        const sp = pageOfSection(m.id);
         const home = sp === -1 ? 0 : sp;
         const pageOverride = !layout.autoPaginated && home === targetPage ? undefined : targetPage;
-        positions[id] = { ...cur, x: ptX, y: ptY, page: pageOverride };
+        positions[m.id] = { ...cur, x: ptX, y: ptY, page: pageOverride };
         changed = true;
       }
       if (!changed) return false;
@@ -559,7 +720,7 @@ export default function CVInteractiveCanvas({ data, onChange: onChangeProp, temp
       setActivePageIndex(targetPage);
       return true;
     },
-    [data, layout, defaultPositions, selectedIds, onChange, homePageOf, pageOfSection]
+    [data, layout, defaultPositions, onChange, homePageOf, pageOfSection]
   );
 
   useEffect(() => {
@@ -695,6 +856,12 @@ export default function CVInteractiveCanvas({ data, onChange: onChangeProp, temp
       const blockId = menu.blockId;
       items.push({ label: t("menu_duplicate"), icon: Copy, onClick: () => duplicateItem(blockId) });
     }
+    // Grouper / dégrouper la multi-sélection
+    if (selectionHasGroup) {
+      items.push({ label: t("menu_ungroup"), icon: Ungroup, onClick: ungroupSelected });
+    } else if (targets.length >= 2) {
+      items.push({ label: t("menu_group"), icon: Group, onClick: groupSelected });
+    }
     // Déplacer la section vers une autre page
     if (isSectionBlock(menu.blockId) && layout.pages.length > 1) {
       const blockId = menu.blockId;
@@ -778,6 +945,7 @@ export default function CVInteractiveCanvas({ data, onChange: onChangeProp, temp
   // Fond du canvas : clic gauche → lasso de sélection (clic simple = désélection)
   const handleBackgroundMouseDown = (e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
+    if (spaceHeldRef.current) return; // pan en cours / armé → pas de lasso
     if (target.closest("[data-block-id]") || target.closest("[data-canvas-toolbar]")) return;
     clearSelection();
     const container = scrollContainerRef.current;
@@ -796,7 +964,6 @@ export default function CVInteractiveCanvas({ data, onChange: onChangeProp, temp
         zoom={zoom}
         theme={theme}
         canvasBg={canvasBg}
-        isExporting={isExporting}
         onThemeChange={updateTheme}
         onSelectPage={setActivePageIndex}
         onAddPage={addPage}
@@ -805,19 +972,28 @@ export default function CVInteractiveCanvas({ data, onChange: onChangeProp, temp
         onZoomFit={fitToScreen}
         onRealign={realign}
         onCanvasBgChange={setCanvasBg}
-        onExportPng={exportPng}
+      />
+
+      <MultiSelectToolbar
+        count={isDragging || isResizing ? 0 : selectedIds.length}
+        hasGroup={!!selectionHasGroup}
+        onAlign={alignSelected}
+        onGroup={groupSelected}
+        onUngroup={ungroupSelected}
       />
 
       <div
         ref={scrollContainerRef}
         className="flex-1 overflow-auto p-4 flex flex-col gap-6 min-h-0 w-full scrollbar-thin"
-        style={
-          canvasBg === "dots"
+        style={{
+          ...(canvasBg === "dots"
             ? { backgroundImage: "radial-gradient(circle, rgba(99,102,241,0.22) 1px, transparent 1px)", backgroundSize: "18px 18px" }
             : canvasBg === "grid"
               ? { backgroundImage: "linear-gradient(rgba(99,102,241,0.10) 1px, transparent 1px), linear-gradient(90deg, rgba(99,102,241,0.10) 1px, transparent 1px)", backgroundSize: "24px 24px" }
-              : undefined
-        }
+              : {}),
+          cursor: isPanningActive ? "grabbing" : isSpaceHeld ? "grab" : undefined,
+        }}
+        onMouseDownCapture={handlePanCapture}
         onContextMenu={openCanvasMenu}
       >
         {layout.pages.map((page, pageIndex) => {
@@ -873,12 +1049,8 @@ export default function CVInteractiveCanvas({ data, onChange: onChangeProp, temp
                   />
                 )}
 
-                {snapGuides.map((g, i) =>
-                  g.orientation === "vertical" ? (
-                    <div key={`sg-${i}`} className="absolute top-0 bottom-0 w-px z-40 pointer-events-none" style={{ left: ptsToPx(g.position), backgroundColor: SELECTION_COLOR }} />
-                  ) : (
-                    <div key={`sg-${i}`} className="absolute left-0 right-0 h-px z-40 pointer-events-none" style={{ top: ptsToPx(g.position), backgroundColor: SELECTION_COLOR }} />
-                  )
+                {isDragging && snapGuides.length > 0 && selectedIds.length > 0 && homePageOf(selectedIds[0]) === pageIndex && (
+                  <SnapGuides guides={snapGuides} />
                 )}
 
                 {/* Indique les pages comme zones de dépôt pendant un drag */}

@@ -3,9 +3,24 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import type { CVData } from "@/types/cv";
 import { PT_TO_PX, SELECTION_COLOR } from "../cv-canvas-primitives";
-import { findSnapGuides, A4_WIDTH_PT, type BlockPos, type SnapGuide } from "./snap";
+import { findSnapGuides, A4_WIDTH_PT, type BlockPos, type SnapGuide, type SnapRect } from "./snap";
 
 export type ResizeEdge = "e" | "w" | "n" | "s" | "ne" | "nw" | "se" | "sw";
+
+/** Géométrie écran d'un bloc du groupe déplacé, relative au bloc « pivot »
+ *  (celui saisi par le curseur). Permet de reposer le groupe sous le curseur
+ *  sur la page cible sans saut visuel. */
+export interface DropMember {
+  id: string;
+  relLeft: number;
+  relTop: number;
+}
+
+/** Décalage du curseur à l'intérieur du bloc pivot, au moment de la saisie. */
+export interface GrabOffset {
+  dx: number;
+  dy: number;
+}
 
 interface UseCanvasInteractionsArgs {
   data: CVData;
@@ -13,10 +28,27 @@ interface UseCanvasInteractionsArgs {
   onChange: (newData: CVData) => void;
   /** Résout un drop inter-pages : renvoie true si le(s) bloc(s) ont changé de
    *  page (la position est alors gérée par l'appelant, pas par commitPositions).
-   *  screenDx/Dy = déplacement écran (px) pour replacer chaque bloc sous son fantôme. */
+   *  Le repositionnement utilise le CURSEUR comme pivot (grab + offsets relatifs)
+   *  plutôt que le coin supérieur gauche du bloc → aucun saut de référentiel. */
   resolveDropRef?: {
-    current: ((blockId: string, clientX: number, clientY: number, screenDx: number, screenDy: number) => boolean) | null;
+    current: ((primaryId: string, clientX: number, clientY: number, grab: GrabOffset, members: DropMember[]) => boolean) | null;
   };
+}
+
+/** Étend un ensemble d'ids à tous les membres de leurs groupes respectifs. */
+function expandGroups(ids: string[], positions: Record<string, BlockPos>): string[] {
+  const result = new Set(ids);
+  const groupIds = new Set<string>();
+  for (const id of ids) {
+    const g = positions[id]?.groupId;
+    if (g) groupIds.add(g);
+  }
+  if (groupIds.size > 0) {
+    for (const [k, v] of Object.entries(positions)) {
+      if (v.groupId && groupIds.has(v.groupId)) result.add(k);
+    }
+  }
+  return Array.from(result);
 }
 
 /** Sélection (simple ou multiple) + drag / resize / snap des blocs absolus.
@@ -90,8 +122,17 @@ export function useCanvasInteractions({ data, defaultPositions, onChange, resolv
         return;
       }
 
-      // Drag groupé si le bloc cliqué fait partie de la sélection courante
-      const group = selectedIdsRef.current.includes(id) ? selectedIdsRef.current : [id];
+      // Toutes les positions connues (défaut + sauvegardées) pour résoudre les
+      // groupes et les candidats au snap.
+      const allPositions: Record<string, BlockPos> = {
+        ...defaultPositionsRef.current,
+        ...(dataRef.current.layout?.absolutePositions ?? {}),
+      };
+
+      // Drag groupé : la sélection courante si le bloc cliqué en fait partie,
+      // sinon le bloc seul — puis on étend aux membres de groupe (Ctrl+G).
+      const base = selectedIdsRef.current.includes(id) ? selectedIdsRef.current : [id];
+      const group = expandGroups(base, allPositions);
       setSelectedIds(group);
       setIsDragging(true);
 
@@ -139,16 +180,37 @@ export function useCanvasInteractions({ data, defaultPositions, onChange, resolv
         b.el.style.opacity = "0.25";
       }
 
-      // Candidats au snap : tous les blocs HORS sélection
+      // ── Pivot curseur (drop inter-pages) ────────────────────────────────
+      // On mémorise le décalage du curseur DANS le bloc pivot, et la position
+      // de chaque membre du groupe RELATIVE au pivot (en px écran). Au drop sur
+      // une autre page, on repose le groupe sous le curseur → aucun saut.
+      const primaryRect = (blocks.find((b) => b.blockId === id)?.el ?? blocks[0]?.el)?.getBoundingClientRect();
+      const grab: GrabOffset = primaryRect
+        ? { dx: startMouseX - primaryRect.left, dy: startMouseY - primaryRect.top }
+        : { dx: 0, dy: 0 };
+      const members: DropMember[] = primaryRect
+        ? blocks.map((b) => {
+            const r = b.el.getBoundingClientRect();
+            return { id: b.blockId, relLeft: r.left - primaryRect.left, relTop: r.top - primaryRect.top };
+          })
+        : blocks.map((b) => ({ id: b.blockId, relLeft: 0, relTop: 0 }));
+
+      // Candidats au snap : tous les blocs HORS groupe, sur la même page, avec
+      // leur hauteur MESURÉE (snapshot — invariante pendant le geste).
       const groupSet = new Set(group);
-      const snapCandidates: Record<string, BlockPos> = {};
-      const allPositions = {
-        ...defaultPositionsRef.current,
-        ...(dataRef.current.layout?.absolutePositions ?? {}),
-      };
+      const dragPage = currentPos.page ?? 0;
+      const candidates: SnapRect[] = [];
       for (const [k, v] of Object.entries(allPositions)) {
-        if (!groupSet.has(k)) snapCandidates[k] = v;
+        if (groupSet.has(k)) continue;
+        if ((v.page ?? 0) !== dragPage) continue;
+        const cel = document.querySelector(`[data-block-id="${k}"]`) as HTMLElement | null;
+        const h = v.h ?? (cel ? cel.offsetHeight / PT_TO_PX : 20);
+        candidates.push({ id: k, x: v.x, y: v.y, w: v.w ?? 150, h });
       }
+
+      const dragW = currentPos.w ?? 150;
+      const dragEl = blocks.find((b) => b.blockId === id)?.el ?? null;
+      const dragH = currentPos.h ?? (dragEl ? dragEl.offsetHeight / PT_TO_PX : 20);
 
       let pendingDx = 0;
       let pendingDy = 0;
@@ -163,9 +225,12 @@ export function useCanvasInteractions({ data, defaultPositions, onChange, resolv
           // Le snap est calculé sur le bloc cliqué, puis appliqué au groupe
           const rawX = Math.round(currentPos.x + dx);
           const rawY = Math.round(currentPos.y + dy);
-          const { guides, snappedX, snappedY } = findSnapGuides(id, rawX, rawY, currentPos.w ?? 150, snapCandidates);
+          const { guides, snappedX, snappedY } = findSnapGuides(
+            { id, x: rawX, y: rawY, w: dragW, h: dragH },
+            candidates
+          );
 
-          const clampedX = Math.max(0, Math.min(A4_WIDTH_PT - (currentPos.w ?? 50), snappedX));
+          const clampedX = Math.max(0, Math.min(A4_WIDTH_PT - dragW, snappedX));
           const clampedY = Math.max(0, snappedY);
           pendingDx = clampedX - currentPos.x;
           pendingDy = clampedY - currentPos.y;
@@ -193,8 +258,9 @@ export function useCanvasInteractions({ data, defaultPositions, onChange, resolv
         window.removeEventListener("mouseup", handleMouseUp);
 
         // Drop sur une autre page → l'appelant déplace le(s) bloc(s) sélectionné(s)
-        // et fixe leurs positions ; on n'écrit pas les coordonnées du drag.
-        if (resolveDropRef?.current?.(id, upEvent.clientX, upEvent.clientY, upEvent.clientX - startMouseX, upEvent.clientY - startMouseY)) return;
+        // et fixe leurs positions (pivot = curseur) ; on n'écrit pas les
+        // coordonnées du drag.
+        if (resolveDropRef?.current?.(id, upEvent.clientX, upEvent.clientY, grab, members)) return;
 
         const updates: Record<string, BlockPos> = {};
         for (const b of blocks) {

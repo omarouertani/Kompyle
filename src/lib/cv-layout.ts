@@ -497,9 +497,16 @@ export function computePaginatedFlow(
   const BLOCK_GAP = 3;
   // Espacement entre sections : piloté par le thème (slider "Espacement des sections")
   const SECTION_GAP = layout.theme?.sectionMargin ?? 8;
+  // Plancher de compression : pour faire tenir un CV sur UNE seule page, on
+  // resserre l'espacement inter-sections jusqu'à cette valeur avant d'accepter
+  // un saut de page. On privilégie un document compact mais aéré.
+  const MIN_SECTION_GAP = 4;
   const FIRST_START = isChaima ? 100 : 95; // sous le header / la photo
   const NEXT_START = 24; // haut des pages suivantes
   const PAGE_BOTTOM = A4_PAGE_HEIGHT_PT - 24; // marge basse
+  // Tolérance de débordement : un dépassement inférieur à ce seuil ne déclenche
+  // PAS de saut de page (évite d'exiler une section pour quelques points).
+  const OVERFLOW_TOL = 16;
 
   // En-tête (page 0 uniquement) : empilé par hauteur mesurée.
   let headerY = positions["name"]?.y ?? (isChaima ? 20 : 12);
@@ -519,6 +526,35 @@ export function computePaginatedFlow(
         if (positions[id]) blocks.push({ id, h: measureHeightPt(id) ?? 20 });
       });
     });
+    if (blocks.length === 0) return;
+
+    // Espace AVANT le bloc i : marge de section si on change de section, sinon
+    // simple interligne de bloc. Le 1er bloc n'a pas de marge supérieure.
+    const gapBefore = (i: number, sectionGap: number) => {
+      if (i === 0) return 0;
+      return getParentSectionId(blocks[i].id) !== getParentSectionId(blocks[i - 1].id) ? sectionGap : BLOCK_GAP;
+    };
+    const columnHeight = (sectionGap: number) => {
+      let h = 0;
+      for (let i = 0; i < blocks.length; i++) h += gapBefore(i, sectionGap) + blocks[i].h;
+      return h;
+    };
+
+    const capacityFirst = PAGE_BOTTOM - FIRST_START;
+
+    // Compression adaptative : si la colonne déborde d'une page, on resserre
+    // l'espacement inter-sections (jusqu'à MIN_SECTION_GAP) pour tenter de
+    // rester sur une seule page avant de paginer.
+    let sectionGap = SECTION_GAP;
+    if (columnHeight(sectionGap) > capacityFirst + OVERFLOW_TOL && sectionGap > MIN_SECTION_GAP) {
+      let best = MIN_SECTION_GAP;
+      for (let g = sectionGap; g >= MIN_SECTION_GAP; g--) {
+        if (columnHeight(g) <= capacityFirst) { best = g; break; }
+      }
+      sectionGap = best;
+    }
+
+    const fitsOnePage = columnHeight(sectionGap) <= capacityFirst + OVERFLOW_TOL;
 
     let page = 0;
     let y = FIRST_START;
@@ -526,23 +562,27 @@ export function computePaginatedFlow(
 
     for (let i = 0; i < blocks.length; i++) {
       const b = blocks[i];
-      const isTitle = b.id.startsWith("title_");
-      // Anti-orphelin : un titre ne reste pas seul en bas de page.
-      let needed = b.h;
-      if (isTitle && i + 1 < blocks.length) needed += BLOCK_GAP + blocks[i + 1].h;
+      const gb = gapBefore(i, sectionGap);
 
-      if (y + needed > PAGE_BOTTOM && y > startOf(page)) {
-        page++;
-        y = NEXT_START;
+      // Saut de page uniquement si la colonne ne tient PAS sur une page.
+      if (!fitsOnePage) {
+        const isTitle = b.id.startsWith("title_");
+        // Anti-orphelin : un titre entraîne le bloc suivant sur la même page.
+        let needed = gb + b.h;
+        if (isTitle && i + 1 < blocks.length) needed += BLOCK_GAP + blocks[i + 1].h;
+
+        if (y + needed > PAGE_BOTTOM + OVERFLOW_TOL && y > startOf(page)) {
+          page++;
+          y = NEXT_START;
+          positions[b.id] = { ...positions[b.id], y: Math.round(y), h: undefined, page };
+          y += b.h;
+          continue; // pas de marge supérieure en tête de page
+        }
       }
 
+      y += gb;
       positions[b.id] = { ...positions[b.id], y: Math.round(y), h: undefined, page };
-      y += b.h + BLOCK_GAP;
-
-      const next = blocks[i + 1];
-      if (next && getParentSectionId(next.id) !== getParentSectionId(b.id)) {
-        y += SECTION_GAP - BLOCK_GAP;
-      }
+      y += b.h;
     }
     maxPage = Math.max(maxPage, page);
   };

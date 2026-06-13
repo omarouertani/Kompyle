@@ -96,6 +96,7 @@ export interface ElementPosition {
   page?: number; // index de page (0-based) en mode pagination auto
   fontScale?: number; // échelle de police (resize diagonal) — 1 par défaut
   locked?: boolean;   // bloc verrouillé : ni drag ni resize
+  groupId?: string;   // identifiant de groupe : les blocs partageant un groupId se déplacent ensemble
 }
 
 export interface CVLayout {
