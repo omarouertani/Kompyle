@@ -118,16 +118,23 @@ export default function AIAdaptOverlay({ type }: AIAdaptOverlayProps) {
         )}
       </div>
 
-      {/* Libellé d'état — pas de pourcentage ni d'étapes simulées */}
-      <div className="flex items-center gap-2.5 bg-card/90 border border-border/60 rounded-full px-4 py-2 shadow-lg">
-        <Sparkles className="size-4 text-primary animate-pulse" />
-        <span className="text-sm font-medium text-foreground">
-          {type === "cv" ? t("adapting_cv") : t("adapting_letter")}
-        </span>
-        <span className="flex gap-1 ml-0.5">
-          <span className="size-1 rounded-full bg-primary animate-bounce" style={{ animationDelay: "0ms" }} />
-          <span className="size-1 rounded-full bg-primary animate-bounce" style={{ animationDelay: "150ms" }} />
-          <span className="size-1 rounded-full bg-primary animate-bounce" style={{ animationDelay: "300ms" }} />
+      {/* Libellé d'état — l'overlay est monté/démonté par l'état RÉEL de la
+          requête (loadingType), donc l'animation dure EXACTEMENT le temps de la
+          réponse IA : pas de pourcentage ni d'étapes simulées. */}
+      <div className="flex flex-col items-center gap-2">
+        <div className="flex items-center gap-2.5 bg-card/90 border border-border/60 rounded-full px-4 py-2 shadow-lg">
+          <Sparkles className="size-4 text-primary animate-pulse" />
+          <span className="text-sm font-medium text-foreground">
+            {type === "cv" ? t("adapting_cv") : t("adapting_letter")}
+          </span>
+          <span className="flex gap-1 ml-0.5">
+            <span className="size-1 rounded-full bg-primary animate-bounce" style={{ animationDelay: "0ms" }} />
+            <span className="size-1 rounded-full bg-primary animate-bounce" style={{ animationDelay: "150ms" }} />
+            <span className="size-1 rounded-full bg-primary animate-bounce" style={{ animationDelay: "300ms" }} />
+          </span>
+        </div>
+        <span className="text-[11px] text-muted-foreground/90 max-w-[260px] text-center leading-snug">
+          {t("hint")}
         </span>
       </div>
     </div>

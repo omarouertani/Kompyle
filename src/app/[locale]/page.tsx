@@ -22,6 +22,8 @@ import {
   CloudOff,
   Plus,
   X,
+  Pencil,
+  Trash2,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -39,6 +41,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useProfileManager } from "@/hooks/use-profile-manager";
 import { useAIProviderConfig, PROVIDER_MODELS, PROVIDER_META } from "@/hooks/use-ai-provider-config";
 import type { AIProvider } from "@/types/cv";
@@ -87,6 +90,7 @@ const initialCoverLetter: CoverLetterData = {
 export default function AdaptPage() {
   const t = useTranslations("LeftPanel");
   const tr = useTranslations("RightPanel");
+  const tp = useTranslations("Profiles");
   const locale = useLocale();
 
   const [activeLeftTab, setActiveLeftTab] = useState<LeftTab>("ai");
@@ -97,8 +101,15 @@ export default function AdaptPage() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isCreatingProfile, setIsCreatingProfile] = useState(false);
   const [newProfileName, setNewProfileName] = useState("");
+  const [isRenamingProfile, setIsRenamingProfile] = useState(false);
+  const [renameValue, setRenameValue] = useState("");
+  const [profileActionError, setProfileActionError] = useState<string | null>(null);
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
 
   const profile = useProfileManager(locale, t);
+
+  /** Profil principal actuellement actif (ligne DB), pour renommer/supprimer. */
+  const activeMainProfile = profile.profiles.find((p) => p.id === profile.mainProfileId);
 
   const submitNewProfile = async () => {
     const name = newProfileName.trim();
@@ -108,6 +119,27 @@ export default function AdaptPage() {
     await profile.createProfile(name);
     // Ouvre directement l'éditeur manuel pour remplir le CV vierge
     setActiveLeftTab("cv-builder");
+  };
+
+  const submitRename = async () => {
+    if (!activeMainProfile) return;
+    const ok = await profile.renameProfile(activeMainProfile.id, renameValue);
+    setIsRenamingProfile(false);
+    setRenameValue("");
+    if (!ok) setProfileActionError(tp("rename_error"));
+  };
+
+  const handleDeleteProfile = () => {
+    if (!activeMainProfile) return;
+    setProfileActionError(null);
+    setConfirmDeleteOpen(true);
+  };
+
+  const confirmDeleteProfile = async () => {
+    setConfirmDeleteOpen(false);
+    if (!activeMainProfile) return;
+    const ok = await profile.deleteProfile(activeMainProfile.id);
+    if (!ok) setProfileActionError(tp("delete_error"));
   };
   const aiConfig = useAIProviderConfig();
 
@@ -119,6 +151,7 @@ export default function AdaptPage() {
     coverLetterData: profile.coverLetterData,
     locale,
     selectedProfile: profile.selectedProfile,
+    selectedTemplate: profile.selectedTemplate,
     getProviderName: aiConfig.getProviderName,
     applyAdaptation: profile.applyAdaptation,
     setCurrentCV: profile.setCurrentCV,
@@ -326,10 +359,22 @@ export default function AdaptPage() {
     <div className="flex flex-col h-screen bg-background text-foreground font-sans overflow-hidden">
       <Header />
 
+      {/* Confirmation de suppression de profil (thème de l'app, pas window.confirm) */}
+      <ConfirmDialog
+        open={confirmDeleteOpen}
+        onOpenChange={setConfirmDeleteOpen}
+        destructive
+        title={tp("delete_title")}
+        description={activeMainProfile ? tp("delete_confirm", { name: activeMainProfile.name }) : undefined}
+        cancelLabel={tp("cancel")}
+        confirmLabel={tp("confirm_delete")}
+        onConfirm={confirmDeleteProfile}
+      />
+
       {/* Feedback global : barre de progression pendant une action IA */}
       <div className="relative h-0.5 shrink-0 z-30">
         {profile.status === "loading" && (
-          <div className="progress-indeterminate absolute inset-x-0 top-0 h-0.5" role="progressbar" aria-label="Traitement IA en cours" />
+          <div className="progress-indeterminate absolute inset-x-0 top-0 h-0.5" role="progressbar" aria-label={t("status_loading_cv")} />
         )}
       </div>
 
@@ -341,55 +386,107 @@ export default function AdaptPage() {
       >
         <Sidebar side="left" variant="sidebar" className="border-r border-border !top-14 !h-[calc(100svh-3.5rem)]">
           <SidebarHeader className="px-3 pt-3 pb-2 border-b border-border shrink-0 bg-sidebar flex flex-col gap-2.5">
-            <div className="flex items-center justify-between px-1 bg-muted/40 rounded-lg p-1 border border-border/40">
-              <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground pl-1.5">Profil actif :</span>
-              <div className="flex gap-1 items-center flex-wrap justify-end">
-                {(profile.profiles.length > 0
-                  ? [...new Map(profile.profiles.map((p) => [p.slug, p])).values()]
-                  : [{ slug: "omar", name: "Omar" }, { slug: "chaima", name: "Chaima" }]
-                ).map((p) => (
-                  <Button
-                    key={p.slug}
-                    variant={profile.selectedProfile === p.slug ? "default" : "ghost"}
-                    size="xs"
-                    className={cn("h-6 px-3 text-xs font-semibold rounded-md transition-all", profile.selectedProfile === p.slug ? "shadow-sm" : "text-muted-foreground hover:text-foreground")}
-                    onClick={() => profile.handleProfileChange(p.slug)}
-                  >
-                    {p.name.split(" ")[0]}
-                  </Button>
-                ))}
-                {isCreatingProfile ? (
-                  <div className="flex items-center gap-1">
-                    <input
-                      autoFocus
-                      value={newProfileName}
-                      onChange={(e) => setNewProfileName(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") submitNewProfile();
-                        if (e.key === "Escape") { setIsCreatingProfile(false); setNewProfileName(""); }
-                      }}
-                      placeholder="Nom du profil…"
-                      className="h-6 w-28 px-2 text-xs rounded-md border border-border bg-input-bg focus:outline-none focus:ring-1 focus:ring-ring/40"
-                    />
-                    <Button variant="default" size="xs" className="h-6 px-2 text-xs" onClick={submitNewProfile} disabled={!newProfileName.trim()} title="Créer le profil vierge">
-                      <Check size={12} />
+            <div className="flex flex-col gap-1.5 bg-muted/40 rounded-lg p-1.5 border border-border/40">
+              <div className="flex items-center justify-between px-1 gap-2">
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground pl-1 shrink-0">{tp("active_label")}</span>
+                <div className="flex gap-1 items-center flex-wrap justify-end">
+                  {(profile.profiles.length > 0
+                    ? [...new Map(profile.profiles.map((p) => [p.slug, p])).values()]
+                    : [{ slug: "omar", name: "Omar" }]
+                  ).map((p) => (
+                    <Button
+                      key={p.slug}
+                      variant={profile.selectedProfile === p.slug ? "default" : "ghost"}
+                      size="xs"
+                      className={cn("h-6 px-3 text-xs font-semibold rounded-md transition-all", profile.selectedProfile === p.slug ? "shadow-sm" : "text-muted-foreground hover:text-foreground")}
+                      onClick={() => { setIsRenamingProfile(false); setProfileActionError(null); profile.handleProfileChange(p.slug); }}
+                    >
+                      {p.name.split(" ")[0]}
                     </Button>
-                    <Button variant="ghost" size="xs" className="h-6 px-1.5 text-muted-foreground" onClick={() => { setIsCreatingProfile(false); setNewProfileName(""); }}>
-                      <X size={12} />
-                    </Button>
-                  </div>
-                ) : (
-                  <Button
-                    variant="ghost"
-                    size="xs"
-                    className="h-6 px-2 text-xs gap-1 text-muted-foreground hover:text-foreground"
-                    onClick={() => setIsCreatingProfile(true)}
-                    title="Nouveau profil (template vide, à remplir via Edit CV)"
-                  >
-                    <Plus size={12} />
-                  </Button>
-                )}
+                  ))}
+                  {isCreatingProfile ? (
+                    <div className="flex items-center gap-1">
+                      <input
+                        autoFocus
+                        value={newProfileName}
+                        onChange={(e) => setNewProfileName(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") submitNewProfile();
+                          if (e.key === "Escape") { setIsCreatingProfile(false); setNewProfileName(""); }
+                        }}
+                        placeholder={tp("new_placeholder")}
+                        className="h-6 w-28 px-2 text-xs rounded-md border border-border bg-input-bg focus:outline-none focus:ring-1 focus:ring-ring/40"
+                      />
+                      <Button variant="default" size="xs" className="h-6 px-2 text-xs" onClick={submitNewProfile} disabled={!newProfileName.trim()} title={tp("create_blank")}>
+                        <Check size={12} />
+                      </Button>
+                      <Button variant="ghost" size="xs" className="h-6 px-1.5 text-muted-foreground" onClick={() => { setIsCreatingProfile(false); setNewProfileName(""); }}>
+                        <X size={12} />
+                      </Button>
+                    </div>
+                  ) : (
+                    <>
+                      <Button
+                        variant="ghost"
+                        size="xs"
+                        className="h-6 px-2 text-xs gap-1 text-muted-foreground hover:text-foreground"
+                        onClick={() => setIsCreatingProfile(true)}
+                        title={tp("new_profile_tooltip")}
+                      >
+                        <Plus size={12} />
+                      </Button>
+                      {activeMainProfile && !isRenamingProfile && (
+                        <>
+                          <Button
+                            variant="ghost"
+                            size="xs"
+                            className="h-6 px-1.5 text-muted-foreground hover:text-foreground"
+                            onClick={() => { setProfileActionError(null); setRenameValue(activeMainProfile.name); setIsRenamingProfile(true); }}
+                            title={tp("rename_tooltip")}
+                          >
+                            <Pencil size={12} />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="xs"
+                            className="h-6 px-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                            onClick={handleDeleteProfile}
+                            title={tp("delete_tooltip")}
+                          >
+                            <Trash2 size={12} />
+                          </Button>
+                        </>
+                      )}
+                    </>
+                  )}
+                </div>
               </div>
+
+              {isRenamingProfile && activeMainProfile && (
+                <div className="flex items-center gap-1 px-1">
+                  <input
+                    autoFocus
+                    value={renameValue}
+                    onChange={(e) => setRenameValue(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") submitRename();
+                      if (e.key === "Escape") { setIsRenamingProfile(false); setRenameValue(""); }
+                    }}
+                    placeholder={tp("rename_placeholder")}
+                    className="h-6 flex-1 px-2 text-xs rounded-md border border-border bg-input-bg focus:outline-none focus:ring-1 focus:ring-ring/40"
+                  />
+                  <Button variant="default" size="xs" className="h-6 px-2 text-xs" onClick={submitRename} disabled={!renameValue.trim()} title={tp("rename_tooltip")}>
+                    <Check size={12} />
+                  </Button>
+                  <Button variant="ghost" size="xs" className="h-6 px-1.5 text-muted-foreground" onClick={() => { setIsRenamingProfile(false); setRenameValue(""); }}>
+                    <X size={12} />
+                  </Button>
+                </div>
+              )}
+
+              {profileActionError && (
+                <p className="text-[10px] text-destructive px-1.5">{profileActionError}</p>
+              )}
             </div>
 
             <div className="flex items-center justify-between px-1">
@@ -397,19 +494,19 @@ export default function AdaptPage() {
                 {profile.saveStatus === "saving" && (
                   <>
                     <Loader2 size={12} className="animate-spin" />
-                    <span>Sauvegarde...</span>
+                    <span>{tp("saving")}</span>
                   </>
                 )}
                 {profile.saveStatus === "saved" && (
                   <>
                     <Check size={12} className="text-emerald-500" />
-                    <span className="text-emerald-500">Sauvegardé</span>
+                    <span className="text-emerald-500">{tp("saved")}</span>
                   </>
                 )}
                 {profile.saveStatus === "error" && (
                   <>
                     <CloudOff size={12} className="text-destructive" />
-                    <span className="text-destructive">Erreur</span>
+                    <span className="text-destructive">{tp("save_error")}</span>
                   </>
                 )}
               </div>
@@ -426,7 +523,7 @@ export default function AdaptPage() {
                 disabled={!profile.hasUnsavedChanges || profile.saveStatus === "saving"}
               >
                 <Save size={12} />
-                Save
+                {tp("save")}
               </Button>
             </div>
 
@@ -461,7 +558,7 @@ export default function AdaptPage() {
               size="icon"
               onClick={() => setIsSidebarOpen(!isSidebarOpen)}
               className="absolute left-4 size-8 text-muted-foreground hover:text-foreground"
-              title={isSidebarOpen ? "Collapse Sidebar" : "Expand Sidebar"}
+              title={isSidebarOpen ? tr("collapse_sidebar") : tr("expand_sidebar")}
             >
               {isSidebarOpen ? <PanelLeftClose size={17} /> : <PanelLeftOpen size={17} />}
             </Button>
@@ -493,6 +590,7 @@ export default function AdaptPage() {
                 mainProfileId={profile.mainProfileId}
                 currentProfileId={profile.currentProfileId}
                 onVersionChange={profile.selectVersion}
+                onDeleteVersion={profile.deleteVersion}
               />
             ) : (
               <CoverLetterPreview

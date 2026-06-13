@@ -1,6 +1,8 @@
 "use client";
 
 import React, { useState, useMemo, useCallback, useSyncExternalStore } from "react";
+import { useTranslations } from "next-intl";
+import { AlertTriangle } from "lucide-react";
 import { PDFViewer, pdf } from "@react-pdf/renderer";
 import CoverLetterTemplate from "./CoverLetterTemplate";
 import AIAdaptOverlay from "./AIAdaptOverlay";
@@ -22,7 +24,9 @@ export default function CoverLetterPreview({
   personalInfo,
   isAdapting = false,
 }: CoverLetterPreviewProps) {
+  const t = useTranslations("LetterPreview");
   const [isDownloading, setIsDownloading] = useState(false);
+  const [downloadError, setDownloadError] = useState(false);
   // true côté client uniquement (les viewers PDF ne supportent pas le SSR)
   const mounted = useSyncExternalStore(emptySubscribe, () => true, () => false);
 
@@ -37,6 +41,7 @@ export default function CoverLetterPreview({
   // re-générait le document en continu.
   const handleDownload = useCallback(async () => {
     setIsDownloading(true);
+    setDownloadError(false);
     try {
       const blob = await pdf(<CoverLetterTemplate data={data} personalInfo={personalInfo} />).toBlob();
       const url = URL.createObjectURL(blob);
@@ -47,6 +52,7 @@ export default function CoverLetterPreview({
       URL.revokeObjectURL(url);
     } catch (err) {
       console.error("PDF generation failed:", err);
+      setDownloadError(true);
     } finally {
       setIsDownloading(false);
     }
@@ -55,17 +61,23 @@ export default function CoverLetterPreview({
   return (
     <div className="flex flex-col flex-1 h-full w-full gap-3">
       {/* Toolbar */}
-      <div className="flex justify-end items-center">
+      <div className="flex justify-end items-center gap-2">
+        {downloadError && (
+          <div className="flex items-center gap-1.5 text-destructive text-xs font-medium">
+            <AlertTriangle size={13} />
+            {t("download_error")}
+          </div>
+        )}
         <Button onClick={handleDownload} disabled={isDownloading} className="gap-1.5">
           {isDownloading ? (
             <>
               <Loader2 size={15} className="animate-spin" />
-              Génération...
+              {t("downloading")}
             </>
           ) : (
             <>
               <Download size={15} />
-              Télécharger le PDF
+              {t("download")}
             </>
           )}
         </Button>

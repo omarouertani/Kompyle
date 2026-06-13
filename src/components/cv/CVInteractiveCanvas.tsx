@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect, useMemo, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import type { CVData, SectionId, CVLayout, CVTheme } from "@/types/cv";
 import {
   defaultLayout,
@@ -17,6 +18,7 @@ import {
   getColumnSections,
   getPageBlockIds,
   getSectionLabel,
+  isModernTemplate,
 } from "@/lib/cv-layout";
 import { cn } from "@/lib/utils";
 import { Maximize2, MoveUpRight, MoveRight, Copy, EyeOff, RotateCcw, SquarePlus, Lock, LockOpen } from "lucide-react";
@@ -50,6 +52,7 @@ const HISTORY_LIMIT = 30;
 const HISTORY_COALESCE_MS = 400;
 
 export default function CVInteractiveCanvas({ data, onChange: onChangeProp, template, onOverflowChange }: CVInteractiveCanvasProps) {
+  const t = useTranslations("Canvas");
   // ── Undo / Redo ───────────────────────────────────────────────────────────
   // Pile de snapshots CVData poussée avant chaque mutation. Les mutations
   // rapprochées (<400 ms : drag de slider, auto-reflow consécutif à une
@@ -95,7 +98,7 @@ export default function CVInteractiveCanvas({ data, onChange: onChangeProp, temp
 
   const layout = data.layout ?? defaultLayout();
   const theme = layout.theme ?? {};
-  const isChaima = template === "chaima";
+  const isChaima = isModernTemplate(template);
 
   const primaryColor = theme.primaryColor || (isChaima ? "#fbbf24" : "#1a1a1a");
   const textColor = theme.textColor || "#27272a";
@@ -409,29 +412,6 @@ export default function CVInteractiveCanvas({ data, onChange: onChangeProp, temp
   // ── Export PDF / PNG depuis la toolbar ────────────────────────────────────
   const exportFileBase = `CV_${data.personalInfo.name.replace(/\s+/g, "_") || "Kompyle"}`;
 
-  const exportPdf = useCallback(async () => {
-    setIsExporting(true);
-    try {
-      const res = await fetch("/api/render-pdf", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ data, template }),
-      });
-      if (!res.ok) throw new Error(`Server returned ${res.status}`);
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `${exportFileBase}.pdf`;
-      a.click();
-      URL.revokeObjectURL(url);
-    } catch (err) {
-      console.error("PDF export failed:", err);
-    } finally {
-      setIsExporting(false);
-    }
-  }, [data, template, exportFileBase]);
-
   const exportPng = useCallback(async () => {
     const pageEl = document.getElementById(`cv-page-${activePageIndex}`);
     if (!pageEl) return;
@@ -693,27 +673,27 @@ export default function CVInteractiveCanvas({ data, onChange: onChangeProp, temp
 
     if (!menu.blockId) {
       return [
-        { label: "Ajouter une section", icon: SquarePlus, onClick: () => onChange(addCustomSection(data)) },
-        { label: "Tout réaligner", icon: RotateCcw, onClick: realign },
+        { label: t("menu_add_section"), icon: SquarePlus, onClick: () => onChange(addCustomSection(data)) },
+        { label: t("menu_realign"), icon: RotateCcw, onClick: realign },
       ];
     }
 
     const items: ContextMenuItem[] = [];
     if (targets.some((id) => savedPositions[id]?.h)) {
-      items.push({ label: "Hauteur auto", icon: Maximize2, onClick: () => autoHeight(targets) });
+      items.push({ label: t("menu_auto_height"), icon: Maximize2, onClick: () => autoHeight(targets) });
     }
-    items.push({ label: "Position par défaut", icon: MoveUpRight, onClick: () => resetPosition(targets) });
+    items.push({ label: t("menu_default_position"), icon: MoveUpRight, onClick: () => resetPosition(targets) });
     {
       const allLocked = targets.every((id) => ((savedPositions[id] ?? defaultPositions[id]) as BlockPos | undefined)?.locked);
       items.push({
-        label: allLocked ? "Déverrouiller" : "Verrouiller le bloc",
+        label: allLocked ? t("menu_unlock") : t("menu_lock"),
         icon: allLocked ? LockOpen : Lock,
         onClick: () => toggleLock(targets),
       });
     }
     if (canDuplicate(menu.blockId)) {
       const blockId = menu.blockId;
-      items.push({ label: "Dupliquer l'élément", icon: Copy, onClick: () => duplicateItem(blockId) });
+      items.push({ label: t("menu_duplicate"), icon: Copy, onClick: () => duplicateItem(blockId) });
     }
     // Déplacer la section vers une autre page
     if (isSectionBlock(menu.blockId) && layout.pages.length > 1) {
@@ -722,7 +702,7 @@ export default function CVInteractiveCanvas({ data, onChange: onChangeProp, temp
       layout.pages.forEach((_, pageIdx) => {
         if (pageIdx === current) return;
         items.push({
-          label: `Déplacer vers la page ${pageIdx + 1}`,
+          label: t("menu_move_to_page", { page: pageIdx + 1 }),
           icon: MoveRight,
           onClick: () => moveSectionToPage(blockId, pageIdx),
         });
@@ -732,7 +712,7 @@ export default function CVInteractiveCanvas({ data, onChange: onChangeProp, temp
       const blockId = menu.blockId;
       const isCustom = getParentSectionId(blockId).startsWith("custom_");
       items.push({
-        label: isCustom ? "Supprimer la section" : "Masquer la section",
+        label: isCustom ? t("menu_delete_section") : t("menu_hide_section"),
         icon: EyeOff,
         danger: true,
         separator: true,
@@ -742,17 +722,17 @@ export default function CVInteractiveCanvas({ data, onChange: onChangeProp, temp
         },
       });
     }
-    items.push({ label: "Tout réaligner", icon: RotateCcw, separator: true, onClick: realign });
+    items.push({ label: t("menu_realign"), icon: RotateCcw, separator: true, onClick: realign });
     return items;
   };
 
   /** Nom lisible d'un bloc (label affiché au survol). */
   const blockLabel = (id: string): string => {
     const HEADER_LABELS: Record<string, string> = {
-      photo: "Photo",
-      name: "Nom",
-      role: "Titre",
-      techLine: "Technologies",
+      photo: t("block_photo"),
+      name: t("block_name"),
+      role: t("block_role"),
+      techLine: t("block_techline"),
     };
     if (HEADER_LABELS[id]) return HEADER_LABELS[id];
     return getSectionLabel(getParentSectionId(id), data);
@@ -825,7 +805,6 @@ export default function CVInteractiveCanvas({ data, onChange: onChangeProp, temp
         onZoomFit={fitToScreen}
         onRealign={realign}
         onCanvasBgChange={setCanvasBg}
-        onExportPdf={exportPdf}
         onExportPng={exportPng}
       />
 

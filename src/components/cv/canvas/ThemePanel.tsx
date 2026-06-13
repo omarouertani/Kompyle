@@ -6,7 +6,7 @@ import { Palette, Check, AlignLeft, Tags, BarChart3 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const PRESETS = [
-  { name: "Or Chaima", primary: "#fbbf24", sidebarBg: "#f4f4f5", textColor: "#27272a" },
+  { name: "Ambre Doré", primary: "#fbbf24", sidebarBg: "#f4f4f5", textColor: "#27272a" },
   { name: "Bleu Corporate", primary: "#2563eb", sidebarBg: "#f8fafc", textColor: "#1e293b" },
   { name: "Vert Émeraude", primary: "#059669", sidebarBg: "#f0fdf4", textColor: "#0f5132" },
   { name: "Rouge Rubis", primary: "#dc2626", sidebarBg: "#fef2f2", textColor: "#7f1d1d" },

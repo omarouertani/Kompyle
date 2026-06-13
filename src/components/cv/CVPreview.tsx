@@ -1,11 +1,14 @@
 "use client";
 
 import React, { useState, useCallback, useSyncExternalStore, useEffect, useRef } from "react";
+import { useTranslations } from "next-intl";
 import CVInteractiveCanvas from "./CVInteractiveCanvas";
 import AIAdaptOverlay from "./AIAdaptOverlay";
 import type { CVData } from "@/types/cv";
-import { Download, Loader2, LayoutPanelLeft, History, AlertTriangle } from "lucide-react";
+import { normalizeTemplate } from "@/lib/cv-layout";
+import { Download, Loader2, LayoutPanelLeft, History, AlertTriangle, LayoutTemplate, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { cn } from "@/lib/utils";
 import {
   Select,
@@ -34,6 +37,7 @@ interface CVPreviewProps {
   mainProfileId?: string | null;
   currentProfileId?: string | null;
   onVersionChange?: (id: string) => void;
+  onDeleteVersion?: (id: string) => void | Promise<void | boolean>;
 }
 
 /**
@@ -117,12 +121,29 @@ export default function CVPreview({
   mainProfileId = null,
   currentProfileId = null,
   onVersionChange,
+  onDeleteVersion,
 }: CVPreviewProps) {
+  const t = useTranslations("CVPreview");
   const [sideBySide, setSideBySide] = useState(false);
   const [mode, setMode] = useState<"canvas" | "pdf">("canvas");
   const [isDownloading, setIsDownloading] = useState(false);
   const [isOverflowing, setIsOverflowing] = useState(false);
+  const [downloadError, setDownloadError] = useState(false);
+  const [confirmDeleteVersion, setConfirmDeleteVersion] = useState(false);
   const mounted = useSyncExternalStore(emptySubscribe, () => true, () => false);
+
+  // Le CV affiché est-il une adaptation supprimable (≠ CV principal) ?
+  const selectedVersionId = currentProfileId ?? mainProfileId;
+  const isAdaptedVersion = !!currentProfileId && currentProfileId !== mainProfileId;
+  const selectedVersionName = versions.find((v) => v.id === currentProfileId)?.name ?? "";
+
+  // Template normalisé : les anciennes lignes "chaima" → "modern".
+  const tpl = normalizeTemplate(template);
+  const TEMPLATE_OPTIONS = [
+    { id: "default", label: t("template_default") },
+    { id: "modern", label: t("template_modern") },
+    { id: "canadian", label: t("template_canadian") },
+  ];
 
   const handleCanvasChange = (newData: CVData) => {
     if (onChange) onChange(newData);
@@ -142,6 +163,7 @@ export default function CVPreview({
   const handleDownload = useCallback(async () => {
     if (isOverflowing) return;
     setIsDownloading(true);
+    setDownloadError(false);
     try {
       const res = await fetch("/api/render-pdf", {
         method: "POST",
@@ -158,6 +180,7 @@ export default function CVPreview({
       URL.revokeObjectURL(url);
     } catch (err) {
       console.error("PDF download failed:", err);
+      setDownloadError(true);
     } finally {
       setIsDownloading(false);
     }
@@ -165,6 +188,21 @@ export default function CVPreview({
 
   return (
     <div className="flex flex-col flex-1 h-full w-full gap-3">
+      {/* Confirmation de suppression d'un CV adapté (thème de l'app) */}
+      <ConfirmDialog
+        open={confirmDeleteVersion}
+        onOpenChange={setConfirmDeleteVersion}
+        destructive
+        title={t("delete_version_title")}
+        description={t("delete_version_desc", { name: selectedVersionName })}
+        cancelLabel={t("cancel")}
+        confirmLabel={t("delete")}
+        onConfirm={() => {
+          setConfirmDeleteVersion(false);
+          if (currentProfileId && onDeleteVersion) onDeleteVersion(currentProfileId);
+        }}
+      />
+
       {/* Toolbar */}
       <div className="flex items-center justify-between gap-4 shrink-0 flex-wrap sm:flex-nowrap">
         <div className="flex items-center gap-2 flex-wrap">
@@ -176,7 +214,7 @@ export default function CVPreview({
               size="sm"
             >
               <LayoutPanelLeft size={14} />
-              {sideBySide ? "Vue Unique" : "Côte à Côte"}
+              {sideBySide ? t("view_single") : t("view_side")}
             </Button>
           )}
 
@@ -188,7 +226,7 @@ export default function CVPreview({
               className={cn("h-7 px-3 text-[11px] font-semibold rounded-md transition-all", mode === "canvas" ? "bg-card text-foreground shadow-sm animate-none" : "text-muted-foreground hover:text-foreground")}
               size="sm"
             >
-              Éditeur Visuel (Canvas)
+              {t("mode_canvas")}
             </Button>
             <Button
               variant={mode === "pdf" ? "secondary" : "ghost"}
@@ -196,54 +234,65 @@ export default function CVPreview({
               className={cn("h-7 px-3 text-[11px] font-semibold rounded-md transition-all", mode === "pdf" ? "bg-card text-foreground shadow-sm animate-none" : "text-muted-foreground hover:text-foreground")}
               size="sm"
             >
-              Aperçu PDF
+              {t("mode_pdf")}
             </Button>
           </div>
 
-          {/* Sélecteur de version */}
+          {/* Sélecteur de version + suppression du CV adapté courant */}
           {mainProfileId && onVersionChange && (
-            <Select
-              value={currentProfileId ?? mainProfileId}
-              onValueChange={(id) => id && onVersionChange(id)}
-            >
-              <SelectTrigger className="h-9 w-[210px] rounded-lg border border-border/60 bg-muted/40 hover:bg-muted/60 transition-colors text-xs gap-1.5">
-                <History size={13} className="text-primary shrink-0" />
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent className="bg-popover border border-border shadow-md rounded-lg p-1">
-                <SelectGroup>
-                  <SelectItem value={mainProfileId} className="cursor-pointer text-xs">
-                    CV principal
-                  </SelectItem>
-                  {versions.map((v) => (
-                    <SelectItem key={v.id} value={v.id} className="cursor-pointer text-xs">
-                      {v.name}
+            <div className="flex items-center gap-1">
+              <Select
+                value={selectedVersionId ?? undefined}
+                onValueChange={(id) => id && onVersionChange(id)}
+              >
+                <SelectTrigger className="h-9 w-[210px] rounded-lg border border-border/60 bg-muted/40 hover:bg-muted/60 transition-colors text-xs gap-1.5">
+                  <History size={13} className="text-primary shrink-0" />
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-popover border border-border shadow-md rounded-lg p-1">
+                  <SelectGroup>
+                    <SelectItem value={mainProfileId} className="cursor-pointer text-xs">
+                      {t("version_main")}
                     </SelectItem>
-                  ))}
-                </SelectGroup>
-              </SelectContent>
-            </Select>
+                    {versions.map((v) => (
+                      <SelectItem key={v.id} value={v.id} className="cursor-pointer text-xs">
+                        {v.name}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+              {isAdaptedVersion && onDeleteVersion && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setConfirmDeleteVersion(true)}
+                  className="size-9 text-muted-foreground hover:text-destructive hover:bg-destructive/10 shrink-0"
+                  title={t("delete_version_tooltip")}
+                >
+                  <Trash2 size={15} />
+                </Button>
+              )}
+            </div>
           )}
 
-          {/* Sélecteur de Template */}
-          <div className="flex items-center bg-muted/40 rounded-lg p-0.5 border border-border/40 shrink-0 h-9">
-            <Button
-              variant={template === "default" ? "secondary" : "ghost"}
-              onClick={() => onTemplateChange("default")}
-              className={cn("h-7 px-3 text-[11px] font-semibold rounded-md transition-all", template === "default" ? "bg-card text-foreground shadow-sm animate-none" : "text-muted-foreground hover:text-foreground")}
-              size="sm"
-            >
-              Classique
-            </Button>
-            <Button
-              variant={template === "chaima" ? "secondary" : "ghost"}
-              onClick={() => onTemplateChange("chaima")}
-              className={cn("h-7 px-3 text-[11px] font-semibold rounded-md transition-all", template === "chaima" ? "bg-card text-foreground shadow-sm animate-none" : "text-muted-foreground hover:text-foreground")}
-              size="sm"
-            >
-              Moderne
-            </Button>
-          </div>
+          {/* Sélecteur de Template (dropdown, comme le choix de modèle IA) */}
+          <Select value={tpl} onValueChange={(val) => val && onTemplateChange(val)}>
+            <SelectTrigger className="h-9 w-[160px] rounded-lg border border-border/60 bg-muted/40 hover:bg-muted/60 transition-colors text-xs gap-1.5">
+              <LayoutTemplate size={13} className="text-primary shrink-0" />
+              <span className="text-[10px] text-muted-foreground">{t("label_template")}</span>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent className="bg-popover border border-border shadow-md rounded-lg p-1">
+              <SelectGroup>
+                {TEMPLATE_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.id} value={opt.id} className="cursor-pointer text-xs">
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
         </div>
 
         {mounted && (
@@ -251,7 +300,13 @@ export default function CVPreview({
             {isOverflowing && (
               <div className="flex items-center gap-1.5 text-amber-600 text-xs font-medium">
                 <AlertTriangle size={13} />
-                Contenu hors page — réduisez le CV
+                {t("overflow_warning")}
+              </div>
+            )}
+            {downloadError && !isOverflowing && (
+              <div className="flex items-center gap-1.5 text-destructive text-xs font-medium">
+                <AlertTriangle size={13} />
+                {t("download_error")}
               </div>
             )}
           <Button
@@ -262,12 +317,12 @@ export default function CVPreview({
             {isDownloading ? (
               <>
                 <Loader2 size={14} className="animate-spin" />
-                Génération...
+                {t("downloading")}
               </>
             ) : (
               <>
                 <Download size={14} />
-                Télécharger le PDF
+                {t("download")}
               </>
             )}
           </Button>
@@ -284,14 +339,14 @@ export default function CVPreview({
                 <>
                   <div className="flex-1 flex flex-col gap-2 min-h-0">
                     <div className="text-sm font-medium text-muted-foreground text-center">
-                      CV Original
+                      {t("cv_original")}
                     </div>
                     <PdfIframe url={originalUrl} loading={originalLoading} />
                   </div>
 
                   <div className="flex-1 flex flex-col gap-2 min-h-0">
                     <div className="text-sm font-medium text-success text-center shrink-0">
-                      CV Adapté (Édition Visuelle)
+                      {t("cv_adapted_visual")}
                     </div>
                     <div className="flex-1 rounded-lg overflow-hidden border border-border bg-card shadow-sm min-h-0 flex flex-col">
                       <CVInteractiveCanvas
@@ -322,7 +377,7 @@ export default function CVPreview({
               {originalData && sideBySide && (
                 <div className="flex-1 flex flex-col gap-2 min-h-0">
                   <div className="text-sm font-medium text-muted-foreground text-center">
-                    CV Original
+                    {t("cv_original")}
                   </div>
                   <PdfIframe url={originalUrl} loading={originalLoading} />
                 </div>
@@ -331,7 +386,7 @@ export default function CVPreview({
               <div className="flex-1 flex flex-col gap-2 min-h-0">
                 {originalData && sideBySide && (
                   <div className="text-sm font-medium text-success text-center">
-                    CV Adapté (Modifications surlignées)
+                    {t("cv_adapted_highlighted")}
                   </div>
                 )}
                 <PdfIframe url={adaptedUrl} loading={adaptedLoading} />
@@ -346,12 +401,13 @@ export default function CVPreview({
 }
 
 function PdfIframe({ url, loading }: { url: string | null; loading: boolean }) {
+  const t = useTranslations("CVPreview");
   return (
     <div className="flex-1 rounded-lg overflow-hidden border border-border bg-card shadow-sm min-h-0 relative">
       {(loading || !url) && (
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 z-10 bg-card">
           <Loader2 className="animate-spin text-primary" size={28} />
-          <span className="text-xs text-muted-foreground">Génération du PDF…</span>
+          <span className="text-xs text-muted-foreground">{t("generating_pdf")}</span>
         </div>
       )}
       {url && (

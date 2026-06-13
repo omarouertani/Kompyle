@@ -18,11 +18,16 @@ import { wrapText, formatUrl, displayUrl, DiffText } from "@/utils/pdf-text-util
 
 registerPdfFont(ACTIVE_PDF_FONT);
 
+export type CVTemplateVariant = "classic" | "canadian";
+
 // ─── Dynamic Styles Generator ────────────────────────────────────────────────
-const getStyles = (theme?: CVTheme, sidebarWidth = 165) => {
-  const primaryColor = theme?.primaryColor || "#1a1a1a";
+const getStyles = (theme?: CVTheme, sidebarWidth = 165, variant: CVTemplateVariant = "classic") => {
+  const isCanadian = variant === "canadian";
+  // Le CV canadien est sobre : accent anthracite/marine, aucune couleur de
+  // fond de barre latérale, en-tête épuré (pas de photo).
+  const primaryColor = theme?.primaryColor || (isCanadian ? "#1f2d3d" : "#1a1a1a");
   const textColor = theme?.textColor || "#27272a";
-  const sidebarBg = theme?.sidebarBg || "transparent";
+  const sidebarBg = isCanadian ? "transparent" : (theme?.sidebarBg || "transparent");
 
   const baseFontSize = theme?.fontSize !== undefined ? theme.fontSize : 10;
   const headingFontSize = theme?.headingSize !== undefined ? theme.headingSize : 12;
@@ -758,13 +763,18 @@ const renderColumn = (ids: string[], data: CVData, styles: any, originalData?: C
 interface CVTemplateProps {
   data: CVData;
   originalData?: CVData;
+  /** "canadian" = variante sobre nord-américaine (sans photo). */
+  variant?: CVTemplateVariant;
 }
 
-const CVTemplate: React.FC<CVTemplateProps> = ({ data, originalData }) => {
+const CVTemplate: React.FC<CVTemplateProps> = ({ data, originalData, variant = "classic" }) => {
   const { personalInfo } = data;
+  const isCanadian = variant === "canadian";
   const layout = data.layout ?? defaultLayout();
   const sidebarWidth = layout.sidebarWidth ?? DEFAULT_SIDEBAR_WIDTH;
-  const styles = getStyles(layout.theme, sidebarWidth);
+  const styles = getStyles(layout.theme, sidebarWidth, variant);
+  // Le CV canadien n'affiche jamais de photo (convention nord-américaine).
+  const showPhoto = !isCanadian && !!personalInfo.photo;
   // Police du thème (canvas) → famille PDF enregistrée, injectée via le
   // contexte du thème PDF (toutes les primitives en héritent).
   const pdfFontFamily = resolvePdfFontFamily(layout.theme?.fontFamily);
@@ -869,7 +879,7 @@ const CVTemplate: React.FC<CVTemplateProps> = ({ data, originalData }) => {
         </View>
 
         {/* Photo */}
-        {personalInfo.photo && (
+        {showPhoto && (
           <View style={{ position: "absolute", left: photoPos.x, top: photoPos.y, width: photoPos.w ?? 60, alignItems: "center" }}>
             <View style={{ width: photoPos.w ?? 60, height: photoPos.w ?? 60, borderRadius: (photoPos.w ?? 60) / 2, overflow: "hidden", borderWidth: 1, borderColor: "#c4c4c4" }}>
               <Image src={personalInfo.photo} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
@@ -933,7 +943,7 @@ const CVTemplate: React.FC<CVTemplateProps> = ({ data, originalData }) => {
             <View style={styles.body}>
               {hasSidebar && (
                 <View style={[styles.sidebar, { width: sidebarWidth }]}>
-                  {pageIndex === 0 && personalInfo.photo && (
+                  {pageIndex === 0 && showPhoto && (
                     <View style={{ alignItems: "center", marginBottom: 12 }}>
                       <View style={{ width: 60, height: 60, borderRadius: 30, overflow: "hidden", borderWidth: 1, borderColor: "#c4c4c4" }}>
                         <Image src={personalInfo.photo} style={{ width: "100%", height: "100%", objectFit: "cover" }} />

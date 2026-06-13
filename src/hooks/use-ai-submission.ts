@@ -38,6 +38,7 @@ interface UseAISubmissionDeps {
   coverLetterData: CoverLetterData | null;
   locale: string;
   selectedProfile: string;
+  selectedTemplate: string;
   getProviderName: (p: AIProvider) => string;
   /** Enregistre l'adaptation comme copie liée au profil (l'original reste intact). */
   applyAdaptation: (cv: CVData) => Promise<void>;
@@ -54,7 +55,7 @@ interface UseAISubmissionDeps {
 
 export function useAISubmission(deps: UseAISubmissionDeps) {
   const {
-    jobDescription, provider, model, currentCV, coverLetterData, locale, selectedProfile,
+    jobDescription, provider, model, currentCV, coverLetterData, locale, selectedProfile, selectedTemplate,
     getProviderName,
     applyAdaptation, setCurrentCV, setCoverLetterData,
     setActiveRightTab, setStatus, setStatusMessage, setStatusDetails, setLoadingType, t,
@@ -99,6 +100,7 @@ export function useAISubmission(deps: UseAISubmissionDeps) {
           originalCV: originalSourceCV,
           jobDescription: jobDescription.trim(),
           profile: selectedProfile,
+          template: selectedTemplate,
         }));
         window.location.href = `/${jobLang}`;
       } else {
@@ -115,7 +117,7 @@ export function useAISubmission(deps: UseAISubmissionDeps) {
     } finally {
       setLoadingType(null);
     }
-  }, [jobDescription, provider, model, currentCV, locale, selectedProfile, t, setActiveRightTab, getProviderName, applyAdaptation, setStatus, setStatusMessage, setStatusDetails, setLoadingType]);
+  }, [jobDescription, provider, model, currentCV, locale, selectedProfile, selectedTemplate, t, setActiveRightTab, getProviderName, applyAdaptation, setStatus, setStatusMessage, setStatusDetails, setLoadingType]);
 
   const handleGenerateLetter = useCallback(async () => {
     if (!jobDescription.trim() || jobDescription.trim().length < 20) {

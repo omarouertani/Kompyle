@@ -2,8 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import React from "react";
 import { renderToBuffer, Document, Page, Text, View } from "@react-pdf/renderer";
 import CVTemplate from "@/components/cv/CVTemplate";
-import CVTemplateChaima from "@/components/cv/CVTemplateChaima";
+import CVTemplateModern from "@/components/cv/CVTemplateModern";
+import CVTemplateCanadian from "@/components/cv/CVTemplateCanadian";
 import type { CVData } from "@/types/cv";
+import { isModernTemplate } from "@/lib/cv-layout";
 
 export async function POST(req: NextRequest) {
   try {
@@ -36,7 +38,11 @@ export async function POST(req: NextRequest) {
       );
     } else {
       console.log("[render-pdf] 3. Creating template element...");
-      const Template = template === "chaima" ? CVTemplateChaima : CVTemplate;
+      const Template = isModernTemplate(template)
+        ? CVTemplateModern
+        : template === "canadian"
+          ? CVTemplateCanadian
+          : CVTemplate;
       doc = React.createElement(Template, {
         data,
         originalData: sideBySide && originalData ? originalData : undefined,
