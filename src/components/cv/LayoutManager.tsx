@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import type { CVData, LayoutPage } from "@/types/cv";
 import {
   defaultLayout,
@@ -12,8 +12,9 @@ import {
   renameSection,
   dedupePages,
 } from "@/lib/cv-layout";
-import { Eye, EyeOff, Trash2, LayoutPanelLeft, SquarePlus } from "lucide-react";
+import { Eye, EyeOff, Trash2, LayoutPanelLeft, SquarePlus, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 /**
  * Gestion des SECTIONS uniquement : visibilité, renommage, sections libres.
@@ -27,6 +28,7 @@ export default function LayoutManager({
   data: CVData;
   onChange: (data: CVData) => void;
 }) {
+  const [collapsed, setCollapsed] = useState(false);
   const layout = data.layout ?? defaultLayout();
   const pages: LayoutPage[] = layout.pages.length > 0 ? layout.pages : [emptyLayoutPage()];
 
@@ -54,19 +56,35 @@ export default function LayoutManager({
   const customIds = (data.customSections ?? []).map((c) => `custom_${c.id}`);
   const allIds = [...ALL_SECTION_IDS, ...customIds];
   const sortedIds = [...allIds].sort((a, b) => Number(visible.has(b)) - Number(visible.has(a)));
+  const visibleCount = sortedIds.filter((id) => visible.has(id)).length;
 
   return (
-    <section className="mb-4">
-      <h2 className="flex items-center gap-2.5 text-base font-semibold text-foreground mb-1 pb-2.5 border-b border-border">
-        <LayoutPanelLeft size={18} className="text-primary" />
-        Sections
-      </h2>
-      <p className="text-xs text-muted-foreground mb-4">
-        Activez/désactivez et renommez vos sections ici. L&apos;ordre, les colonnes, les pages
-        et le thème se gèrent directement dans le canvas (glisser, clic droit, bouton Thème).
-      </p>
+    <section className="mb-4 rounded-xl border border-border/60 bg-card/40 overflow-hidden">
+      {/* En-tête cliquable de l'accordéon */}
+      <button
+        type="button"
+        onClick={() => setCollapsed((c) => !c)}
+        className="w-full flex items-center gap-2.5 px-3.5 py-3 text-base font-semibold text-foreground hover:bg-muted/40 transition-colors"
+        aria-expanded={!collapsed}
+      >
+        <LayoutPanelLeft size={18} className="text-primary shrink-0" />
+        <span className="flex-1 text-left">Sections</span>
+        <span className="text-[11px] font-medium text-muted-foreground tabular-nums px-1.5 py-0.5 rounded-md bg-muted/60">
+          {visibleCount}/{sortedIds.length}
+        </span>
+        <ChevronDown size={17} className={cn("text-muted-foreground transition-transform duration-200", collapsed ? "" : "rotate-180")} />
+      </button>
 
-      <div className="flex flex-col">
+      {/* Contenu rétractable */}
+      <div className={cn("grid transition-[grid-template-rows] duration-200 ease-out", collapsed ? "grid-rows-[0fr]" : "grid-rows-[1fr]")}>
+        <div className="overflow-hidden">
+          <div className="px-3.5 pb-3.5">
+            <p className="text-xs text-muted-foreground mb-3">
+              Activez/désactivez et renommez vos sections ici. L&apos;ordre, les colonnes, les pages
+              et le thème se gèrent directement dans le canvas (glisser, clic droit, bouton Thème).
+            </p>
+
+            <div className="flex flex-col">
         {sortedIds.map((id) => {
           const isVisible = visible.has(id);
           const isCustom = id.startsWith("custom_");
@@ -105,16 +123,19 @@ export default function LayoutManager({
             </div>
           );
         })}
-      </div>
+            </div>
 
-      <Button
-        variant="outline"
-        className="w-full mt-1 gap-2 text-muted-foreground hover:text-foreground border-dashed"
-        title="Crée une section libre (titre + texte) modifiable dans le canvas"
-        onClick={() => onChange(addCustomSection(data))}
-      >
-        <SquarePlus size={15} /> Ajouter une section libre
-      </Button>
+            <Button
+              variant="outline"
+              className="w-full mt-2 gap-2 text-muted-foreground hover:text-foreground border-dashed"
+              title="Crée une section libre (titre + texte) modifiable dans le canvas"
+              onClick={() => onChange(addCustomSection(data))}
+            >
+              <SquarePlus size={15} /> Ajouter une section libre
+            </Button>
+          </div>
+        </div>
+      </div>
     </section>
   );
 }

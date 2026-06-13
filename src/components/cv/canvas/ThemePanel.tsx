@@ -2,7 +2,7 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import type { CVTheme, CVFontFamily, SkillMode } from "@/types/cv";
-import { Palette, Check } from "lucide-react";
+import { Palette, Check, AlignLeft, Tags, BarChart3 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const PRESETS = [
@@ -10,13 +10,14 @@ const PRESETS = [
   { name: "Bleu Corporate", primary: "#2563eb", sidebarBg: "#f8fafc", textColor: "#1e293b" },
   { name: "Vert Émeraude", primary: "#059669", sidebarBg: "#f0fdf4", textColor: "#0f5132" },
   { name: "Rouge Rubis", primary: "#dc2626", sidebarBg: "#fef2f2", textColor: "#7f1d1d" },
+  { name: "Violet Indigo", primary: "#6366f1", sidebarBg: "#eef2ff", textColor: "#312e81" },
   { name: "Sombre Minimal", primary: "#18181b", sidebarBg: "#fafafa", textColor: "#27272a" },
 ];
 
 /** Teintes rapides proposées sous chaque champ couleur. */
 const QUICK_SWATCHES: Record<string, string[]> = {
-  accent: ["#fbbf24", "#2563eb", "#059669", "#dc2626", "#7c3aed"],
-  sidebar: ["#f4f4f5", "#f8fafc", "#f0fdf4", "#fef2f2", "#fafafa"],
+  accent: ["#fbbf24", "#2563eb", "#059669", "#dc2626", "#6366f1"],
+  sidebar: ["#f4f4f5", "#f8fafc", "#f0fdf4", "#fef2f2", "#eef2ff"],
   text: ["#27272a", "#1e293b", "#0f5132", "#7f1d1d", "#374151"],
   page: ["#ffffff", "#fdfcf7", "#f7f7f8", "#fbf8f1", "#f5f8fb"],
 };
@@ -29,10 +30,11 @@ export const FONT_FAMILIES: Record<CVFontFamily, { label: string; stack: string 
   mono: { label: "Mono", stack: "'Courier New', monospace" },
 };
 
-const SKILL_MODES: Array<{ value: SkillMode; label: string }> = [
-  { value: "text", label: "Texte" },
-  { value: "tags", label: "Tags" },
-  { value: "bars", label: "Barres" },
+/** Mode d'affichage des compétences — chaque mode a sa propre vignette visuelle. */
+const SKILL_MODES: Array<{ value: SkillMode; label: string; icon: React.ElementType }> = [
+  { value: "text", label: "Texte", icon: AlignLeft },
+  { value: "tags", label: "Tags", icon: Tags },
+  { value: "bars", label: "Barres", icon: BarChart3 },
 ];
 
 const HEX_RE = /^#?([0-9a-fA-F]{6})$/;
@@ -66,13 +68,13 @@ function ColorField({
   };
 
   return (
-    <div className="flex flex-col gap-1">
-      <span className="text-[10px] font-semibold text-muted-foreground uppercase">{label}</span>
-      <div className="flex items-center gap-1.5">
+    <div className="flex flex-col gap-2">
+      <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">{label}</span>
+      <div className="flex items-center gap-2">
         {/* Swatch cliquable → ouvre le sélecteur natif */}
         <button
           type="button"
-          className="size-6 rounded-md border border-border shrink-0 cursor-pointer shadow-sm"
+          className="size-7 rounded-lg border border-border/70 shrink-0 cursor-pointer shadow-sm ring-1 ring-inset ring-white/20 transition-transform hover:scale-105"
           style={{ backgroundColor: value }}
           title="Choisir une couleur"
           onClick={() => pickerRef.current?.click()}
@@ -95,19 +97,19 @@ function ColorField({
           onKeyDown={(e) => {
             if (e.key === "Enter") commitHex((e.target as HTMLInputElement).value);
           }}
-          className="w-full min-w-0 text-[10px] font-mono px-1 py-0.5 rounded border border-border bg-background text-foreground outline-none focus:ring-1 focus:ring-primary/40"
+          className="w-full min-w-0 text-[10px] font-mono px-2 py-1 rounded-md border border-border/70 bg-background text-foreground outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/40 transition-all"
         />
       </div>
       {/* Teintes rapides */}
-      <div className="flex gap-1">
+      <div className="flex gap-1.5">
         {swatches.map((c) => (
           <button
             key={c}
             type="button"
             onClick={() => onChange(c)}
             className={cn(
-              "size-3.5 rounded-full border transition-transform hover:scale-110",
-              value.toLowerCase() === c.toLowerCase() ? "border-foreground" : "border-border/60"
+              "size-4 rounded-full border transition-transform hover:scale-125",
+              value.toLowerCase() === c.toLowerCase() ? "border-foreground ring-2 ring-offset-1 ring-offset-popover ring-foreground/30" : "border-border/60"
             )}
             style={{ backgroundColor: c }}
             title={c}
@@ -139,10 +141,10 @@ function SliderField({
   onCommit?: () => void;
 }) {
   return (
-    <div className="flex flex-col gap-1.5">
-      <div className="flex justify-between items-center text-[10px] font-semibold text-muted-foreground uppercase">
+    <div className="flex flex-col gap-2">
+      <div className="flex justify-between items-center text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
         <span>{label}</span>
-        <span className="font-mono text-xs text-foreground">
+        <span className="font-mono text-[11px] font-bold text-foreground tabular-nums px-1.5 py-0.5 rounded bg-muted/60">
           {value}
           {unit ? ` ${unit}` : ""}
         </span>
@@ -156,8 +158,18 @@ function SliderField({
         onChange={(e) => onChange(Number(e.target.value))}
         onMouseUp={onCommit}
         onTouchEnd={onCommit}
-        className="w-full accent-primary cursor-ew-resize bg-muted h-1.5 rounded-lg"
+        className="slider-premium w-full"
       />
+    </div>
+  );
+}
+
+/** Petite section avec titre discret pour structurer le popover. */
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="flex flex-col gap-2.5">
+      <span className="text-[10px] font-bold text-foreground/80 uppercase tracking-widest">{title}</span>
+      {children}
     </div>
   );
 }
@@ -210,137 +222,158 @@ export function ThemePanel({ theme, onThemeChange }: ThemePanelProps) {
 
       {open && (
         <div
-          className="absolute right-0 top-8 z-50 w-72 rounded-xl border border-border bg-popover shadow-lg p-4 flex flex-col gap-4 cursor-default select-text max-h-[70vh] overflow-y-auto scrollbar-thin"
+          className="absolute right-0 top-9 z-50 w-80 rounded-2xl border border-border/70 bg-popover/95 backdrop-blur-xl shadow-2xl shadow-black/20 ring-1 ring-black/5 p-5 flex flex-col gap-5 cursor-default select-text max-h-[76vh] overflow-y-auto scrollbar-thin"
           onMouseDown={(e) => e.stopPropagation()}
         >
-          {/* Presets — palettes 2 couleurs (accent + fond) */}
-          <div className="grid grid-cols-2 gap-1.5">
-            {PRESETS.map((preset) => {
-              const isActive =
-                (theme.primaryColor ?? "#fbbf24").toLowerCase() === preset.primary.toLowerCase() &&
-                (theme.sidebarBg ?? "#f4f4f5").toLowerCase() === preset.sidebarBg.toLowerCase();
-              return (
-                <button
-                  key={preset.name}
-                  type="button"
-                  className={cn(
-                    "relative flex flex-col gap-1 p-1.5 rounded-md border transition-colors text-left",
-                    isActive ? "border-primary bg-primary/5" : "border-border bg-card hover:bg-muted/50"
-                  )}
-                  onClick={() =>
-                    onThemeChange({
-                      primaryColor: preset.primary,
-                      sidebarBg: preset.sidebarBg,
-                      textColor: preset.textColor,
-                    })
-                  }
-                >
-                  <span className="flex h-4 w-full rounded-sm overflow-hidden border border-border/40">
-                    <span className="flex-1" style={{ backgroundColor: preset.primary }} />
-                    <span className="flex-1" style={{ backgroundColor: preset.sidebarBg }} />
-                  </span>
-                  <span className="text-[10px] text-muted-foreground truncate">{preset.name}</span>
-                  {isActive && (
-                    <span className="absolute top-1 right-1 size-3.5 rounded-full bg-primary text-primary-foreground flex items-center justify-center">
-                      <Check size={9} strokeWidth={3} />
-                    </span>
-                  )}
-                </button>
-              );
-            })}
+          {/* En-tête */}
+          <div className="flex items-center gap-2 -mb-1">
+            <span className="flex size-6 items-center justify-center rounded-lg bg-primary/10 text-primary">
+              <Palette size={13} />
+            </span>
+            <span className="text-sm font-semibold text-foreground">Personnaliser le thème</span>
           </div>
 
-          {/* Couleurs */}
-          <div className="grid grid-cols-2 gap-3 border-t border-border/40 pt-3">
-            <ColorField label="Accent" value={theme.primaryColor || "#fbbf24"} swatches={QUICK_SWATCHES.accent} onChange={(v) => onThemeChange({ primaryColor: v })} />
-            <ColorField label="Fond sidebar" value={theme.sidebarBg || "#f4f4f5"} swatches={QUICK_SWATCHES.sidebar} onChange={(v) => onThemeChange({ sidebarBg: v })} />
-            <ColorField label="Texte" value={theme.textColor || "#27272a"} swatches={QUICK_SWATCHES.text} onChange={(v) => onThemeChange({ textColor: v })} />
-            <ColorField label="Fond de page" value={theme.pageBg || "#ffffff"} swatches={QUICK_SWATCHES.page} onChange={(v) => onThemeChange({ pageBg: v })} />
-          </div>
+          {/* Presets — palettes 2 couleurs (accent + fond) */}
+          <Section title="Palettes">
+            <div className="grid grid-cols-3 gap-2">
+              {PRESETS.map((preset) => {
+                const isActive =
+                  (theme.primaryColor ?? "#fbbf24").toLowerCase() === preset.primary.toLowerCase() &&
+                  (theme.sidebarBg ?? "#f4f4f5").toLowerCase() === preset.sidebarBg.toLowerCase();
+                return (
+                  <button
+                    key={preset.name}
+                    type="button"
+                    className={cn(
+                      "group relative flex flex-col gap-1.5 p-2 rounded-xl border transition-all text-left",
+                      isActive ? "border-primary bg-primary/5 shadow-sm" : "border-border/60 bg-card hover:border-border hover:shadow-sm hover:-translate-y-0.5"
+                    )}
+                    onClick={() =>
+                      onThemeChange({
+                        primaryColor: preset.primary,
+                        sidebarBg: preset.sidebarBg,
+                        textColor: preset.textColor,
+                      })
+                    }
+                    title={preset.name}
+                  >
+                    <span className="flex h-7 w-full rounded-lg overflow-hidden border border-border/30 shadow-inner">
+                      <span className="flex-[2]" style={{ backgroundColor: preset.primary }} />
+                      <span className="flex-[3]" style={{ backgroundColor: preset.sidebarBg }} />
+                    </span>
+                    <span className="text-[9px] font-medium text-muted-foreground truncate leading-tight">{preset.name}</span>
+                    {isActive && (
+                      <span className="absolute -top-1.5 -right-1.5 size-4 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-md ring-2 ring-popover">
+                        <Check size={9} strokeWidth={3.5} />
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </Section>
+
+          {/* Couleurs — aération accrue entre les blocs */}
+          <Section title="Couleurs">
+            <div className="grid grid-cols-2 gap-x-5 gap-y-4">
+              <ColorField label="Accent" value={theme.primaryColor || "#fbbf24"} swatches={QUICK_SWATCHES.accent} onChange={(v) => onThemeChange({ primaryColor: v })} />
+              <ColorField label="Fond sidebar" value={theme.sidebarBg || "#f4f4f5"} swatches={QUICK_SWATCHES.sidebar} onChange={(v) => onThemeChange({ sidebarBg: v })} />
+              <ColorField label="Texte" value={theme.textColor || "#27272a"} swatches={QUICK_SWATCHES.text} onChange={(v) => onThemeChange({ textColor: v })} />
+              <ColorField label="Fond de page" value={theme.pageBg || "#ffffff"} swatches={QUICK_SWATCHES.page} onChange={(v) => onThemeChange({ pageBg: v })} />
+            </div>
+          </Section>
 
           {/* Police */}
-          <div className="flex flex-col gap-1.5 border-t border-border/40 pt-3">
-            <span className="text-[10px] font-semibold text-muted-foreground uppercase">Police</span>
-            <div className="grid grid-cols-4 gap-1">
+          <Section title="Police">
+            <div className="grid grid-cols-4 gap-1.5">
               {(Object.entries(FONT_FAMILIES) as Array<[CVFontFamily, { label: string; stack: string }]>).map(([key, font]) => (
                 <button
                   key={key}
                   type="button"
                   onClick={() => onThemeChange({ fontFamily: key }, { reflow: true })}
                   className={cn(
-                    "flex flex-col items-center gap-0.5 px-1 py-1.5 rounded-md border transition-colors",
-                    activeFont === key ? "border-primary bg-primary/5 text-foreground" : "border-border bg-card hover:bg-muted/50 text-muted-foreground"
+                    "flex flex-col items-center gap-1 px-1 py-2 rounded-xl border transition-all",
+                    activeFont === key ? "border-primary bg-primary/5 text-foreground shadow-sm" : "border-border/60 bg-card hover:border-border hover:bg-muted/40 text-muted-foreground"
                   )}
                 >
-                  <span className="text-sm leading-none" style={{ fontFamily: font.stack }}>Aa</span>
-                  <span className="text-[9px]">{font.label}</span>
+                  <span className="text-base leading-none" style={{ fontFamily: font.stack }}>Aa</span>
+                  <span className="text-[9px] font-medium">{font.label}</span>
                 </button>
               ))}
             </div>
-          </div>
+          </Section>
 
-          {/* Compétences */}
-          <div className="flex flex-col gap-1.5 border-t border-border/40 pt-3">
-            <span className="text-[10px] font-semibold text-muted-foreground uppercase">Compétences</span>
-            <div className="grid grid-cols-3 gap-1">
-              {SKILL_MODES.map(({ value, label }) => (
-                <button
-                  key={value}
-                  type="button"
-                  onClick={() => onThemeChange({ skillMode: value }, { reflow: true })}
-                  className={cn(
-                    "px-2 py-1 text-[10px] font-semibold rounded-md border transition-colors",
-                    activeSkillMode === value ? "border-primary bg-primary/5 text-foreground" : "border-border bg-card hover:bg-muted/50 text-muted-foreground"
-                  )}
-                >
-                  {label}
-                </button>
-              ))}
+          {/* Compétences — vignettes illustrées plutôt que boutons texte */}
+          <Section title="Style des compétences">
+            <div className="grid grid-cols-3 gap-2">
+              {SKILL_MODES.map(({ value, label, icon: Icon }) => {
+                const active = activeSkillMode === value;
+                return (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => onThemeChange({ skillMode: value }, { reflow: true })}
+                    className={cn(
+                      "flex flex-col items-center gap-1.5 px-1 py-2.5 rounded-xl border transition-all",
+                      active ? "border-primary bg-primary/5 text-foreground shadow-sm" : "border-border/60 bg-card hover:border-border hover:bg-muted/40 text-muted-foreground"
+                    )}
+                    title={label}
+                  >
+                    {/* Mini illustration du rendu */}
+                    <span className={cn("flex items-center justify-center size-7 rounded-lg", active ? "bg-primary/10 text-primary" : "bg-muted/60")}>
+                      <Icon size={15} />
+                    </span>
+                    <span className="text-[9px] font-medium">{label}</span>
+                  </button>
+                );
+              })}
             </div>
-          </div>
+          </Section>
 
           {/* Dimensions */}
-          <div className="flex flex-col gap-3 border-t border-border/40 pt-3">
-            <SliderField
-              label="Taille du texte"
-              value={theme.fontSize ?? 10}
-              unit="pt"
-              min={8}
-              max={14}
-              step={0.5}
-              onChange={(v) => onThemeChange({ fontSize: v })}
-              onCommit={() => onThemeChange({}, { reflow: true })}
-            />
-            <SliderField
-              label="Taille des titres"
-              value={theme.headingSize ?? 12}
-              unit="pt"
-              min={9}
-              max={18}
-              step={0.5}
-              onChange={(v) => onThemeChange({ headingSize: v })}
-              onCommit={() => onThemeChange({}, { reflow: true })}
-            />
-            <SliderField
-              label="Espacement des sections"
-              value={theme.sectionMargin ?? 8}
-              unit="pt"
-              min={2}
-              max={24}
-              step={1}
-              onChange={(v) => onThemeChange({ sectionMargin: v })}
-              onCommit={() => onThemeChange({}, { reflow: true })}
-            />
-            <SliderField
-              label="Hauteur de ligne"
-              value={theme.lineHeight ?? 1.2}
-              min={1.0}
-              max={1.6}
-              step={0.05}
-              onChange={(v) => onThemeChange({ lineHeight: v })}
-              onCommit={() => onThemeChange({}, { reflow: true })}
-            />
-          </div>
+          <Section title="Dimensions">
+            <div className="flex flex-col gap-4">
+              <SliderField
+                label="Taille du texte"
+                value={theme.fontSize ?? 10}
+                unit="pt"
+                min={8}
+                max={14}
+                step={0.5}
+                onChange={(v) => onThemeChange({ fontSize: v })}
+                onCommit={() => onThemeChange({}, { reflow: true })}
+              />
+              <SliderField
+                label="Taille des titres"
+                value={theme.headingSize ?? 12}
+                unit="pt"
+                min={9}
+                max={18}
+                step={0.5}
+                onChange={(v) => onThemeChange({ headingSize: v })}
+                onCommit={() => onThemeChange({}, { reflow: true })}
+              />
+              <SliderField
+                label="Espacement des sections"
+                value={theme.sectionMargin ?? 8}
+                unit="pt"
+                min={2}
+                max={24}
+                step={1}
+                onChange={(v) => onThemeChange({ sectionMargin: v })}
+                onCommit={() => onThemeChange({}, { reflow: true })}
+              />
+              <SliderField
+                label="Hauteur de ligne"
+                value={theme.lineHeight ?? 1.2}
+                min={1.0}
+                max={1.6}
+                step={0.05}
+                onChange={(v) => onThemeChange({ lineHeight: v })}
+                onCommit={() => onThemeChange({}, { reflow: true })}
+              />
+            </div>
+          </Section>
         </div>
       )}
     </div>

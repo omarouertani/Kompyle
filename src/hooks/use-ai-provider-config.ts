@@ -20,6 +20,21 @@ export const PROVIDER_MODELS: Record<AIProvider, { id: string; name: string }[]>
   ],
 };
 
+/** Métadonnées d'affichage par fournisseur (libellé + pastille de marque). */
+export const PROVIDER_META: Record<AIProvider, { label: string; color: string }> = {
+  gemini: { label: "Google Gemini", color: "#4285f4" },
+  groq: { label: "Groq", color: "#f55036" },
+  mistral: { label: "Mistral AI", color: "#fa520f" },
+};
+
+/** Retrouve le fournisseur auquel appartient un identifiant de modèle. */
+export function providerForModel(modelId: string): AIProvider {
+  for (const p of Object.keys(PROVIDER_MODELS) as AIProvider[]) {
+    if (PROVIDER_MODELS[p].some((m) => m.id === modelId)) return p;
+  }
+  return "gemini";
+}
+
 export function useAIProviderConfig() {
   const [provider, setProvider] = useState<AIProvider>("gemini");
   const [model, setModel] = useState<string>("gemini-2.5-flash");
@@ -35,11 +50,17 @@ export function useAIProviderConfig() {
     }
   }, []);
 
+  /** Sélectionne un modèle et synchronise le fournisseur correspondant. */
+  const selectModel = useCallback((modelId: string) => {
+    setProvider(providerForModel(modelId));
+    setModel(modelId);
+  }, []);
+
   const getProviderName = useCallback((p: AIProvider) => {
     if (p === "gemini") return "Gemini";
     if (p === "groq") return "Groq";
     return "Mistral";
   }, []);
 
-  return { provider, model, setModel, handleProviderChange, getProviderName };
+  return { provider, model, setModel, selectModel, handleProviderChange, getProviderName };
 }

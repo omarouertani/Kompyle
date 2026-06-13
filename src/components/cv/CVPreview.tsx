@@ -254,7 +254,11 @@ export default function CVPreview({
                 Contenu hors page — réduisez le CV
               </div>
             )}
-          <Button onClick={handleDownload} disabled={isDownloading || isOverflowing} className="h-9 text-xs gap-1.5">
+          <Button
+            onClick={handleDownload}
+            disabled={isDownloading || isOverflowing}
+            className="h-9 px-4 text-xs gap-1.5 font-semibold shadow-md shadow-primary/25 bg-gradient-to-b from-primary to-primary/90 hover:shadow-lg hover:shadow-primary/30 transition-all"
+          >
             {isDownloading ? (
               <>
                 <Loader2 size={14} className="animate-spin" />

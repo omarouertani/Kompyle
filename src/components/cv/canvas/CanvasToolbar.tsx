@@ -116,18 +116,8 @@ export function CanvasToolbar({
           </button>
         </div>
 
-        {/* Export */}
+        {/* Export — PDF en CTA accentué, PNG en action secondaire */}
         <div className="flex items-center gap-0.5 bg-muted p-0.5 rounded-lg border border-border/80 shadow-sm">
-          <button
-            type="button"
-            onClick={onExportPdf}
-            disabled={isExporting}
-            className="flex items-center gap-1 px-2 py-0.5 text-[9px] font-bold rounded-md bg-background hover:bg-muted/80 text-foreground transition-all shadow-sm h-6 disabled:opacity-50"
-            title="Exporter en PDF"
-          >
-            {isExporting ? <Loader2 size={10} className="animate-spin" /> : <FileDown size={10} />}
-            <span className="hidden sm:inline">PDF</span>
-          </button>
           <button
             type="button"
             onClick={onExportPng}
@@ -137,6 +127,17 @@ export function CanvasToolbar({
           >
             <ImageDown size={10} />
             <span className="hidden sm:inline">PNG</span>
+          </button>
+          <div className="w-px h-3 bg-border/60 mx-0.5" />
+          <button
+            type="button"
+            onClick={onExportPdf}
+            disabled={isExporting}
+            className="flex items-center gap-1 px-2.5 py-0.5 text-[9px] font-bold rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-all shadow-sm shadow-primary/25 h-6 disabled:opacity-50"
+            title="Exporter en PDF"
+          >
+            {isExporting ? <Loader2 size={10} className="animate-spin" /> : <FileDown size={10} />}
+            <span className="hidden sm:inline">PDF</span>
           </button>
         </div>
       </div>
