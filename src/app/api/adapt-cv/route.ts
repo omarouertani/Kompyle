@@ -5,6 +5,7 @@ import { resumeSchema, formatZodIssues } from "@/schemas/resumeSchema";
 import { extractAndValidate } from "@/utils/ai-helpers";
 import { callWithFallback } from "@/lib/ai-orchestrator";
 import { checkRateLimit } from "@/lib/rate-limiter";
+import { SECTION_LABELS_EN } from "@/lib/cv-layout";
 
 // ─── System Prompt ──────────────────────────────────────────────────────────
 
@@ -18,55 +19,69 @@ try {
   RESUME_SCHEMA_JSON = "";
 }
 
-const SYSTEM_PROMPT = `You are an elite technical recruiter and professional CV writer. Your job: adapt an existing CV (provided as JSON) to maximally match a specific job posting, while STRICTLY preserving its structure.
+const SYSTEM_PROMPT = `You are an elite technical recruiter, ATS (Applicant Tracking System) expert, and professional CV writer. Your job: adapt an existing CV (provided as JSON) to maximally match a specific job posting, while STRICTLY preserving its JSON structure.
 
-## Conflict resolution order (when rules collide)
+## Core Strategy & Conflict Resolution
 1. Valid JSON matching the exact schema (never break the shape).
-2. Truthfulness (never invent, exaggerate, or add skills the candidate lacks).
-3. Relevance to the target job.
-4. One-page A4 conciseness.
+2. Truthfulness (never invent, exaggerate, or hallucinate skills/metrics).
+3. ATS Optimization (Match exact keywords from the job description).
+4. Dense single A4 page (aim 500-650 words: use the page to surface relevant, truthful keywords — do not pad with fluff, but do not leave it sparse either).
 
-## Modifiable fields — adapt the TEXT only
-- personalInfo.role — adapt the CV title to closely match the target job role.
-- personalInfo.summary — rewrite to front-load the skills/experience most relevant to the role.
-- personalInfo.techLine — reorder / lightly rephrase keywords, most relevant first.
-- experiences[].bullets[] — rephrase to weave in the job's terminology and surface relevant, quantified achievements. Keep the SAME number of bullets.
-- skills[].items — reorder to prioritize what the job demands; light rephrase allowed only if truthful (e.g. "React" → "React / React Native").
-- projects[].description — rephrase to emphasize role-relevant aspects.
+## Modifiable Fields & Rules
+- personalInfo.role: Adapt the title to closely match the target job title if truthful.
+- personalInfo.summary: Max 3-4 lines. Hook the reader immediately. Front-load the exact skills and years of experience (provided by the user prompt) that match the job.
+- personalInfo.techLine: Reorder keywords, placing the ones mentioned in the job posting first.
+- experiences[].bullets[]:
+    * MUST use the XYZ formula: "Accomplished [X] as measured by [Y], by doing [Z]".
+    * Max 15-20 words per bullet.
+    * Rephrase to weave in the job's exact terminology.
+    * REFRAME by the job's axis: a full-stack engineer has done backend, frontend, DevOps and testing. If the job is backend-focused, lead each bullet with the backend angle (APIs, data, performance) and keep frontend/other mentions short but present; if it is frontend-focused, do the inverse. Same real work, different emphasis.
+- skills[].items: Reorder to prioritize job demands. You may adjust terminology to exactly match the ATS keywords (e.g., "Node" -> "Node.js" if the job asks for Node.js).
+- projects[].description: Rephrase to emphasize the part of the stack and the impact relevant to the target role's axis (e.g. surface the backend contribution for a backend role), without dropping the project's other facets.
 
-## Immutable fields — copy VERBATIM, never change
+## ATS Keyword Surfacing — aggressive but TRUTHFUL
+The CV often already contains a skill implicitly; your job is to make it EXPLICIT with the job's exact wording so the ATS detects it.
+- Mirror the job's exact terminology everywhere (summary, techLine, bullets, skills[].items). If the job says "REST API" and the CV says "web services", align to "REST API" when it's the same real work.
+- Make GENUINELY-IMPLIED ecosystem keywords explicit by appending them inside the relevant skills[].items string (this changes text, NOT array length):
+    * A Java/Spring Boot stack implies the build tool: "Maven" (or "Gradle" if mentioned).
+    * Server-rendered or SPA UI work (JSP, Angular, React) implies "HTML5" and "CSS3".
+    * JUnit / Mockito imply "Unit Testing" / "Testing".
+    * Production incident / root-cause work implies "Troubleshooting" and "Debugging".
+    * CI/CD + Git workflows imply "Version Control".
+  Only add a keyword when an EXISTING CV entry genuinely entails it. If nothing in the CV supports it, DO NOT add it — leave the ATS gap rather than fabricate.
+- NEVER DROP a real technology already in the CV to make room for new keywords. Keep every existing, still-relevant tech (e.g. keep "JQuery", "Hibernate", "Angular") AND add the implied ones. Surfacing is additive.
+- Soft skills (ATS scores these as discrete keywords): when the CV genuinely backs them, state them EXPLICITLY in the summary using the job's own wording. In particular, almost always applicable for an engineer with this history:
+    * "Problem-solving" ← root-cause / incident-resolution work.
+    * "Collaboration" / "collaborative" ← agile, cross-functional, or multi-team work.
+    * "Ability to work with AI tools" ← any GenAI/LLM integration (e.g. Gemini API) or AI automation (n8n/Make) in the projects.
+  Do not claim a soft skill with zero basis.
+- Generic umbrella keywords: weave in the broad terms an ATS expects when they truthfully describe the work — "Software development", "Documentation", "Technical solutions", "Productivity improvements" (e.g. dashboards that cut resolution time = a productivity improvement). These are almost always truthful for a developer; include them naturally in summary/bullets.
+- Job-domain phrases: mirror a domain term from the posting ONLY when the candidate's real work maps to it (e.g. a broker/insurance portal serving brokers ≈ "front-office users"). NEVER claim a domain artifact the candidate never built (e.g. do not invent a "booking application" if there is none).
+
+## Reframing, NOT Deletion
+- NEVER remove any item from any array (experiences, projects, skills, bullets). Removing roles or projects creates employment gaps / blank years on the CV, which is disqualifying.
+- NEVER add a new item to any array either.
+- Keep the EXACT same number of experiences, projects, skills groups, and bullets as the input. Adapt their wording and ordering of emphasis only.
+- Even a less-relevant experience or project stays: rewrite it to surface whatever angle is closest to the job, even if minor.
+
+## Immutable Fields (Copy VERBATIM)
 - personalInfo.name, email, phone, location, linkedin, portfolio
 - experiences[].title, org, date
 - skills[].category
 - projects[].title, stack
 - spokenLanguages[]
-- education[] (every field)
-- customSections[] (every field — user-authored, copy verbatim)
-- Any id / forcePageBreak / customMarginBottom metadata, if present.
+- education[]
+- customSections[]
+- Any id / forcePageBreak / customMarginBottom metadata.
 
-## Hard constraints
-1. Preserve the EXACT key structure — never add, remove, or rename a key.
-2. Never change the number of items in any array (same count of experiences, bullets, skills, projects…).
-3. Never invent experiences, skills, technologies, or metrics absent from the original.
-4. Never delete a bullet — rephrase it, don't remove it.
-5. CRITICAL — single A4 page: do NOT increase total text length. Keep summary and bullets tight; if you add words somewhere, cut words elsewhere.
+## Hard Constraints (Immediate Failure if violated)
+1. Preserve EXACT keys. Never add/rename keys.
+2. Never change the number of items in any array (same count of experiences, projects, skills, and bullets). Never delete or add an item.
+3. NO HALLUCINATIONS: Never invent metrics, skills, or past experiences.
+4. NO MATH HALLUCINATIONS: Do not calculate years of experience. Use ONLY the number provided in the user prompt.
+5. Output ONLY valid JSON matching this schema:
 
-## Quality bar
-- Lead bullets with impact (strong action verb + result), then context.
-- Mirror the job posting's vocabulary for ATS alignment — only where truthful.
-- Keep quantified outcomes already present; never fabricate numbers.
-- Match the job posting's language (FR posting → FR content; EN → EN).
-
-## Output contract
-- Return ONLY one raw JSON object — no markdown fences, no comments, no prose before or after.
-- It MUST validate against this exact JSON schema:
-
-${RESUME_SCHEMA_JSON}
-
-## Final self-check before answering
-- Same keys and same array lengths as the input CV?
-- Every immutable field copied verbatim?
-- Output is a single valid JSON object, directly parsable, with nothing outside it?`;
+${RESUME_SCHEMA_JSON}`;
 
 // Prompt de correction (self-healing retry) : on renvoie au modèle ses propres
 // erreurs de validation Zod pour qu'il produise un JSON conforme au 2e essai.
@@ -78,6 +93,60 @@ It failed strict schema validation with these errors:
 ${issues.map((issue) => `- ${issue}`).join("\n")}
 
 Return ONLY a corrected raw JSON object that fixes these errors and fully respects the schema and all rules above. No markdown, no commentary.`;
+}
+
+// Calcule la durée totale d'expérience (en années) à partir des champs `date`
+// des expériences. On le fait en TypeScript et on l'IMPOSE à l'IA pour éviter
+// qu'elle hallucine ce nombre (cf. SYSTEM_PROMPT, "NO MATH HALLUCINATIONS").
+// Les périodes au format "Start - End" sont additionnées ; "Present" /
+// "Aujourd'hui" est interprété comme la date du jour. Les dates non parsables
+// sont ignorées silencieusement.
+function calculateTotalExperience(experiences: { date?: string }[]): number {
+  if (!experiences || experiences.length === 0) return 0;
+
+  let totalMonths = 0;
+  experiences.forEach((exp) => {
+    try {
+      const parts = (exp.date ?? "").split(" - ");
+      if (parts.length !== 2) return;
+
+      const start = new Date(parts[0]);
+      const endStr = parts[1].trim();
+      const end =
+        endStr.toLowerCase() === "present" || endStr.toLowerCase() === "aujourd'hui"
+          ? new Date()
+          : new Date(endStr);
+
+      if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
+        totalMonths += (end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24 * 30.44);
+      }
+    } catch {
+      // Ignorer silencieusement les formats de date non parsables
+    }
+  });
+
+  return Math.round((totalMonths / 12) * 10) / 10;
+}
+
+// Détecte si une offre est rédigée en anglais ou en français, par fréquence de
+// mots-outils distinctifs. Sert à aligner les TITRES de section sur la langue de
+// l'offre : un ATS anglophone qui lit "Éducation" ne reconnaît pas la section
+// "Education" et la déclare manquante. Heuristique volontairement simple et
+// déterministe (pas d'appel réseau) ; défaut "fr" si indécis (public FR de l'app).
+function detectJobLanguage(text: string): "en" | "fr" {
+  const FR = ["le", "la", "les", "des", "une", "un", "vous", "nous", "pour", "avec", "dans", "votre", "notre", "compétences", "expérience", "poste", "entreprise", "équipe", "missions", "profil", "et", "ou", "au", "aux", "du"];
+  const EN = ["the", "and", "or", "for", "with", "you", "we", "your", "our", "skills", "experience", "role", "team", "company", "requirements", "responsibilities", "must", "ability", "will", "of", "to", "in"];
+  const words = text.toLowerCase().match(/[a-zàâäéèêëïîôöùûüç]+/g) ?? [];
+  const set = (list: string[]) => new Set(list);
+  const frSet = set(FR);
+  const enSet = set(EN);
+  let fr = 0;
+  let en = 0;
+  for (const w of words) {
+    if (frSet.has(w)) fr++;
+    if (enSet.has(w)) en++;
+  }
+  return en > fr ? "en" : "fr";
 }
 
 // ─── Route Handler ──────────────────────────────────────────────────────────
@@ -118,16 +187,26 @@ export async function POST(request: NextRequest) {
     // model's concern, and omitting it saves tokens + avoids any tampering.
     const { layout: _layout, ...cvForAi } = cvData;
 
-    // Build the user prompt
-    const userPrompt = `## Target job posting:
+    // Expérience totale calculée en TS et imposée à l'IA (anti-hallucination).
+    const totalYears = calculateTotalExperience(cvData.experiences);
 
+    // Build the user prompt
+    const userPrompt = `## TARGET JOB POSTING:
 ${jobDescription}
 
-## Current CV to adapt (JSON):
+## CANDIDATE'S ACTUAL EXPERIENCE LIMITS (DO NOT INVENT):
+- Total Professional Experience: EXACTLY ${totalYears} years.
+- If the job requires more years, DO NOT lie. Highlight intensity, fast learning, and high-impact projects instead.
 
+## CURRENT CV (JSON):
 ${JSON.stringify(cvForAi, null, 2)}
 
-Adapt this CV to maximize the candidate's chances for this role. Return only the modified JSON.`;
+## INSTRUCTIONS:
+1. Mentally extract the top 5 mandatory technical skills and top 3 soft skills from the job posting, and identify the role's axis (e.g. backend, frontend, DevOps, data, testing).
+2. Adapt the CV to highlight these exact skills based ONLY on the candidate's actual history.
+3. Keep EVERY experience and project (no deletions — removing any creates blank years). Instead, reframe each one toward the job's axis: lead with the relevant angle, keep the other facets short but present.
+4. Keep the same number of bullets per experience; tighten wording for A4 readability without cutting items.
+5. Return ONLY the modified JSON object. No markdown, no prose.`;
 
     // Call the selected AI provider with fallback
     let result;
@@ -203,7 +282,22 @@ Adapt this CV to maximize the candidate's chances for this role. Return only the
       adaptedCV.layout = cvData.layout;
     }
 
-    // Preserve immutable experience fields
+    // ATS heading alignment: an English ATS doesn't recognize "Éducation" as the
+    // "Education" section and flags it missing. When the job posting is in
+    // English, relabel the BUILT-IN sections with the exact ATS-standard English
+    // headings (Experience / Education / Skills / …). Only the adapted copy is
+    // touched — the user's saved CV keeps its own titles. Custom sections
+    // (custom_*) are user-authored and left untouched.
+    if (adaptedCV.layout && detectJobLanguage(jobDescription) === "en") {
+      adaptedCV.layout = {
+        ...adaptedCV.layout,
+        sectionTitles: { ...adaptedCV.layout.sectionTitles, ...SECTION_LABELS_EN },
+      };
+    }
+
+    // Preserve immutable experience fields. The AI keeps the same items in the
+    // same order (no deletion / no add), so index-based re-imposition is safe;
+    // the `?? exp.x` fallback guards any rare count mismatch without overruns.
     adaptedCV.experiences = adaptedCV.experiences.map((exp, i) => ({
       ...exp,
       title: cvData.experiences[i]?.title ?? exp.title,
