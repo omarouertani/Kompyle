@@ -155,9 +155,15 @@ export function useCanvasInteractions({ data, defaultPositions, onChange, resolv
       for (const b of blocks) {
         const rect = b.el.getBoundingClientRect();
         const ghost = b.el.cloneNode(true) as HTMLElement;
-        // Garde uniquement le contenu (1er enfant) ; retire les poignées de resize.
-        Array.from(ghost.children).forEach((child, i) => {
-          if (i > 0) child.remove();
+        // Garde UNIQUEMENT le wrapper [data-block-content] (le vrai contenu) ;
+        // retire le hover-indicator, le label, l'icône de verrou et les
+        // poignées de resize. Avant : on gardait l'enfant d'index 0, ce qui
+        // tombait sur le hover-indicator quand le bloc n'était pas
+        // sélectionné avant le clic → ghost tout blanc et vide.
+        Array.from(ghost.children).forEach((child) => {
+          if (!(child as HTMLElement).hasAttribute("data-block-content")) {
+            child.remove();
+          }
         });
         Object.assign(ghost.style, {
           position: "fixed",
@@ -177,7 +183,10 @@ export function useCanvasInteractions({ data, defaultPositions, onChange, resolv
         } as Partial<CSSStyleDeclaration>);
         document.body.appendChild(ghost);
         ghosts.push(ghost);
-        b.el.style.opacity = "0.25";
+        // Original légèrement estompé (repère d'origine) mais le contenu reste
+        // LISIBLE — y compris sur une sidebar avec un fond coloré, où 0.25
+        // donnait l'impression que le bloc disparaissait derrière la sidebar.
+        b.el.style.opacity = "0.5";
       }
 
       // ── Pivot curseur (drop inter-pages) ────────────────────────────────

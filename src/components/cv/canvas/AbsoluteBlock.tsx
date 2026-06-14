@@ -106,7 +106,12 @@ export function AbsoluteBlock({
         </div>
       )}
 
-      <div className="p-1">{children}</div>
+      {/* Aucun padding : le PDF place le contenu à (x, y, w) sans marge
+          interne. Un p-1 réduisait la largeur utile de 8px → wrapping plus
+          précoce et blocs plus hauts qu'en PDF (mesures de pagination faussées).
+          data-block-content : sert au clonage « ghost » pendant le drag — on
+          retrouve le wrapper exact (pas l'indicateur de hover ni le label). */}
+      <div data-block-content>{children}</div>
 
       {isSelected && !locked && HANDLES.map(({ edge, cursor, cls, corner }) => (
         <div

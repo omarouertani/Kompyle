@@ -54,18 +54,17 @@ export function CVPageScaleWrapper({
     if (!el?.parentElement) return;
 
     const parent = el.parentElement;
+    // Largeur disponible : le scroll container a un p-4 (16px de chaque côté).
     const parentWidth = Math.max(200, parent.clientWidth - 32);
-    const parentHeight = Math.max(200, parent.clientHeight - 16);
+    // On ajuste UNIQUEMENT sur la largeur, exactement comme le viewer PDF de
+    // l'iframe : ce qui dépasse en hauteur défile en scroll vertical natif.
+    // Ajuster aussi sur la hauteur rapetissait la page par rapport au PDF
+    // (perception de « page plus petite »).
     const scaleW = parentWidth / A4_WIDTH_PX;
-    const allowVerticalGrowth = (minContentHeightPx ?? 0) > A4_HEIGHT_PX;
-    const scaleH =
-      fitToContainer && !allowVerticalGrowth
-        ? parentHeight / A4_HEIGHT_PX
-        : Number.POSITIVE_INFINITY;
-    const nextBase = Math.min(1, scaleW, scaleH);
+    const nextBase = fitToContainer ? Math.min(1, scaleW) : 1;
     setBaseScale(nextBase);
     onScaleChangeRef.current?.(nextBase * zoom);
-  }, [zoom, fitToContainer, minContentHeightPx]);
+  }, [zoom, fitToContainer]);
 
   useEffect(() => {
     updateScale();

@@ -23,11 +23,17 @@ const QUICK_SWATCHES: Record<string, string[]> = {
 };
 
 /** Polices disponibles sur le canvas (la clé est persistée dans theme.fontFamily). */
+// Stacks alignées sur les polices PDF (src/utils/pdf-fonts.ts) pour que les
+// métriques (chasse, ascendants/descendants) soient identiques canvas ↔ PDF :
+//   sans  → Carlito          (PDF: Carlito)
+//   serif → Times New Roman  (PDF: Times-Roman, standard PDF)
+//   modern → Inter           (PDF: Inter — préchargée via next/font dans le layout)
+//   mono  → Courier New      (PDF: Courier, standard PDF)
 export const FONT_FAMILIES: Record<CVFontFamily, { label: string; stack: string }> = {
   sans: { label: "Sans", stack: "'Carlito', sans-serif" },
-  serif: { label: "Serif", stack: "Georgia, 'Times New Roman', serif" },
-  modern: { label: "Modern", stack: "'IBM Plex Sans Variable', system-ui, sans-serif" },
-  mono: { label: "Mono", stack: "'Courier New', monospace" },
+  serif: { label: "Serif", stack: "'Times New Roman', Times, serif" },
+  modern: { label: "Modern", stack: "var(--font-inter), 'Inter', system-ui, sans-serif" },
+  mono: { label: "Mono", stack: "'Courier New', Courier, monospace" },
 };
 
 /** Mode d'affichage des compétences — chaque mode a sa propre vignette visuelle. */
@@ -365,7 +371,7 @@ export function ThemePanel({ theme, onThemeChange }: ThemePanelProps) {
               />
               <SliderField
                 label="Hauteur de ligne"
-                value={theme.lineHeight ?? 1.2}
+                value={theme.lineHeight ?? 1.15}
                 min={1.0}
                 max={1.6}
                 step={0.05}

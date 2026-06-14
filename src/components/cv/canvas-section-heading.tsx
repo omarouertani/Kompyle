@@ -30,8 +30,11 @@ export const CanvasSectionHeading = React.memo(function CanvasSectionHeading({
         fontSize: ptsToPx(headingFontSize),
         color: primaryColor,
         borderBottomColor: primaryColor,
-        marginBottom: "6px",
-        paddingBottom: "2px",
+        // Espacements convertis depuis les points du PDF (h2 : marginBottom 2pt,
+        // paddingBottom 1pt) au lieu de pixels bruts (6px / 2px), qui allouaient
+        // ~2,25× trop d'espace sous chaque titre.
+        marginBottom: ptsToPx(2),
+        paddingBottom: ptsToPx(1),
         lineHeight: 1.15,
       }}
     >

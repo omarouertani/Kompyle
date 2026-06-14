@@ -69,7 +69,7 @@ export function BlockContent({ blockId, data, theme, onChange }: BlockContentPro
 
   if (blockId === "role") {
     return (
-      <EditableText value={personalInfo.role} onChange={(v) => updatePersonalInfo("role", v)} className={cn("font-bold tracking-wider", isChaima && "uppercase")} style={{ fontSize: toPx(baseFontSize + 1.5), color: primaryColor, lineHeight: 1.2 }} placeholder="Titre professionnel" />
+      <EditableText value={personalInfo.role} onChange={(v) => updatePersonalInfo("role", v)} className={cn("font-bold tracking-wider", isChaima && "uppercase")} style={{ fontSize: toPx(baseFontSize + 2), color: primaryColor, lineHeight: 1.25 }} placeholder="Titre professionnel" />
     );
   }
 
@@ -184,7 +184,7 @@ export function BlockContent({ blockId, data, theme, onChange }: BlockContentPro
       <div className="flex flex-col gap-1.5 w-full">
         {fields.map(({ label, field, value }) => (
           <div key={field} className="flex flex-col">
-            <span className="text-[9px] uppercase tracking-wider text-zinc-500">{label}</span>
+            <span className="uppercase tracking-wider text-zinc-500" style={{ fontSize: toPx(baseFontSize - 2), lineHeight: 1 }}>{label}</span>
             <EditableText value={value} onChange={(v) => updatePersonalInfo(field, v)} className="font-medium text-zinc-800 break-all" style={{ fontSize: toPx(baseFontSize), lineHeight: lh }} />
           </div>
         ))}
@@ -311,9 +311,9 @@ export function BlockContent({ blockId, data, theme, onChange }: BlockContentPro
             <span className="text-zinc-400 mx-1">—</span>
             <EditableText value={exp.org} onChange={(v) => updateExperience(idx, "org", v)} placeholder="Entreprise" style={{ fontSize: toPx(baseFontSize + 0.5), color: primaryColor !== "#1a1a1a" ? primaryColor : undefined }} />
           </div>
-          <EditableText value={exp.date} onChange={(v) => updateExperience(idx, "date", v)} placeholder="Date" className="text-zinc-500 font-medium shrink-0" style={{ fontSize: toPx(baseFontSize - 1) }} />
+          <EditableText value={exp.date} onChange={(v) => updateExperience(idx, "date", v)} placeholder="Date" className="text-zinc-500 font-medium shrink-0" style={{ fontSize: toPx(baseFontSize - 1.5) }} />
         </div>
-        <ul className="flex flex-col gap-0.5 mt-1 list-none pl-0">
+        <ul className="flex flex-col list-none pl-0" style={{ marginTop: 0, gap: ptsToPx(1) }}>
           {exp.bullets.map((bullet, bulletIdx) => (
             <li key={bulletIdx} className="group/bullet flex items-start gap-1.5 relative text-justify">
               <span className="font-bold select-none shrink-0" style={{ color: primaryColor, fontSize: toPx(baseFontSize) }}>•</span>

@@ -152,6 +152,16 @@
 		@apply prose prose-sm prose-zinc dark:prose-invert max-w-none prose-p:my-3! prose-li:my-3! prose-ul:my-3! prose-ol:my-3!;
 	}
 
+	/* WYSIWYG canvas ↔ PDF : neutralise les réglages typo du <body> qui sinon
+	   s'appliqueraient au contenu d'une page A4 et la feraient diverger du
+	   rendu PDF (react-pdf n'utilise ni proportional-nums ni font smoothing
+	   antialiased). */
+	[data-cv-page-content] {
+		font-variant-numeric: normal;
+		-webkit-font-smoothing: auto;
+		-moz-osx-font-smoothing: auto;
+	}
+
 	/* Bascule de thème fluide : les surfaces principales transitionnent en douceur. */
 	body,
 	header,
