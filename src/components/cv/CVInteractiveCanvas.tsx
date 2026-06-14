@@ -70,7 +70,7 @@ export default function CVInteractiveCanvas({ data, onChange: onChangeProp, temp
     primaryColor,
     baseFontSize: theme.fontSize ?? (isChaima ? 9.5 : 10),
     headingFontSize: theme.headingSize ?? 12,
-    lineHeight: theme.lineHeight ?? 1.2,
+    lineHeight: theme.lineHeight ?? 1.15,
     photoSize,
     skillMode: theme.skillMode,
   };

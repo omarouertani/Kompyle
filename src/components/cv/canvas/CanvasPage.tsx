@@ -80,22 +80,26 @@ export function CanvasPage({
           "cv-page-shadow w-full text-zinc-800 text-left box-border relative rounded-[2px]",
           activePageIndex === pageIndex && layout.pages.length > 1 && "ring-2 ring-primary/30 ring-offset-2 rounded-sm"
         )}
-        style={{ color: textColor, fontFamily: fontStack, backgroundColor: pageBg, minHeight: `${pageHeightPx}px` }}
+        style={{
+          color: textColor,
+          fontFamily: fontStack,
+          backgroundColor: pageBg,
+          minHeight: `${pageHeightPx}px`,
+          // Fond de sidebar peint dans la COUCHE BACKGROUND de la page (pas
+          // un <div> positionné). Conséquence : la sidebar bg est toujours
+          // derrière TOUT enfant positionné absolument — un bloc sélectionné
+          // ne peut plus jamais « passer derrière » la sidebar (problème
+          // observé même avec z-index 30 vs 1, à cause des contextes de
+          // stacking imbriqués).
+          ...(hasSidebar && sidebarBg !== "transparent"
+            ? {
+                backgroundImage: isChaima
+                  ? `linear-gradient(to right, ${sidebarBg} calc(${ptsToPx(sidebarWidth)} - 1px), #e4e4e7 calc(${ptsToPx(sidebarWidth)} - 1px), #e4e4e7 ${ptsToPx(sidebarWidth)}, transparent ${ptsToPx(sidebarWidth)})`
+                  : `linear-gradient(to right, ${sidebarBg} ${ptsToPx(sidebarWidth)}, transparent ${ptsToPx(sidebarWidth)})`,
+              }
+            : {}),
+        }}
       >
-        {hasSidebar && sidebarBg !== "transparent" && (
-          <div
-            style={{
-              position: "absolute",
-              left: 0,
-              top: 0,
-              width: ptsToPx(sidebarWidth),
-              height: `${pageHeightPx}px`,
-              backgroundColor: sidebarBg,
-              borderRight: isChaima ? "1px solid #e4e4e7" : "none",
-              zIndex: 1,
-            }}
-          />
-        )}
 
         {hasSidebar && (
           <div
