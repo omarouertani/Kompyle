@@ -37,6 +37,25 @@ export const SECTION_LABELS: Record<SectionId, string> = {
   interests: "Intérêts",
 };
 
+/**
+ * Libellés de sections en anglais, formulés EXACTEMENT comme les en-têtes que
+ * les ATS anglophones recherchent ("Experience", "Education", "Skills"…).
+ * Utilisé par /api/adapt-cv pour aligner les titres de section sur la langue de
+ * l'offre quand celle-ci est en anglais (un en-tête "Éducation" n'est pas
+ * reconnu comme "Education" par l'ATS → section considérée manquante).
+ */
+export const SECTION_LABELS_EN: Record<SectionId, string> = {
+  summary: "Summary",
+  experience: "Experience",
+  projects: "Projects",
+  contact: "Contact",
+  skills: "Skills",
+  languages: "Languages",
+  education: "Education",
+  certifications: "Certifications",
+  interests: "Interests",
+};
+
 /** Toutes les sections connues (sert à lister les sections masquées). */
 export const ALL_SECTION_IDS: SectionId[] = [
   "summary",
