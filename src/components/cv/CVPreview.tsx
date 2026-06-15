@@ -282,14 +282,13 @@ export default function CVPreview({
               )}
               {onOpenATS && (
                 <Button
-                  variant={atsButtonShine ? "default" : "outline"}
+                  variant="outline"
                   size="sm"
                   onClick={onOpenATS}
                   className={cn(
                     "h-9 px-3 gap-1.5 text-xs font-semibold shrink-0 rounded-lg",
-                    atsButtonShine
-                      ? "shine-diamond bg-gradient-to-b from-primary to-primary/90 text-primary-foreground shadow-md shadow-primary/30"
-                      : "text-primary border-primary/30 hover:bg-primary/5 hover:border-primary/50",
+                    "text-primary border-primary/30 hover:bg-primary/5 hover:border-primary/50 bg-transparent",
+                    atsButtonShine && "shine-diamond",
                   )}
                   title={t("ats_button_tooltip")}
                 >

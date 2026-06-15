@@ -12,7 +12,7 @@ import {
 import { registerPdfFont, ACTIVE_PDF_FONT, resolvePdfFontFamily } from "@/utils/pdf-fonts";
 import type { CVData } from "@/types/cv";
 import { defaultLayout, DEFAULT_SIDEBAR_WIDTH, getDefaultPositions, getDefaultPhotoPosition, dedupePages, getPageBlockIds } from "@/lib/cv-layout";
-import { DiffText, formatUrl, displayUrl } from "@/utils/pdf-text-utils";
+import { DiffText, RichText, formatUrl, displayUrl, hasInlineHtml } from "@/utils/pdf-text-utils";
 import { getStyles, type CVTemplateVariant } from "./template/classic-styles";
 import {
   SECTION_RENDERERS,
@@ -76,7 +76,7 @@ const CVTemplate: React.FC<CVTemplateProps> = ({ data, originalData, variant = "
     };
     if (personalInfo.phone) push(<Text key="phone" style={styles.contactHeaderItem}>{personalInfo.phone}</Text>);
     if (personalInfo.email) push(<Link key="email" src={`mailto:${personalInfo.email}`} style={styles.contactHeaderLink}>{personalInfo.email}</Link>);
-    if (personalInfo.linkedin) push(<Link key="linkedin" src={formatUrl(personalInfo.linkedin)} style={styles.contactHeaderLink}>{displayUrl(personalInfo.linkedin, true)}</Link>);
+    if (personalInfo.linkedin) push(<Link key="linkedin" src={formatUrl(personalInfo.linkedin)} style={styles.contactHeaderLink}>{hasInlineHtml(personalInfo.linkedin) ? personalInfo.linkedin : displayUrl(personalInfo.linkedin, true)}</Link>);
     if (personalInfo.location) push(<Text key="location" style={styles.contactHeaderItem}>{personalInfo.location}</Text>);
     if (parts.length === 0) return null;
     return <View style={styles.contactHeader}>{parts}</View>;
@@ -97,9 +97,12 @@ const CVTemplate: React.FC<CVTemplateProps> = ({ data, originalData, variant = "
       const sectionId = blockId.substring(isTitle ? 6 : 8);
       const cs = data.customSections?.find((c) => `custom_${c.id}` === sectionId);
       if (cs) {
+        // Custom-section title/content may contain inline format tags
+        // (B/I/U/span color/font-size). RichText parses them; plain strings
+        // pass through unchanged.
         rendered = isTitle
-          ? <Text style={styles.h2}>{cs.title}</Text>
-          : <Text style={styles.summary}>{cs.content}</Text>;
+          ? <RichText style={styles.h2} value={cs.title} />
+          : <RichText style={styles.summary} value={cs.content} />;
       }
     } else if (blockId.startsWith("title_")) {
       const sectionId = blockId.substring(6);

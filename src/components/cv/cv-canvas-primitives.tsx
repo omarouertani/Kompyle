@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { cn } from "@/lib/utils";
+import { useCanvasFormat } from "./canvas/use-canvas-format";
 
 // Conversion EXACTE des points PDF (72 dpi) en pixels CSS (96 dpi) : 96/72.
 // Le rendu PDF (react-pdf) place les blocs en points ; le canvas applique ce
@@ -131,6 +132,19 @@ interface EditableTextProps {
   style?: React.CSSProperties;
 }
 
+/** Detects whether a stored value contains inline rich-text markup (B/I/U/S,
+ *  color/size/font spans, alignment divs, or legacy <font>). Plain strings
+ *  render via textContent (XSS-safe); HTML strings use innerHTML so format
+ *  tags survive across re-renders and reach the PDF renderer intact. */
+function isRichTextValue(v: string): boolean {
+  return /<(b|i|u|s|strong|em|span|div|p|font)[\s>/]/i.test(v);
+}
+
+/** Trim leading/trailing whitespace text without disturbing inline tags. */
+function trimRich(v: string): string {
+  return v.replace(/^(?:&nbsp;|\s|<br\s*\/?>)+/i, "").replace(/(?:&nbsp;|\s|<br\s*\/?>)+$/i, "").trim();
+}
+
 export function EditableText({
   value,
   onChange,
@@ -141,18 +155,40 @@ export function EditableText({
 }: EditableTextProps) {
   const ref = useRef<HTMLSpanElement>(null);
   const [isFocused, setIsFocused] = useState(false);
+  const format = useCanvasFormat();
 
+  // Sync incoming value → DOM. We use innerHTML when the stored value is
+  // rich-text (contains inline format tags), and textContent otherwise so
+  // plain strings can never be interpreted as markup (XSS-safe by default).
   useEffect(() => {
-    if (ref.current && !isFocused && ref.current.innerText !== value) {
-      ref.current.innerText = value || "";
+    if (!ref.current || isFocused) return;
+    const current = ref.current.innerHTML;
+    const next = value || "";
+    if (isRichTextValue(next)) {
+      if (current !== next) ref.current.innerHTML = next;
+    } else {
+      // Use textContent for safety; only set if it differs from the rendered
+      // text (compare via innerText so existing inline tags don't trigger a
+      // pointless overwrite that would clobber the user's caret).
+      if (ref.current.innerText !== next) {
+        ref.current.textContent = next;
+      }
     }
   }, [value, isFocused]);
 
+  const commit = useCallback(() => {
+    if (!ref.current) return;
+    const html = ref.current.innerHTML;
+    // If the rendered content has no inline formatting tags, save the plain
+    // text. Keeps the data file readable when the user never used B/I/U.
+    const next = isRichTextValue(html) ? trimRich(html) : (ref.current.innerText ?? "").trim();
+    if (next !== value) onChange(next);
+  }, [onChange, value]);
+
   const handleBlur = () => {
     setIsFocused(false);
-    if (ref.current) {
-      onChange(ref.current.innerText.trim());
-    }
+    format.registerActiveEditor(null);
+    commit();
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -169,7 +205,15 @@ export function EditableText({
       suppressContentEditableWarning
       spellCheck={false}
       onBlur={handleBlur}
-      onFocus={() => setIsFocused(true)}
+      onFocus={() => {
+        setIsFocused(true);
+        format.registerActiveEditor(ref.current);
+      }}
+      onInput={() => {
+        // Re-evaluate the toolbar's format state on every typed character so
+        // active B/I/U highlights stay in sync as the caret moves.
+        format.refresh();
+      }}
       onKeyDown={handleKeyDown}
       data-placeholder={placeholder}
       className={cn(

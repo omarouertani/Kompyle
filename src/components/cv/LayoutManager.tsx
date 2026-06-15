@@ -12,6 +12,7 @@ import {
   renameSection,
   dedupePages,
 } from "@/lib/cv-layout";
+import { stripHtml } from "@/utils/strip-html";
 import { Eye, EyeOff, Trash2, LayoutPanelLeft, SquarePlus, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -94,7 +95,7 @@ export default function LayoutManager({
               className={`flex items-center gap-1.5 px-2.5 py-1.5 bg-card border border-border rounded-md mb-1.5 shadow-sm shadow-black/[0.03] transition-opacity ${isVisible ? "" : "opacity-55"}`}
             >
               <input
-                value={getSectionLabel(id, data)}
+                value={stripHtml(getSectionLabel(id, data))}
                 onChange={(e) => onChange(renameSection(data, id, e.target.value))}
                 className="flex-1 text-sm font-medium min-w-0 bg-transparent rounded px-1 py-0.5 border border-transparent hover:border-border/70 focus:border-ring/40 focus:bg-input-bg focus:outline-none transition-colors"
                 title="Renommer la section"

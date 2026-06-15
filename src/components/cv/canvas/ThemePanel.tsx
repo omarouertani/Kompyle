@@ -184,11 +184,14 @@ interface ThemePanelProps {
   theme: CVTheme;
   /** `reflow: true` quand le changement affecte les dimensions → réaligner. */
   onThemeChange: (updates: Partial<CVTheme>, opts?: { reflow?: boolean }) => void;
+  /** En mode compact (toolbar Canva-style), masque les sections déplacées
+   *  inline (police, taille). Le bouton garde son rôle de "presets + dimensions". */
+  compact?: boolean;
 }
 
 /** Bouton "Thème" de la toolbar canvas + popover de personnalisation
  *  (presets, couleurs, police, compétences, tailles, espacements). */
-export function ThemePanel({ theme, onThemeChange }: ThemePanelProps) {
+export function ThemePanel({ theme, onThemeChange, compact = false }: ThemePanelProps) {
   const [open, setOpen] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
 
@@ -289,25 +292,27 @@ export function ThemePanel({ theme, onThemeChange }: ThemePanelProps) {
             </div>
           </Section>
 
-          {/* Police */}
-          <Section title="Police">
-            <div className="grid grid-cols-4 gap-1.5">
-              {(Object.entries(FONT_FAMILIES) as Array<[CVFontFamily, { label: string; stack: string }]>).map(([key, font]) => (
-                <button
-                  key={key}
-                  type="button"
-                  onClick={() => onThemeChange({ fontFamily: key }, { reflow: true })}
-                  className={cn(
-                    "flex flex-col items-center gap-1 px-1 py-2 rounded-xl border transition-all",
-                    activeFont === key ? "border-primary bg-primary/5 text-foreground shadow-sm" : "border-border/60 bg-card hover:border-border hover:bg-muted/40 text-muted-foreground"
-                  )}
-                >
-                  <span className="text-base leading-none" style={{ fontFamily: font.stack }}>Aa</span>
-                  <span className="text-[9px] font-medium">{font.label}</span>
-                </button>
-              ))}
-            </div>
-          </Section>
+          {/* Police — masquée en mode compact (déplacée inline dans la toolbar) */}
+          {!compact && (
+            <Section title="Police">
+              <div className="grid grid-cols-4 gap-1.5">
+                {(Object.entries(FONT_FAMILIES) as Array<[CVFontFamily, { label: string; stack: string }]>).map(([key, font]) => (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => onThemeChange({ fontFamily: key }, { reflow: true })}
+                    className={cn(
+                      "flex flex-col items-center gap-1 px-1 py-2 rounded-xl border transition-all",
+                      activeFont === key ? "border-primary bg-primary/5 text-foreground shadow-sm" : "border-border/60 bg-card hover:border-border hover:bg-muted/40 text-muted-foreground"
+                    )}
+                  >
+                    <span className="text-base leading-none" style={{ fontFamily: font.stack }}>Aa</span>
+                    <span className="text-[9px] font-medium">{font.label}</span>
+                  </button>
+                ))}
+              </div>
+            </Section>
+          )}
 
           {/* Compétences — vignettes illustrées plutôt que boutons texte */}
           <Section title="Style des compétences">

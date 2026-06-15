@@ -368,5 +368,5 @@ export function useCanvasPagination({
     return () => { cancelled = true; };
   }, [isOverflowing, buildPaginatedLayout]);
 
-  return { measureHeightPt, realign, realignAfterRender, updateTheme, isOverflowing, pageHeightPx };
+  return { measureHeightPt, realign, realignAfterRender, realignPreservingAfterRender, updateTheme, isOverflowing, pageHeightPx };
 }

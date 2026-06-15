@@ -14,9 +14,11 @@ import {
   isModernTemplate,
 } from "@/lib/cv-layout";
 import { Lock } from "lucide-react";
+import { stripHtml } from "@/utils/strip-html";
 import { SELECTION_COLOR } from "./cv-canvas-primitives";
 import { type BlockTheme } from "./canvas/BlockContent";
 import { CanvasToolbar, type CanvasBackground } from "./canvas/CanvasToolbar";
+import { CanvasFormatProvider } from "./canvas/use-canvas-format";
 import { FONT_FAMILIES } from "./canvas/ThemePanel";
 import { ContextMenu } from "./canvas/ContextMenu";
 import { MultiSelectToolbar } from "./canvas/MultiSelectToolbar";
@@ -145,7 +147,7 @@ export default function CVInteractiveCanvas({ data, onChange: onChangeProp, temp
   );
 
   // ── Pagination / reflow / débordement / thème ───────────────────────────────
-  const { measureHeightPt, realign, updateTheme, pageHeightPx } = useCanvasPagination({
+  const { measureHeightPt, realign, realignPreservingAfterRender, updateTheme, pageHeightPx } = useCanvasPagination({
     data,
     layout,
     template,
@@ -243,7 +245,9 @@ export default function CVInteractiveCanvas({ data, onChange: onChangeProp, temp
       contactLine: t("block_contactline"),
     };
     if (HEADER_LABELS[id]) return HEADER_LABELS[id];
-    return getSectionLabel(getParentSectionId(id), data);
+    // Le titre peut contenir du balisage de mise en forme (gras/couleur/…) —
+    // on l'affiche en texte brut dans l'étiquette de survol / la barre d'info.
+    return stripHtml(getSectionLabel(getParentSectionId(id), data));
   };
 
   const headerBlockIds = getHeaderBlockIds(data, template);
@@ -277,6 +281,7 @@ export default function CVInteractiveCanvas({ data, onChange: onChangeProp, temp
   };
 
   return (
+    <CanvasFormatProvider>
     <div
       ref={canvasContainerRef}
       className="relative flex-1 flex flex-col bg-muted/40 rounded-xl border border-border/40 select-none overflow-hidden w-full"
@@ -296,6 +301,7 @@ export default function CVInteractiveCanvas({ data, onChange: onChangeProp, temp
         onZoomFit={fitToScreen}
         onRealign={realign}
         onCanvasBgChange={setCanvasBg}
+        onReflow={realignPreservingAfterRender}
       />
 
       <MultiSelectToolbar
@@ -378,5 +384,6 @@ export default function CVInteractiveCanvas({ data, onChange: onChangeProp, temp
       {/* Menu contextuel */}
       {menu && <ContextMenu x={menu.x} y={menu.y} items={menuItems()} onClose={() => setMenu(null)} />}
     </div>
+    </CanvasFormatProvider>
   );
 }
