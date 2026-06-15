@@ -1,7 +1,7 @@
 import React from "react";
 import { View, Text, Link, KeepTogether } from "@/components/pdf-primitives";
 import type { CVData } from "@/types/cv";
-import { wrapText, formatUrl, displayUrl, DiffText } from "@/utils/pdf-text-utils";
+import { wrapText, formatUrl, displayUrl, DiffText, RichText, hasInlineHtml } from "@/utils/pdf-text-utils";
 import { sectionTitle } from "./shared";
 
 export type SectionRenderer = (
@@ -21,7 +21,7 @@ export const renderContact: SectionRenderer = (data, isSidebar, styles, original
 
   return (
     <>
-      {showTitle && <Text style={h2Style}>{sectionTitle(data, "contact", "Contact")}</Text>}
+      {showTitle && <RichText style={h2Style} value={sectionTitle(data, "contact", "Contact")} />}
 
       {showContent && (
         <>
@@ -35,7 +35,7 @@ export const renderContact: SectionRenderer = (data, isSidebar, styles, original
           <KeepTogether style={styles.contactItem}>
             <Text style={styles.contactLabel}>Email</Text>
             <Link src={`mailto:${personalInfo.email}`} style={styles.contactLink}>
-              {wrapText(personalInfo.email)}
+              {hasInlineHtml(personalInfo.email) ? personalInfo.email : wrapText(personalInfo.email)}
             </Link>
           </KeepTogether>
 
@@ -52,7 +52,7 @@ export const renderContact: SectionRenderer = (data, isSidebar, styles, original
           <KeepTogether style={styles.contactItem}>
             <Text style={styles.contactLabel}>LinkedIn</Text>
             <Link src={formatUrl(personalInfo.linkedin)} style={styles.contactLink}>
-              {wrapText(displayUrl(personalInfo.linkedin, true))}
+              {hasInlineHtml(personalInfo.linkedin) ? personalInfo.linkedin : wrapText(displayUrl(personalInfo.linkedin, true))}
             </Link>
           </KeepTogether>
 
@@ -60,7 +60,7 @@ export const renderContact: SectionRenderer = (data, isSidebar, styles, original
             <KeepTogether style={styles.contactItem}>
               <Text style={styles.contactLabel}>Portfolio</Text>
               <Link src={formatUrl(personalInfo.portfolio)} style={styles.contactLink}>
-                {wrapText(displayUrl(personalInfo.portfolio))}
+                {hasInlineHtml(personalInfo.portfolio) ? personalInfo.portfolio : wrapText(displayUrl(personalInfo.portfolio))}
               </Link>
             </KeepTogether>
           )}
@@ -108,7 +108,7 @@ export const renderSkills: SectionRenderer = (data, isSidebar, styles, originalD
   };
 
   if (part === "title") {
-    return <Text style={h2Style}>{sectionTitle(data, "skills", "Compétences")}</Text>;
+    return <RichText style={h2Style} value={sectionTitle(data, "skills", "Compétences")} />;
   }
   if (part === "item") {
     const i = itemIndex ?? 0;
@@ -123,7 +123,7 @@ export const renderSkills: SectionRenderer = (data, isSidebar, styles, originalD
   }
   return (
     <>
-      <Text style={h2Style}>{sectionTitle(data, "skills", "Compétences")}</Text>
+      <RichText style={h2Style} value={sectionTitle(data, "skills", "Compétences")} />
       {skills.map((group, i) => (
         <KeepTogether key={group.id ?? i} style={styles.skillGroup}>
           <Text style={styles.skillCat}>{group.category}</Text>
@@ -142,7 +142,7 @@ export const renderLanguages: SectionRenderer = (data, isSidebar, styles, origin
 
   return (
     <>
-      {showTitle && <Text style={h2Style}>{sectionTitle(data, "languages", "Langues")}</Text>}
+      {showTitle && <RichText style={h2Style} value={sectionTitle(data, "languages", "Langues")} />}
       {showContent && (
         <View>
           {spokenLanguages.map((lang, i) => (
@@ -166,7 +166,7 @@ export const renderCertifications: SectionRenderer = (data, isSidebar, styles, o
 
   return (
     <>
-      {showTitle && <Text style={h2Style}>{sectionTitle(data, "certifications", "Certifications")}</Text>}
+      {showTitle && <RichText style={h2Style} value={sectionTitle(data, "certifications", "Certifications")} />}
       {showContent && (
         <View>
           {personalInfo.certifications.split(",").map((cert, i) => (
@@ -191,7 +191,7 @@ export const renderInterests: SectionRenderer = (data, isSidebar, styles, origin
 
   return (
     <>
-      {showTitle && <Text style={h2Style}>{sectionTitle(data, "interests", "Intérêts")}</Text>}
+      {showTitle && <RichText style={h2Style} value={sectionTitle(data, "interests", "Intérêts")} />}
       {showContent && (
         <View style={styles.skillsContainer}>
           {items.map((item, i) => (
@@ -213,7 +213,7 @@ export const renderSummary: SectionRenderer = (data, isSidebar, styles, original
 
   return (
     <>
-      {showTitle && <Text style={h2Style}>{sectionTitle(data, "summary", "Profil")}</Text>}
+      {showTitle && <RichText style={h2Style} value={sectionTitle(data, "summary", "Profil")} />}
       {showContent && (
         <DiffText
           oldText={originalData?.personalInfo.summary}
@@ -229,7 +229,7 @@ export const renderExperience: SectionRenderer = (data, isSidebar, styles, origi
   const { experiences } = data;
   const h2Style = isSidebar ? styles.h2Sidebar : styles.h2Main;
   if (part === "title") {
-    return <Text style={h2Style}>{sectionTitle(data, "experience", "Expériences Professionnelles")}</Text>;
+    return <RichText style={h2Style} value={sectionTitle(data, "experience", "Expériences Professionnelles")} />;
   }
   if (part === "item") {
     const i = itemIndex ?? 0;
@@ -281,7 +281,7 @@ export const renderExperience: SectionRenderer = (data, isSidebar, styles, origi
   }
   return (
     <>
-      <Text style={h2Style}>{sectionTitle(data, "experience", "Expériences Professionnelles")}</Text>
+      <RichText style={h2Style} value={sectionTitle(data, "experience", "Expériences Professionnelles")} />
       {experiences.map((exp, i) => (
         <View
           key={exp.id ?? i}
@@ -333,7 +333,7 @@ export const renderEducation: SectionRenderer = (data, isSidebar, styles, origin
   const { education } = data;
   const h2Style = isSidebar ? styles.h2Sidebar : styles.h2Main;
   if (part === "title") {
-    return <Text style={h2Style}>{sectionTitle(data, "education", "Formation")}</Text>;
+    return <RichText style={h2Style} value={sectionTitle(data, "education", "Formation")} />;
   }
   if (part === "item") {
     const i = itemIndex ?? 0;
@@ -355,7 +355,7 @@ export const renderEducation: SectionRenderer = (data, isSidebar, styles, origin
   }
   return (
     <>
-      <Text style={h2Style}>{sectionTitle(data, "education", "Formation")}</Text>
+      <RichText style={h2Style} value={sectionTitle(data, "education", "Formation")} />
       {education.map((edu, i) => (
         <KeepTogether
           key={edu.id ?? i}
@@ -378,7 +378,7 @@ export const renderProjects: SectionRenderer = (data, isSidebar, styles, origina
   const h2Style = isSidebar ? styles.h2Sidebar : styles.h2Main;
   if (!projects || projects.length === 0) return null;
   if (part === "title") {
-    return <Text style={h2Style}>{sectionTitle(data, "projects", "Projets")}</Text>;
+    return <RichText style={h2Style} value={sectionTitle(data, "projects", "Projets")} />;
   }
   if (part === "item") {
     const i = itemIndex ?? 0;
@@ -411,7 +411,7 @@ export const renderProjects: SectionRenderer = (data, isSidebar, styles, origina
   }
   return (
     <>
-      <Text style={h2Style}>{sectionTitle(data, "projects", "Projets")}</Text>
+      <RichText style={h2Style} value={sectionTitle(data, "projects", "Projets")} />
       {projects.map((proj, i) => (
         <View
           key={proj.id ?? i}

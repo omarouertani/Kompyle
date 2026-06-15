@@ -11,7 +11,7 @@ import { Svg, Circle, Path, Image } from "@react-pdf/renderer";
 import { registerPdfFont, ACTIVE_PDF_FONT, resolvePdfFontFamily } from "@/utils/pdf-fonts";
 import type { CVData } from "@/types/cv";
 import { defaultLayout, getDefaultPositions, getDefaultPhotoPosition, getPageBlockIds, dedupePages } from "@/lib/cv-layout";
-import { DiffText } from "@/utils/pdf-text-utils";
+import { DiffText, RichText } from "@/utils/pdf-text-utils";
 import { getStyles } from "./template/modern-styles";
 import {
   SECTION_RENDERERS,
@@ -139,9 +139,10 @@ const CVTemplateModern: React.FC<CVTemplateModernProps> = ({ data, originalData 
               const sectionId = blockId.substring(isTitle ? 6 : 8);
               const cs = data.customSections?.find((c) => `custom_${c.id}` === sectionId);
               if (cs) {
+                // Custom section title/content may contain inline format tags.
                 rendered = isTitle
-                  ? <Text style={isSidebar ? styles.h2Sidebar : styles.h2Main}>{cs.title}</Text>
-                  : <Text style={styles.summary}>{cs.content}</Text>;
+                  ? <RichText style={isSidebar ? styles.h2Sidebar : styles.h2Main} value={cs.title} />
+                  : <RichText style={styles.summary} value={cs.content} />;
               }
             } else if (blockId.startsWith("title_")) {
               const sectionId = blockId.substring(6);

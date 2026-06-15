@@ -61,6 +61,19 @@ export const PDF_FONTS = {
         src: "https://fonts.gstatic.com/s/inter/v20/UcCO3FwrK3iLTeHuS_nVMrMxCp50SjIw2boKoduKmMEVuFuYMZhrib2Bg-4.ttf",
         fontWeight: 700,
       },
+      // Italic variants — required so the user toggling italic on a selection
+      // doesn't crash the render (react-pdf throws if a used variant is unregistered).
+      // Inter ships a single variable italic file; we point both weights at it.
+      {
+        src: "https://fonts.gstatic.com/s/inter/v20/UcCM3FwrK3iLTcvneQg7Ca725JhhKnNqk4j1ebLhAm8SrXTc2dtRipWA.ttf",
+        fontWeight: 400,
+        fontStyle: "italic",
+      },
+      {
+        src: "https://fonts.gstatic.com/s/inter/v20/UcCM3FwrK3iLTcvneQg7Ca725JhhKnNqk4j1ebLhAm8SrXTc2dtRipWA.ttf",
+        fontWeight: 700,
+        fontStyle: "italic",
+      },
     ],
   },
   Roboto: {
@@ -74,6 +87,16 @@ export const PDF_FONTS = {
         src: "https://fonts.gstatic.com/s/roboto/v51/KFOMCnqEu92Fr1ME7kSn66aGLdTylUAMQXC89YmC2DPNWuYjammTggvWl0Qn.ttf",
         fontWeight: 700,
       },
+      {
+        src: "https://fonts.gstatic.com/s/roboto/v51/KFOKCnqEu92Fr1Mu53ZEC9_Vu3r1gIhOszmOClHrs6ljXfMMLoHQiA8.ttf",
+        fontWeight: 400,
+        fontStyle: "italic",
+      },
+      {
+        src: "https://fonts.gstatic.com/s/roboto/v51/KFOKCnqEu92Fr1Mu53ZEC9_Vu3r1gIhOszmOClHrs6ljXfMMLmbXiA8.ttf",
+        fontWeight: 700,
+        fontStyle: "italic",
+      },
     ],
   },
   Carlito: {
@@ -81,6 +104,8 @@ export const PDF_FONTS = {
     fonts: [
       { src: "https://fonts.gstatic.com/s/carlito/v4/3Jn9SDPw3m-pk039DDeBSQ.ttf", fontWeight: 400 },
       { src: "https://fonts.gstatic.com/s/carlito/v4/3Jn4SDPw3m-pk039BIykWXolVg.ttf", fontWeight: 700 },
+      { src: "https://fonts.gstatic.com/s/carlito/v4/3Jn_SDPw3m-pk039DDKBSQ.ttf", fontWeight: 400, fontStyle: "italic" },
+      { src: "https://fonts.gstatic.com/s/carlito/v4/3Jn6SDPw3m-pk039DDK59XglVg.ttf", fontWeight: 700, fontStyle: "italic" },
     ],
   },
 } satisfies Record<string, PdfFontDefinition>;
@@ -158,4 +183,25 @@ const CV_FONT_TO_PDF: Record<CVFontFamily, PdfFontFamily | string> = {
 /** Enregistre (si besoin) et renvoie la famille PDF correspondant au thème. */
 export function resolvePdfFontFamily(font?: CVFontFamily): string {
   return registerPdfFont(CV_FONT_TO_PDF[font ?? "sans"] ?? ACTIVE_PDF_FONT);
+}
+
+/**
+ * Résout une *pile CSS* `font-family` (telle qu'écrite inline par l'éditeur
+ * canvas, ex. `'Carlito', sans-serif`) vers une famille PDF enregistrée.
+ * Permet à un changement de police sur une sélection de se refléter dans le
+ * PDF : le canvas écrit la pile CSS, le PDF la reconnaît et enregistre la bonne
+ * police. Renvoie `undefined` si aucune correspondance (→ on garde la police
+ * héritée du thème, jamais de crash). */
+export function resolvePdfFontFromCss(cssStack?: string): string | undefined {
+  if (!cssStack) return undefined;
+  const s = cssStack.toLowerCase();
+  // Ordre : du plus spécifique au plus générique.
+  if (s.includes("carlito") || s.includes("calibri")) return registerPdfFont("Carlito");
+  if (s.includes("times")) return registerPdfFont("Times-Roman");
+  if (s.includes("inter")) return registerPdfFont("Inter");
+  if (s.includes("roboto")) return registerPdfFont("Roboto");
+  if (s.includes("courier") || s.includes("mono")) return registerPdfFont("Courier");
+  if (s.includes("serif") && !s.includes("sans")) return registerPdfFont("Times-Roman");
+  if (s.includes("sans")) return registerPdfFont("Carlito");
+  return undefined;
 }

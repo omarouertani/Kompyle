@@ -1,4 +1,4 @@
-import type { ComponentProps } from "react";
+import React, { type ComponentProps, type ReactNode } from "react";
 import {
   Page as PdfPage,
   Text as PdfText,
@@ -13,6 +13,39 @@ import {
   headingSafeLineHeight,
   type StyleInput,
 } from "./styles";
+import {
+  hasInlineHtml,
+  stripHtml,
+  parseInlineHtml,
+  toPdfRunStyle,
+  inheritableTextStyle,
+} from "@/utils/inline-html";
+
+/**
+ * If `children` is a string carrying inline formatting markup (B/I/U/S, color,
+ * size, font, alignment) produced by the canvas editor, parse it into styled
+ * runs so every `<Text>`/`<Link>` in every template reflects canvas formatting
+ * in the PDF — no per-call-site change needed. Plain strings (and non-string
+ * children) pass through untouched. `composedStyle` is the parent's resolved
+ * style; its text-level props cascade into each run so weight/case/size/font
+ * are preserved while the run's own tweaks win.
+ */
+/** Text-ish prop bag — react-pdf's Text/Link prop types are unions whose SVG
+ *  branch lacks `children`, so we intersect a `children` field to destructure it. */
+type TextLikeProps = ComponentProps<typeof PdfText> & { children?: ReactNode };
+type LinkLikeProps = ComponentProps<typeof PdfLink> & { children?: ReactNode };
+
+function renderRichChildren(children: ReactNode, composedStyle: unknown): ReactNode {
+  if (typeof children !== "string" || !hasInlineHtml(children)) return children;
+  const runs = parseInlineHtml(children);
+  if (runs.length === 0) return null;
+  const base = inheritableTextStyle(composedStyle);
+  return runs.map((run, i) => (
+    <PdfText key={i} style={{ ...base, ...(run.style ? toPdfRunStyle(run.style) : {}) } as never}>
+      {run.text}
+    </PdfText>
+  ));
+}
 
 /**
  * Primitives PDF de Kompyle — surcouches intelligentes de @react-pdf/renderer,
@@ -74,105 +107,106 @@ export const Page = ({ style, ...props }: ComponentProps<typeof PdfPage>) => {
 // ─── Texte ──────────────────────────────────────────────────────────────────
 
 /** Corps de texte standard. Protège orphelines/veuves par défaut. */
-export const Text = ({ style, ...props }: ComponentProps<typeof PdfText>) => {
+export const Text = ({ style, children, ...props }: TextLikeProps) => {
   const theme = usePdfTheme();
+  const composed = composeStyles(
+    {
+      fontFamily: theme.fontFamily,
+      fontSize: theme.fontSize,
+      lineHeight: theme.lineHeight,
+      color: theme.color,
+    },
+    style as StyleInput,
+    safeTextStyle,
+  );
   return (
-    <PdfText
-      orphans={2}
-      widows={2}
-      style={composeStyles(
-        {
-          fontFamily: theme.fontFamily,
-          fontSize: theme.fontSize,
-          lineHeight: theme.lineHeight,
-          color: theme.color,
-        },
-        style as StyleInput,
-        safeTextStyle,
-      )}
-      {...props}
-    />
+    <PdfText orphans={2} widows={2} style={composed} {...props}>
+      {renderRichChildren(children, composed)}
+    </PdfText>
   );
 };
 
 /** Titre (gras + lineHeight plancher sûr pour éviter le rognage des jambages). */
-export const Heading = ({ style, ...props }: ComponentProps<typeof PdfText>) => {
+export const Heading = ({ style, children, ...props }: TextLikeProps) => {
   const theme = usePdfTheme();
+  const composed = composeStyles(
+    {
+      fontFamily: theme.fontFamily,
+      fontWeight: theme.boldWeight,
+      color: theme.color,
+      lineHeight: headingSafeLineHeight,
+    },
+    style as StyleInput,
+    safeTextStyle,
+  );
   return (
-    <PdfText
-      style={composeStyles(
-        {
-          fontFamily: theme.fontFamily,
-          fontWeight: theme.boldWeight,
-          color: theme.color,
-          lineHeight: headingSafeLineHeight,
-        },
-        style as StyleInput,
-        safeTextStyle,
-      )}
-      {...props}
-    />
+    <PdfText style={composed} {...props}>
+      {renderRichChildren(children, composed)}
+    </PdfText>
   );
 };
 
 /** Texte en gras (hérite de la taille du corps). */
-export const Bold = ({ style, ...props }: ComponentProps<typeof PdfText>) => {
+export const Bold = ({ style, children, ...props }: TextLikeProps) => {
   const theme = usePdfTheme();
+  const composed = composeStyles(
+    {
+      fontFamily: theme.fontFamily,
+      fontSize: theme.fontSize,
+      fontWeight: theme.boldWeight,
+      lineHeight: theme.lineHeight,
+      color: theme.color,
+    },
+    style as StyleInput,
+    safeTextStyle,
+  );
   return (
-    <PdfText
-      style={composeStyles(
-        {
-          fontFamily: theme.fontFamily,
-          fontSize: theme.fontSize,
-          fontWeight: theme.boldWeight,
-          lineHeight: theme.lineHeight,
-          color: theme.color,
-        },
-        style as StyleInput,
-        safeTextStyle,
-      )}
-      {...props}
-    />
+    <PdfText style={composed} {...props}>
+      {renderRichChildren(children, composed)}
+    </PdfText>
   );
 };
 
 /** Petit texte atténué (légendes, sous-titres, stacks…). */
-export const Small = ({ style, ...props }: ComponentProps<typeof PdfText>) => {
+export const Small = ({ style, children, ...props }: TextLikeProps) => {
   const theme = usePdfTheme();
+  const composed = composeStyles(
+    {
+      fontFamily: theme.fontFamily,
+      fontSize: theme.fontSize * theme.smallScale,
+      lineHeight: theme.lineHeight,
+      color: theme.mutedColor,
+    },
+    style as StyleInput,
+    safeTextStyle,
+  );
   return (
-    <PdfText
-      style={composeStyles(
-        {
-          fontFamily: theme.fontFamily,
-          fontSize: theme.fontSize * theme.smallScale,
-          lineHeight: theme.lineHeight,
-          color: theme.mutedColor,
-        },
-        style as StyleInput,
-        safeTextStyle,
-      )}
-      {...props}
-    />
+    <PdfText style={composed} {...props}>
+      {renderRichChildren(children, composed)}
+    </PdfText>
   );
 };
 
-/** Lien (sans soulignage par défaut, cf. design des contacts de Kompyle). */
-export const Link = ({ style, ...props }: ComponentProps<typeof PdfLink>) => {
+/** Lien (sans soulignage par défaut, cf. design des contacts de Kompyle).
+ *  Sanitise toujours `src` (strip HTML) pour qu'un libellé formaté n'injecte
+ *  pas de balises dans l'URL, et rend le libellé en texte riche. */
+export const Link = ({ style, children, src, ...props }: LinkLikeProps) => {
   const theme = usePdfTheme();
+  const composed = composeLinkStyles(
+    { hideUnderline: true },
+    {
+      fontFamily: theme.fontFamily,
+      fontSize: theme.fontSize,
+      lineHeight: theme.lineHeight,
+      color: theme.color,
+    },
+    style as StyleInput,
+    safeTextStyle,
+  );
+  const cleanSrc = typeof src === "string" ? stripHtml(src) : src;
   return (
-    <PdfLink
-      style={composeLinkStyles(
-        { hideUnderline: true },
-        {
-          fontFamily: theme.fontFamily,
-          fontSize: theme.fontSize,
-          lineHeight: theme.lineHeight,
-          color: theme.color,
-        },
-        style as StyleInput,
-        safeTextStyle,
-      )}
-      {...props}
-    />
+    <PdfLink src={cleanSrc} style={composed} {...props}>
+      {renderRichChildren(children, composed)}
+    </PdfLink>
   );
 };
