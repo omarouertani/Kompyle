@@ -41,6 +41,13 @@
 	--sidebar-primary: oklch(0.5 0.21 277);
 	--sidebar-ring: oklch(0.5 0.21 277);
 	--sidebar: oklch(0.978 0.003 277);
+
+	/* Échelle de scoring ATS — dérivée du primaire (violet) et du destructive (rouge)
+	 * pour rester cohérente avec le thème de l'app (pas de vert/orange criards). */
+	--ats-excellent: var(--primary);
+	--ats-good: color-mix(in oklab, var(--primary) 55%, var(--accent-foreground) 45%);
+	--ats-warning: color-mix(in oklab, var(--destructive) 55%, var(--muted-foreground) 45%);
+	--ats-poor: var(--destructive);
 }
 
 .dark {
@@ -75,6 +82,11 @@
 	--sidebar-primary: oklch(0.74 0.14 277);
 	--sidebar-ring: oklch(0.74 0.14 277);
 	--sidebar: oklch(0.19 0.013 277);
+
+	--ats-excellent: var(--primary);
+	--ats-good: color-mix(in oklab, var(--primary) 60%, var(--accent-foreground) 40%);
+	--ats-warning: color-mix(in oklab, var(--destructive) 60%, var(--muted-foreground) 40%);
+	--ats-poor: var(--destructive);
 }
 
 @theme inline {
@@ -270,6 +282,54 @@
 		}
 		100% {
 			transform: translateX(350%);
+		}
+	}
+
+	/* Effet "diamant" sur un bouton — utilisé pour ATTIRER l'œil sur une action
+	 * jamais réalisée (ex: bouton ATS Check pas encore lancé sur cette version
+	 * de CV). Une fois la fonctionnalité utilisée, retire la classe `.shine-diamond`
+	 * pour que le bouton redevienne neutre. */
+	.shine-diamond {
+		position: relative;
+		overflow: hidden;
+		isolation: isolate;
+		box-shadow:
+			0 0 0 0 color-mix(in oklab, var(--primary) 35%, transparent),
+			0 0 14px 0 color-mix(in oklab, var(--primary) 25%, transparent);
+		animation: shine-pulse 2.4s ease-in-out infinite;
+	}
+
+	.shine-diamond::after {
+		content: "";
+		position: absolute;
+		inset: 0;
+		pointer-events: none;
+		background: linear-gradient(
+			115deg,
+			transparent 30%,
+			color-mix(in oklab, var(--primary-foreground) 70%, transparent) 50%,
+			transparent 70%
+		);
+		transform: translateX(-150%);
+		animation: shine-sweep 2.6s ease-in-out infinite;
+	}
+
+	@keyframes shine-sweep {
+		0%, 35% { transform: translateX(-150%); }
+		60% { transform: translateX(150%); }
+		100% { transform: translateX(150%); }
+	}
+
+	@keyframes shine-pulse {
+		0%, 100% {
+			box-shadow:
+				0 0 0 0 color-mix(in oklab, var(--primary) 35%, transparent),
+				0 0 14px 0 color-mix(in oklab, var(--primary) 25%, transparent);
+		}
+		50% {
+			box-shadow:
+				0 0 0 4px color-mix(in oklab, var(--primary) 10%, transparent),
+				0 0 24px 2px color-mix(in oklab, var(--primary) 35%, transparent);
 		}
 	}
 }

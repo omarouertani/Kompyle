@@ -203,3 +203,44 @@ export interface GenerateCoverLetterResponse {
   coverLetter: CoverLetterData;
   provider: AIProvider;
 }
+
+// ─── ATS Checker ────────────────────────────────────────────────────────────
+
+export type ATSSectionStatus = "good" | "warning" | "missing";
+
+export interface ATSSectionFeedback {
+  section: string;
+  status: ATSSectionStatus;
+  feedback: string;
+}
+
+export interface ATSSubScores {
+  keywords: number;
+  skills: number;
+  experience: number;
+  formatting: number;
+}
+
+export interface ATSReport {
+  overallScore: number;
+  scoreLabel: string;
+  summary: string;
+  subScores: ATSSubScores;
+  matchedKeywords: string[];
+  missingKeywords: string[];
+  sectionFeedback: ATSSectionFeedback[];
+  strengths: string[];
+  recommendations: string[];
+}
+
+export interface ATSCheckRequest {
+  jobDescription: string;
+  cvData: CVData;
+  provider?: AIProvider;
+  model?: string;
+}
+
+export interface ATSCheckResponse {
+  report: ATSReport;
+  provider: AIProvider;
+}

@@ -6,7 +6,7 @@ import CVInteractiveCanvas from "./CVInteractiveCanvas";
 import AIAdaptOverlay from "./AIAdaptOverlay";
 import type { CVData } from "@/types/cv";
 import { normalizeTemplate } from "@/lib/cv-layout";
-import { Download, Loader2, LayoutPanelLeft, History, AlertTriangle, LayoutTemplate, Trash2 } from "lucide-react";
+import { Download, Loader2, LayoutPanelLeft, History, AlertTriangle, LayoutTemplate, Trash2, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { cn } from "@/lib/utils";
@@ -38,6 +38,11 @@ interface CVPreviewProps {
   currentProfileId?: string | null;
   onVersionChange?: (id: string) => void;
   onDeleteVersion?: (id: string) => void | Promise<void | boolean>;
+  /** Ouvre le panneau ATS Checker sur le CV actuellement sélectionné. */
+  onOpenATS?: () => void;
+  /** Si true, applique l'effet diamant au bouton ATS pour attirer l'œil
+   *  (jamais audité pour cette version de CV). */
+  atsButtonShine?: boolean;
 }
 
 /**
@@ -122,6 +127,8 @@ export default function CVPreview({
   currentProfileId = null,
   onVersionChange,
   onDeleteVersion,
+  onOpenATS,
+  atsButtonShine = false,
 }: CVPreviewProps) {
   const t = useTranslations("CVPreview");
   const [sideBySide, setSideBySide] = useState(false);
@@ -271,6 +278,23 @@ export default function CVPreview({
                   title={t("delete_version_tooltip")}
                 >
                   <Trash2 size={15} />
+                </Button>
+              )}
+              {onOpenATS && (
+                <Button
+                  variant={atsButtonShine ? "default" : "outline"}
+                  size="sm"
+                  onClick={onOpenATS}
+                  className={cn(
+                    "h-9 px-3 gap-1.5 text-xs font-semibold shrink-0 rounded-lg",
+                    atsButtonShine
+                      ? "shine-diamond bg-gradient-to-b from-primary to-primary/90 text-primary-foreground shadow-md shadow-primary/30"
+                      : "text-primary border-primary/30 hover:bg-primary/5 hover:border-primary/50",
+                  )}
+                  title={t("ats_button_tooltip")}
+                >
+                  <ShieldCheck size={14} />
+                  {t("ats_button")}
                 </Button>
               )}
             </div>

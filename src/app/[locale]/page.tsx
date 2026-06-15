@@ -24,7 +24,10 @@ import {
   X,
   Pencil,
   Trash2,
+  ShieldCheck,
 } from "lucide-react";
+import { ATSChecker } from "@/components/cv/ats/ATSChecker";
+import { useATSCheckedVersions } from "@/hooks/use-ats-checked-versions";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -71,7 +74,7 @@ function LoadingSpinner({ type }: { type: "cv" | "letter" }) {
 }
 
 type LeftTab = "ai" | "cv-builder" | "letter-builder";
-type RightTab = "cv" | "letter";
+type RightTab = "cv" | "letter" | "ats";
 
 const initialCoverLetter: CoverLetterData = {
   recipientName: "",
@@ -95,6 +98,8 @@ export default function AdaptPage() {
 
   const [activeLeftTab, setActiveLeftTab] = useState<LeftTab>("ai");
   const [activeRightTab, setActiveRightTab] = useState<RightTab>("cv");
+  /** Compteur incrémenté pour redéclencher l'ouverture du dialog ATS. */
+  const [atsTriggerKey, setAtsTriggerKey] = useState(0);
   const [jobDescription, setJobDescription] = useState("");
   const [refineInstruction, setRefineInstruction] = useState("");
   const [refineHistory, setRefineHistory] = useState<string[]>([]);
@@ -142,6 +147,24 @@ export default function AdaptPage() {
     if (!ok) setProfileActionError(tp("delete_error"));
   };
   const aiConfig = useAIProviderConfig();
+  const atsChecked = useATSCheckedVersions();
+
+  // ID de la version de CV affichée (CV principal ou adaptation sélectionnée).
+  const currentCvVersionId = profile.currentProfileId ?? profile.mainProfileId ?? null;
+
+  // « Prénom Nom — Titre · nom-de-version » : ce que l'utilisateur reconnaît
+  // dans le sélecteur de versions et le menu de profil, pas un identifiant DB.
+  const cvDisplayName = (() => {
+    const pi = profile.currentCV.personalInfo;
+    const fullName = pi.name?.trim() || tp("active_label");
+    const role = pi.role?.trim();
+    const isAdaptation = !!profile.currentProfileId && profile.currentProfileId !== profile.mainProfileId;
+    const versionName = isAdaptation
+      ? profile.versions.find((v) => v.id === profile.currentProfileId)?.name
+      : tr("tab_cv");
+    const head = role ? `${fullName} — ${role}` : fullName;
+    return versionName ? `${head} · ${versionName}` : head;
+  })();
 
   const { handleAdaptCV, handleGenerateLetter, handleRefineCV, handleRefineLetter } = useAISubmission({
     jobDescription,
@@ -564,7 +587,7 @@ export default function AdaptPage() {
             </Button>
 
             <Tabs value={activeRightTab} onValueChange={(v) => setActiveRightTab(v as RightTab)}>
-              <TabsList className="w-[320px]">
+              <TabsList className="w-[420px]">
                 <TabsTrigger value="cv" className="flex-1 gap-1.5">
                   <FileText size={14} />
                   {tr("tab_cv")}
@@ -573,12 +596,16 @@ export default function AdaptPage() {
                   <Mail size={14} />
                   {tr("tab_letter")}
                 </TabsTrigger>
+                <TabsTrigger value="ats" className="flex-1 gap-1.5">
+                  <ShieldCheck size={14} />
+                  {tr("tab_ats")}
+                </TabsTrigger>
               </TabsList>
             </Tabs>
           </div>
 
           <div className="flex-1 overflow-hidden p-5 flex flex-col">
-            {activeRightTab === "cv" ? (
+            {activeRightTab === "cv" && (
               <CVPreview
                 data={profile.currentCV}
                 onChange={profile.setCurrentCV}
@@ -591,12 +618,33 @@ export default function AdaptPage() {
                 currentProfileId={profile.currentProfileId}
                 onVersionChange={profile.selectVersion}
                 onDeleteVersion={profile.deleteVersion}
+                onOpenATS={() => {
+                  setActiveRightTab("ats");
+                  setAtsTriggerKey((k) => k + 1);
+                }}
+                atsButtonShine={!atsChecked.isChecked(currentCvVersionId)}
               />
-            ) : (
+            )}
+
+            {activeRightTab === "letter" && (
               <CoverLetterPreview
                 data={profile.coverLetterData || initialCoverLetter}
                 personalInfo={profile.currentCV.personalInfo}
                 isAdapting={profile.loadingType === "letter"}
+              />
+            )}
+
+            {activeRightTab === "ats" && (
+              <ATSChecker
+                cvData={profile.currentCV}
+                cvDisplayName={cvDisplayName}
+                cvVersionId={currentCvVersionId}
+                jobDescription={jobDescription}
+                provider={aiConfig.provider}
+                model={aiConfig.model}
+                triggerKey={atsTriggerKey}
+                onChecked={atsChecked.markChecked}
+                onApplyRefinedCV={profile.setCurrentCV}
               />
             )}
           </div>

@@ -7,9 +7,75 @@ const DEFAULT_MODELS: Record<AIProvider, string> = {
   mistral: "mistral-large-2512",
 };
 
+/** Catégorise la raison d'échec d'un appel provider, pour pouvoir guider
+ *  l'utilisateur (clé API manquante, quota épuisé, panne, …). */
+export type ProviderFailureReason =
+  | "missing_key"
+  | "auth"
+  | "rate_limit"
+  | "quota"
+  | "timeout"
+  | "network"
+  | "server"
+  | "empty"
+  | "unknown";
+
+export interface ProviderFailure {
+  provider: AIProvider;
+  reason: ProviderFailureReason;
+  message: string;
+}
+
 export interface CallWithFallbackResult {
   text: string;
   provider: AIProvider;
+  /** Providers tentés et tombés en panne avant celui qui a réussi (ordre chronologique). */
+  failures: ProviderFailure[];
+}
+
+/** Erreur enrichie : on connaît PRÉCISÉMENT pourquoi chaque provider a planté. */
+export class AllProvidersFailedError extends Error {
+  failures: ProviderFailure[];
+  constructor(failures: ProviderFailure[]) {
+    super(
+      failures.length === 0
+        ? "All AI providers failed."
+        : `All AI providers failed — ${failures.map((f) => `${f.provider}: ${f.reason}`).join(" · ")}`,
+    );
+    this.name = "AllProvidersFailedError";
+    this.failures = failures;
+  }
+}
+
+function classifyFailure(provider: AIProvider, err: unknown): ProviderFailure {
+  const msg = err instanceof Error ? err.message : String(err ?? "Unknown error");
+  const lower = msg.toLowerCase();
+
+  if (lower.includes("api_key") || lower.includes("api key") || lower.includes("not set in environment")) {
+    return { provider, reason: "missing_key", message: msg };
+  }
+  if (lower.includes("401") || lower.includes("unauthorized") || lower.includes("invalid api key") || lower.includes("authentication")) {
+    return { provider, reason: "auth", message: msg };
+  }
+  if (lower.includes("429") || lower.includes("rate limit") || lower.includes("too many requests")) {
+    return { provider, reason: "rate_limit", message: msg };
+  }
+  if (lower.includes("quota") || lower.includes("billing") || lower.includes("exceeded") || lower.includes("insufficient_quota")) {
+    return { provider, reason: "quota", message: msg };
+  }
+  if (lower.includes("timeout") || lower.includes("etimedout") || lower.includes("abort")) {
+    return { provider, reason: "timeout", message: msg };
+  }
+  if (lower.includes("network") || lower.includes("fetch failed") || lower.includes("enotfound") || lower.includes("econnreset")) {
+    return { provider, reason: "network", message: msg };
+  }
+  if (lower.includes("500") || lower.includes("502") || lower.includes("503") || lower.includes("504")) {
+    return { provider, reason: "server", message: msg };
+  }
+  if (lower.includes("empty response")) {
+    return { provider, reason: "empty", message: msg };
+  }
+  return { provider, reason: "unknown", message: msg };
 }
 
 export async function callWithFallback(
@@ -23,7 +89,7 @@ export async function callWithFallback(
     if (!providersToTry.includes(p)) providersToTry.push(p);
   }
 
-  let lastError: unknown = null;
+  const failures: ProviderFailure[] = [];
 
   for (const p of providersToTry) {
     try {
@@ -38,14 +104,13 @@ export async function callWithFallback(
         text = await callGemini(systemPrompt, userPrompt, modelToUse);
       }
 
-      return { text, provider: p };
+      return { text, provider: p, failures };
     } catch (err) {
-      console.warn(`Provider ${p} failed, trying next fallback...`, err);
-      lastError = err;
+      const f = classifyFailure(p, err);
+      console.warn(`Provider ${p} failed (${f.reason}):`, f.message);
+      failures.push(f);
     }
   }
 
-  throw new Error(
-    `All AI providers failed. Last error: ${lastError instanceof Error ? lastError.message : "Unknown error"}`
-  );
+  throw new AllProvidersFailedError(failures);
 }

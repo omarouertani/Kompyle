@@ -3,7 +3,7 @@ import type { RefineCVRequest, RefineCVResponse, CVData } from "@/types/cv";
 import { z } from "zod";
 import { resumeSchema, formatZodIssues } from "@/schemas/resumeSchema";
 import { extractAndValidate } from "@/utils/ai-helpers";
-import { callWithFallback } from "@/lib/ai-orchestrator";
+import { callWithFallback, AllProvidersFailedError } from "@/lib/ai-orchestrator";
 import { checkRateLimit } from "@/lib/rate-limiter";
 
 // ─── System Prompt ──────────────────────────────────────────────────────────
@@ -116,7 +116,17 @@ Apply this instruction surgically and return only the modified JSON.`;
     try {
       result = await callWithFallback(SYSTEM_PROMPT, userPrompt, provider, model);
     } catch (err) {
-      console.error("All AI providers failed.");
+      console.error("All AI providers failed (refine-cv).");
+      if (err instanceof AllProvidersFailedError) {
+        return Response.json(
+          {
+            error: "All AI providers failed.",
+            details: err.failures.map((f) => `${f.provider}: ${f.reason}`),
+            failures: err.failures,
+          },
+          { status: 502 }
+        );
+      }
       return Response.json(
         {
           error: "All AI providers failed. Check your API keys and configuration.",
