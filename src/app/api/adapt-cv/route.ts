@@ -6,6 +6,7 @@ import { extractAndValidate } from "@/utils/ai-helpers";
 import { callWithFallback } from "@/lib/ai-orchestrator";
 import { checkRateLimit } from "@/lib/rate-limiter";
 import { SECTION_LABELS_EN } from "@/lib/cv-layout";
+import { calculateTotalExperience } from "@/lib/cv-analysis";
 
 // ─── System Prompt ──────────────────────────────────────────────────────────
 
@@ -93,39 +94,6 @@ It failed strict schema validation with these errors:
 ${issues.map((issue) => `- ${issue}`).join("\n")}
 
 Return ONLY a corrected raw JSON object that fixes these errors and fully respects the schema and all rules above. No markdown, no commentary.`;
-}
-
-// Calcule la durée totale d'expérience (en années) à partir des champs `date`
-// des expériences. On le fait en TypeScript et on l'IMPOSE à l'IA pour éviter
-// qu'elle hallucine ce nombre (cf. SYSTEM_PROMPT, "NO MATH HALLUCINATIONS").
-// Les périodes au format "Start - End" sont additionnées ; "Present" /
-// "Aujourd'hui" est interprété comme la date du jour. Les dates non parsables
-// sont ignorées silencieusement.
-function calculateTotalExperience(experiences: { date?: string }[]): number {
-  if (!experiences || experiences.length === 0) return 0;
-
-  let totalMonths = 0;
-  experiences.forEach((exp) => {
-    try {
-      const parts = (exp.date ?? "").split(" - ");
-      if (parts.length !== 2) return;
-
-      const start = new Date(parts[0]);
-      const endStr = parts[1].trim();
-      const end =
-        endStr.toLowerCase() === "present" || endStr.toLowerCase() === "aujourd'hui"
-          ? new Date()
-          : new Date(endStr);
-
-      if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
-        totalMonths += (end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24 * 30.44);
-      }
-    } catch {
-      // Ignorer silencieusement les formats de date non parsables
-    }
-  });
-
-  return Math.round((totalMonths / 12) * 10) / 10;
 }
 
 // Détecte si une offre est rédigée en anglais ou en français, par fréquence de
