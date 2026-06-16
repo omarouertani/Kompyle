@@ -2,9 +2,10 @@
 
 import { useTranslations } from "next-intl";
 import { Check, X } from "lucide-react";
+import type { ATSMatchedKeyword } from "@/types/cv";
 
 interface ATSKeywordsProps {
-  matched: string[];
+  matched: ATSMatchedKeyword[];
   missing: string[];
 }
 
@@ -16,7 +17,7 @@ export function ATSKeywords({ matched, missing }: ATSKeywordsProps) {
       <KeywordColumn
         title={t("matched_title")}
         subtitle={t("matched_subtitle", { count: String(matched.length) })}
-        items={matched}
+        items={matched.map((kw) => ({ label: kw.term, hint: kw.foundInSection }))}
         icon={<Check size={12} />}
         tone="positive"
         emptyLabel={t("matched_empty")}
@@ -24,7 +25,7 @@ export function ATSKeywords({ matched, missing }: ATSKeywordsProps) {
       <KeywordColumn
         title={t("missing_title")}
         subtitle={t("missing_subtitle", { count: String(missing.length) })}
-        items={missing}
+        items={missing.map((kw) => ({ label: kw }))}
         icon={<X size={12} />}
         tone="negative"
         emptyLabel={t("missing_empty")}
@@ -33,10 +34,16 @@ export function ATSKeywords({ matched, missing }: ATSKeywordsProps) {
   );
 }
 
+interface KeywordChip {
+  label: string;
+  /** Preuve contextuelle (foundInSection) affichée au survol pour les mots-clés trouvés. */
+  hint?: string;
+}
+
 interface ColumnProps {
   title: string;
   subtitle: string;
-  items: string[];
+  items: KeywordChip[];
   icon: React.ReactNode;
   tone: "positive" | "negative";
   emptyLabel: string;
@@ -64,12 +71,13 @@ function KeywordColumn({ title, subtitle, items, icon, tone, emptyLabel }: Colum
         <div className="flex flex-wrap gap-2">
           {items.map((kw, i) => (
             <span
-              key={`${kw}-${i}`}
+              key={`${kw.label}-${i}`}
+              title={kw.hint}
               className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium"
               style={chipStyle}
             >
               {icon}
-              {kw}
+              {kw.label}
             </span>
           ))}
         </div>

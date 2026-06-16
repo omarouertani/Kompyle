@@ -78,12 +78,20 @@ function classifyFailure(provider: AIProvider, err: unknown): ProviderFailure {
   return { provider, reason: "unknown", message: msg };
 }
 
+export interface CallWithFallbackOptions {
+  /** Température transmise à tous les providers. Bas (0–0.1) = extraction factuelle
+   *  déterministe (ATS) ; plus haut = plus de créativité (rédaction). Défaut 0.3. */
+  temperature?: number;
+}
+
 export async function callWithFallback(
   systemPrompt: string,
   userPrompt: string,
   preferredProvider: AIProvider = "gemini",
-  model?: string
+  model?: string,
+  options?: CallWithFallbackOptions
 ): Promise<CallWithFallbackResult> {
+  const temperature = options?.temperature ?? 0.3;
   const providersToTry: AIProvider[] = [preferredProvider];
   for (const p of ["gemini", "groq", "mistral"] as AIProvider[]) {
     if (!providersToTry.includes(p)) providersToTry.push(p);
@@ -97,11 +105,11 @@ export async function callWithFallback(
       let text: string;
 
       if (p === "groq") {
-        text = await callGroq(systemPrompt, userPrompt, modelToUse);
+        text = await callGroq(systemPrompt, userPrompt, modelToUse, temperature);
       } else if (p === "mistral") {
-        text = await callMistral(systemPrompt, userPrompt, modelToUse);
+        text = await callMistral(systemPrompt, userPrompt, modelToUse, temperature);
       } else {
-        text = await callGemini(systemPrompt, userPrompt, modelToUse);
+        text = await callGemini(systemPrompt, userPrompt, modelToUse, temperature);
       }
 
       return { text, provider: p, failures };

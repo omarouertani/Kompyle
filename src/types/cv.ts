@@ -221,12 +221,19 @@ export interface ATSSubScores {
   formatting: number;
 }
 
+/** Mot-clé trouvé dans le CV, accompagné de la preuve de son emplacement. */
+export interface ATSMatchedKeyword {
+  term: string;
+  /** Emplacement exact où le terme a été trouvé (ex: "skills.items", "projects.stack"). */
+  foundInSection: string;
+}
+
 export interface ATSReport {
   overallScore: number;
   scoreLabel: string;
   summary: string;
   subScores: ATSSubScores;
-  matchedKeywords: string[];
+  matchedKeywords: ATSMatchedKeyword[];
   missingKeywords: string[];
   sectionFeedback: ATSSectionFeedback[];
   strengths: string[];
