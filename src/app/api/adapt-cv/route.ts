@@ -6,7 +6,8 @@ import { extractAndValidate } from "@/utils/ai-helpers";
 import { callWithFallback } from "@/lib/ai-orchestrator";
 import { checkRateLimit } from "@/lib/rate-limiter";
 import { SECTION_LABELS_EN } from "@/lib/cv-layout";
-import { calculateTotalExperience } from "@/lib/cv-analysis";
+import { describeExperienceForPrompt } from "@/lib/cv-analysis";
+import { cvForAiPrompt } from "@/lib/cv-payload";
 
 // ─── System Prompt ──────────────────────────────────────────────────────────
 
@@ -151,19 +152,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Strip the layout before sending to the AI: it's user-controlled, not the
-    // model's concern, and omitting it saves tokens + avoids any tampering.
-    const { layout: _layout, ...cvForAi } = cvData;
+    // Layout (piloté par l'utilisateur) ET photo (image volumineuse) retirés avant
+    // l'envoi à l'IA : économie de tokens, et la photo est ré-imposée à la sortie.
+    const cvForAi = cvForAiPrompt(cvData);
 
-    // Expérience totale calculée en TS et imposée à l'IA (anti-hallucination).
-    const totalYears = calculateTotalExperience(cvData.experiences);
+    // Durées d'expérience calculées en TS et imposées à l'IA (anti-hallucination).
+    const experienceBlock = describeExperienceForPrompt(cvData.experiences);
 
     // Build the user prompt
     const userPrompt = `## TARGET JOB POSTING:
 ${jobDescription}
 
 ## CANDIDATE'S ACTUAL EXPERIENCE LIMITS (DO NOT INVENT):
-- Total Professional Experience: EXACTLY ${totalYears} years.
+${experienceBlock}
 - If the job requires more years, DO NOT lie. Highlight intensity, fast learning, and high-impact projects instead.
 
 ## CURRENT CV (JSON):

@@ -49,7 +49,19 @@
   "AIAdapt": {
     "adapting_cv": "AI is working on your CV…",
     "adapting_letter": "AI is writing your letter…",
-    "hint": "This may take a few seconds depending on the selected model."
+    "adapting_ats": "Adapting your CV to the ATS report…",
+    "progress_label": "AI progress",
+    "hint": "This may take a few seconds depending on the selected model.",
+    "toast_cv_success": "Your CV has been adapted",
+    "toast_letter_success": "Your cover letter is ready",
+    "toast_refine_success": "Changes applied",
+    "toast_ats_adapt_success": "CV adapted to the ATS report"
+  },
+  "DatePicker": {
+    "placeholder": "Add dates",
+    "start": "Start",
+    "end": "End",
+    "current": "I currently work here"
   },
   "Profiles": {
     "active_label": "Active profile:",

@@ -49,7 +49,19 @@
   "AIAdapt": {
     "adapting_cv": "L'IA travaille sur votre CV…",
     "adapting_letter": "L'IA rédige votre lettre…",
-    "hint": "Cela peut prendre quelques secondes selon le modèle choisi."
+    "adapting_ats": "Adaptation de votre CV au rapport ATS…",
+    "progress_label": "Progression de l'IA",
+    "hint": "Cela peut prendre quelques secondes selon le modèle choisi.",
+    "toast_cv_success": "Votre CV a été adapté",
+    "toast_letter_success": "Votre lettre de motivation est prête",
+    "toast_refine_success": "Modifications appliquées",
+    "toast_ats_adapt_success": "CV adapté au rapport ATS"
+  },
+  "DatePicker": {
+    "placeholder": "Ajouter les dates",
+    "start": "Début",
+    "end": "Fin",
+    "current": "J'occupe toujours ce poste"
   },
   "Profiles": {
     "active_label": "Profil actif :",

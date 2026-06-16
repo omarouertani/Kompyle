@@ -5,6 +5,7 @@ import type { CVData, CVTheme, Experience, Project, Education, SkillGroup, Skill
 import { cn } from "@/lib/utils";
 import { Trash2, PlusCircle } from "lucide-react";
 import { EditableText, ptsToPx } from "../cv-canvas-primitives";
+import { ExperienceDatePicker } from "../ExperienceDatePicker";
 import { CanvasSectionHeading } from "../canvas-section-heading";
 import { getSectionLabel, renameSection } from "@/lib/cv-layout";
 
@@ -311,7 +312,12 @@ export function BlockContent({ blockId, data, theme, onChange }: BlockContentPro
             <span className="text-zinc-400 mx-1">—</span>
             <EditableText value={exp.org} onChange={(v) => updateExperience(idx, "org", v)} placeholder="Entreprise" style={{ fontSize: toPx(baseFontSize + 0.5), color: primaryColor !== "#1a1a1a" ? primaryColor : undefined }} />
           </div>
-          <EditableText value={exp.date} onChange={(v) => updateExperience(idx, "date", v)} placeholder="Date" className="text-zinc-500 font-medium shrink-0" style={{ fontSize: toPx(baseFontSize - 1.5) }} />
+          <ExperienceDatePicker
+            value={exp.date}
+            onChange={(v) => updateExperience(idx, "date", v)}
+            triggerClassName="text-zinc-500 font-medium shrink-0 px-0.5 hover:bg-primary/5 hover:ring-1 hover:ring-primary/10 cursor-pointer"
+            triggerStyle={{ fontSize: toPx(baseFontSize - 1.5) }}
+          />
         </div>
         <ul className="flex flex-col list-none pl-0" style={{ marginTop: 0, gap: ptsToPx(1) }}>
           {exp.bullets.map((bullet, bulletIdx) => (

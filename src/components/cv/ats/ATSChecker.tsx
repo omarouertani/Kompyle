@@ -7,6 +7,7 @@ import type { AIProvider, CVData } from "@/types/cv";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { useATSCheck } from "@/hooks/use-ats-check";
+import AIProgressOverlay from "@/components/cv/AIProgressOverlay";
 import { ATSEmptyState } from "./ATSEmptyState";
 import { ATSSkeleton } from "./ATSSkeleton";
 import { ATSResultsView } from "./ATSResultsView";
@@ -50,6 +51,8 @@ export function ATSChecker({
   onApplyRefinedCV,
 }: ATSCheckerProps) {
   const t = useTranslations("ATS");
+  const tAdapt = useTranslations("AIAdapt");
+  const [adapting, setAdapting] = useState(false);
   const {
     status,
     report,
@@ -92,7 +95,7 @@ export function ATSChecker({
   const openDialog = useCallback(() => setDialogOpen(true), []);
 
   return (
-    <div className="flex-1 flex flex-col h-full w-full min-h-0">
+    <div className="relative flex-1 flex flex-col h-full w-full min-h-0">
       {/* Toolbar */}
       <div className="flex items-center justify-between gap-3 shrink-0 mb-4 flex-wrap">
         <div className="flex items-center gap-2.5 min-w-0">
@@ -155,6 +158,7 @@ export function ATSChecker({
               jobDescription={lastJobDescription || jobDescription}
               report={report}
               onApplied={onApplyRefinedCV}
+              onAdaptingChange={setAdapting}
             />
           </div>
         )}
@@ -166,6 +170,8 @@ export function ATSChecker({
         existingJobDescription={lastJobDescription || jobDescription}
         onConfirm={handleConfirm}
       />
+
+      <AIProgressOverlay active={adapting} title={tAdapt("adapting_ats")} />
     </div>
   );
 }

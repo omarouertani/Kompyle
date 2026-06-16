@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import { AlertTriangle } from "lucide-react";
 import { PDFViewer, pdf } from "@react-pdf/renderer";
 import CoverLetterTemplate from "./CoverLetterTemplate";
-import AIAdaptOverlay from "./AIAdaptOverlay";
+import AIProgressOverlay from "./AIProgressOverlay";
 import type { CoverLetterData, PersonalInfo } from "@/types/cv";
 import { Download, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -25,6 +25,7 @@ export default function CoverLetterPreview({
   isAdapting = false,
 }: CoverLetterPreviewProps) {
   const t = useTranslations("LetterPreview");
+  const tAdapt = useTranslations("AIAdapt");
   const [isDownloading, setIsDownloading] = useState(false);
   const [downloadError, setDownloadError] = useState(false);
   // true côté client uniquement (les viewers PDF ne supportent pas le SSR)
@@ -92,7 +93,7 @@ export default function CoverLetterPreview({
             </PDFViewer>
           )}
         </div>
-        {isAdapting && <AIAdaptOverlay type="letter" />}
+        <AIProgressOverlay active={isAdapting} title={tAdapt("adapting_letter")} />
       </div>
     </div>
   );

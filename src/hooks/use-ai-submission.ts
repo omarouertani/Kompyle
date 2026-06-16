@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback } from "react";
+import { toast } from "sonner";
 import type { CVData, AIProvider, CoverLetterData } from "@/types/cv";
 import type { Status } from "./use-profile-manager";
 
@@ -51,6 +52,8 @@ interface UseAISubmissionDeps {
   setStatusDetails: (d: string | string[] | null) => void;
   setLoadingType: (t: "cv" | "letter" | null) => void;
   t: (key: string, values?: Record<string, string>) => string;
+  /** Traductions du namespace AIAdapt (libellés de toasts de succès). */
+  tAdapt: (key: string, values?: Record<string, string>) => string;
 }
 
 export function useAISubmission(deps: UseAISubmissionDeps) {
@@ -58,7 +61,7 @@ export function useAISubmission(deps: UseAISubmissionDeps) {
     jobDescription, provider, model, currentCV, coverLetterData, locale, selectedProfile, selectedTemplate,
     getProviderName,
     applyAdaptation, setCurrentCV, setCoverLetterData,
-    setActiveRightTab, setStatus, setStatusMessage, setStatusDetails, setLoadingType, t,
+    setActiveRightTab, setStatus, setStatusMessage, setStatusDetails, setLoadingType, t, tAdapt,
   } = deps;
 
   const handleAdaptCV = useCallback(async () => {
@@ -108,6 +111,7 @@ export function useAISubmission(deps: UseAISubmissionDeps) {
         setActiveRightTab("cv");
         setStatus("success");
         setStatusMessage(t("status_success_cv", { provider: getProviderName(data.provider) }));
+        toast.success(tAdapt("toast_cv_success"));
       }
     } catch (err) {
       setStatus("error");
@@ -117,7 +121,7 @@ export function useAISubmission(deps: UseAISubmissionDeps) {
     } finally {
       setLoadingType(null);
     }
-  }, [jobDescription, provider, model, currentCV, locale, selectedProfile, selectedTemplate, t, setActiveRightTab, getProviderName, applyAdaptation, setStatus, setStatusMessage, setStatusDetails, setLoadingType]);
+  }, [jobDescription, provider, model, currentCV, locale, selectedProfile, selectedTemplate, t, tAdapt, setActiveRightTab, getProviderName, applyAdaptation, setStatus, setStatusMessage, setStatusDetails, setLoadingType]);
 
   const handleGenerateLetter = useCallback(async () => {
     if (!jobDescription.trim() || jobDescription.trim().length < 20) {
@@ -146,6 +150,7 @@ export function useAISubmission(deps: UseAISubmissionDeps) {
       setActiveRightTab("letter");
       setStatus("success");
       setStatusMessage(t("status_success_letter", { provider: getProviderName(data.provider) }));
+      toast.success(tAdapt("toast_letter_success"));
     } catch (err) {
       setStatus("error");
       const e = err as { error?: string; message?: string; details?: string | string[] };
@@ -154,7 +159,7 @@ export function useAISubmission(deps: UseAISubmissionDeps) {
     } finally {
       setLoadingType(null);
     }
-  }, [jobDescription, provider, model, currentCV, t, setActiveRightTab, getProviderName, setCoverLetterData, setStatus, setStatusMessage, setStatusDetails, setLoadingType]);
+  }, [jobDescription, provider, model, currentCV, t, tAdapt, setActiveRightTab, getProviderName, setCoverLetterData, setStatus, setStatusMessage, setStatusDetails, setLoadingType]);
 
   /** Modification ciblée du CV courant (même version — pas une nouvelle copie). */
   const handleRefineCV = useCallback(async (instruction: string): Promise<boolean> => {
@@ -190,6 +195,7 @@ export function useAISubmission(deps: UseAISubmissionDeps) {
       setCurrentCV(data.refinedCV);
       setStatus("success");
       setStatusMessage(t("status_success_refine", { provider: getProviderName(data.provider) }));
+      toast.success(tAdapt("toast_refine_success"));
       return true;
     } catch (err) {
       setStatus("error");
@@ -200,7 +206,7 @@ export function useAISubmission(deps: UseAISubmissionDeps) {
     } finally {
       setLoadingType(null);
     }
-  }, [jobDescription, provider, model, currentCV, t, setActiveRightTab, getProviderName, setCurrentCV, setStatus, setStatusMessage, setStatusDetails, setLoadingType]);
+  }, [jobDescription, provider, model, currentCV, t, tAdapt, setActiveRightTab, getProviderName, setCurrentCV, setStatus, setStatusMessage, setStatusDetails, setLoadingType]);
 
   /** Modification ciblée de la lettre courante. */
   const handleRefineLetter = useCallback(async (instruction: string): Promise<boolean> => {
@@ -236,6 +242,7 @@ export function useAISubmission(deps: UseAISubmissionDeps) {
       setCoverLetterData(data.coverLetter);
       setStatus("success");
       setStatusMessage(t("status_success_refine", { provider: getProviderName(data.provider) }));
+      toast.success(tAdapt("toast_refine_success"));
       return true;
     } catch (err) {
       setStatus("error");
@@ -246,7 +253,7 @@ export function useAISubmission(deps: UseAISubmissionDeps) {
     } finally {
       setLoadingType(null);
     }
-  }, [jobDescription, provider, model, coverLetterData, t, setActiveRightTab, getProviderName, setCoverLetterData, setStatus, setStatusMessage, setStatusDetails, setLoadingType]);
+  }, [jobDescription, provider, model, coverLetterData, t, tAdapt, setActiveRightTab, getProviderName, setCoverLetterData, setStatus, setStatusMessage, setStatusDetails, setLoadingType]);
 
   return { handleAdaptCV, handleGenerateLetter, handleRefineCV, handleRefineLetter };
 }

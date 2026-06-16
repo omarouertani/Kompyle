@@ -6,7 +6,8 @@ import { atsReportSchema } from "@/schemas/atsSchema";
 import { extractAndValidate } from "@/utils/ai-helpers";
 import { callWithFallback, AllProvidersFailedError } from "@/lib/ai-orchestrator";
 import { checkRateLimit } from "@/lib/rate-limiter";
-import { calculateTotalExperience } from "@/lib/cv-analysis";
+import { describeExperienceForPrompt } from "@/lib/cv-analysis";
+import { cvForAiPrompt } from "@/lib/cv-payload";
 
 // Schéma JSON canonique injecté dans le prompt — l'IA voit la forme exacte attendue.
 let ATS_SCHEMA_JSON = "";
@@ -99,18 +100,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Layout user-controlled — pas envoyé à l'IA (économie tokens + zéro intérêt analytique).
-    const { layout: _layout, ...cvForAi } = cvData;
+    // Layout + photo retirés avant l'envoi à l'IA (économie tokens, zéro intérêt analytique).
+    const cvForAi = cvForAiPrompt(cvData);
 
-    // Expérience totale calculée en TS et IMPOSÉE à l'IA (anti-hallucination).
-    const totalYears = calculateTotalExperience(cvData.experiences);
+    // Durées d'expérience calculées en TS et IMPOSÉES à l'IA (anti-hallucination) :
+    // total + détail par poste, pour comparer l'expérience réelle aux exigences de l'offre.
+    const experienceBlock = describeExperienceForPrompt(cvData.experiences);
 
     const userPrompt = `## TARGET JOB POSTING:
 ${jobDescription}
 
 ## CANDIDATE'S ACTUAL EXPERIENCE (computed, DO NOT recalculate):
-- Total Professional Experience: EXACTLY ${totalYears} years.
-- When scoring "experience" and writing recommendations, use ONLY this number — do not infer years yourself.
+${experienceBlock}
+- When scoring "experience" and writing recommendations, use ONLY these computed durations — never infer years yourself. Compare them against any seniority/years requirement in the posting.
 
 ## CANDIDATE'S CV (JSON):
 ${JSON.stringify(cvForAi, null, 2)}

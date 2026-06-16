@@ -5,6 +5,7 @@ import { resumeSchema, formatZodIssues } from "@/schemas/resumeSchema";
 import { extractAndValidate } from "@/utils/ai-helpers";
 import { callWithFallback, AllProvidersFailedError } from "@/lib/ai-orchestrator";
 import { checkRateLimit } from "@/lib/rate-limiter";
+import { cvForAiPrompt } from "@/lib/cv-payload";
 
 // ─── System Prompt ──────────────────────────────────────────────────────────
 
@@ -91,8 +92,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Layout user-controlled : jamais envoyé à l'IA, ré-imposé à la sortie.
-    const { layout: _layout, ...cvForAi } = cvData;
+    // Layout (user-controlled) ET photo (image volumineuse) jamais envoyés à l'IA,
+    // ré-imposés à la sortie.
+    const cvForAi = cvForAiPrompt(cvData);
 
     const jobContext = jobDescription?.trim()
       ? `## Original target job posting (context only — keep the CV aligned with it):
