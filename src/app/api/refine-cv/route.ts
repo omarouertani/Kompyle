@@ -181,6 +181,13 @@ Apply this instruction surgically and return only the modified JSON.`;
     refinedCV.skills = preserveIds(refinedCV.skills, cvData.skills);
     refinedCV.projects = preserveIds(refinedCV.projects, cvData.projects);
     refinedCV.education = preserveIds(refinedCV.education, cvData.education);
+    // Sections libres : on garde le contenu raffiné par l'IA mais on RÉ-IMPOSE
+    // les ids d'origine (le layout référence `custom_<id>` — un id qui change
+    // ferait disparaître la section). Si l'IA les a omises, on restaure l'original.
+    refinedCV.customSections =
+      refinedCV.customSections && cvData.customSections
+        ? preserveIds(refinedCV.customSections, cvData.customSections)
+        : cvData.customSections;
 
     const response: RefineCVResponse = {
       refinedCV,

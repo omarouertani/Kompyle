@@ -1,4 +1,5 @@
 import type { CVData } from "@/types/cv";
+import { stripHtml } from "@/utils/strip-html";
 
 /**
  * Prépare un CV avant de l'envoyer à l'IA dans un prompt.
@@ -61,6 +62,17 @@ export function buildAtsKeywordSurface(cvData: CVData): string {
     for (const p of projectStacks) {
       lines.push(`- ${p.title}: ${p.tokens.join(", ")}`);
     }
+  }
+
+  // Sections libres (custom) — l'utilisateur peut y mettre des mots-clés (outils,
+  // méthodos…) qu'aucun champ structuré ne couvre. On les remonte aussi.
+  const customs = (cvData.customSections ?? [])
+    .map((c) => ({ title: stripHtml(c.title || "").trim() || "Section", content: stripHtml(c.content || "").trim() }))
+    .filter((c) => c.content);
+  if (customs.length) {
+    lines.push("");
+    lines.push("CUSTOM SECTIONS (from customSections[]):");
+    for (const c of customs) lines.push(`- ${c.title}: ${c.content}`);
   }
 
   // Ligne technique du header — souvent une concentration de mots-clés.

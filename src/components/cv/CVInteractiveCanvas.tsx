@@ -24,6 +24,7 @@ import { ContextMenu } from "./canvas/ContextMenu";
 import { MultiSelectToolbar } from "./canvas/MultiSelectToolbar";
 import { useCanvasInteractions, type GrabOffset, type DropMember } from "./canvas/use-canvas-interactions";
 import { useBlockActions } from "./canvas/use-block-actions";
+import { useSelectionFormat } from "./canvas/use-selection-format";
 import { useMarquee } from "./canvas/use-marquee";
 import type { BlockPos } from "./canvas/snap";
 import { useUndoRedo } from "./canvas/use-undo-redo";
@@ -113,10 +114,20 @@ export default function CVInteractiveCanvas({ data, onChange: onChangeProp, temp
     startDrag,
     startResize,
     startSidebarResize,
-  } = useCanvasInteractions({ data, defaultPositions, onChange, resolveDropRef });
+  } = useCanvasInteractions({ data, template, defaultPositions, onChange, resolveDropRef });
 
-  const { autoHeight, resetPosition, canDuplicate, duplicateItem, hideSectionOf } =
+  const { autoHeight, resetPosition, canDuplicate, duplicateItem, canDeleteBlock, deleteBlock, hideSectionOf } =
     useBlockActions({ data, defaultPositions, onChange });
+
+  // Formatage au niveau bloc (sur la donnée, un seul onChange) : sélectionner un
+  // bloc = styliser tout son texte. SET pour couleur/police, bascule pour gras…
+  const { applyStyles, toggleCommand } = useSelectionFormat({ data, onChange });
+  const canFormatSelection = selectedIds.some((id) => id !== "photo");
+  // Pont vers les barres d'outils : foreColor = SET couleur ; le reste = bascule.
+  const runBlockCommand = (command: string, value?: string) =>
+    command === "foreColor"
+      ? applyStyles(selectedIds, { color: value ?? "#000000" })
+      : toggleCommand(selectedIds, command);
 
   const { marqueeRect, startMarquee } = useMarquee(setSelectedIds);
 
@@ -203,12 +214,16 @@ export default function CVInteractiveCanvas({ data, onChange: onChangeProp, temp
     resetPosition,
     canDuplicate,
     duplicateItem,
+    canDeleteBlock,
+    deleteBlock,
     hideSectionOf,
     selectionHasGroup,
     groupSelected,
     ungroupSelected,
     pageOfSection,
     moveSectionToPage,
+    addPage,
+    removePage,
   });
 
   /** Résout la position d'un bloc : cas photo, position sauvegardée, ou
@@ -296,12 +311,14 @@ export default function CVInteractiveCanvas({ data, onChange: onChangeProp, temp
         onThemeChange={updateTheme}
         onSelectPage={setActivePageIndex}
         onAddPage={addPage}
-        onRemovePage={removePage}
         onZoomChange={setZoom}
         onZoomFit={fitToScreen}
         onRealign={realign}
         onCanvasBgChange={setCanvasBg}
         onReflow={realignPreservingAfterRender}
+        selectedIds={selectedIds}
+        onBlockCommand={(cmd, val) => runBlockCommand(cmd, val)}
+        onBlockStyles={(styles) => applyStyles(selectedIds, styles)}
       />
 
       <MultiSelectToolbar
@@ -310,6 +327,10 @@ export default function CVInteractiveCanvas({ data, onChange: onChangeProp, temp
         onAlign={alignSelected}
         onGroup={groupSelected}
         onUngroup={ungroupSelected}
+        canFormat={canFormatSelection}
+        onApplyColor={(c) => { applyStyles(selectedIds, { color: c }); realignPreservingAfterRender(); }}
+        onApplyFont={(stack) => { applyStyles(selectedIds, { "font-family": stack }); realignPreservingAfterRender(); }}
+        onToggle={(cmd) => { toggleCommand(selectedIds, cmd); realignPreservingAfterRender(); }}
       />
 
       <div

@@ -32,12 +32,15 @@ interface FormatApi {
   /** Called by EditableText on focus to register itself as the active editor. */
   registerActiveEditor: (el: HTMLElement | null) => void;
   /** Apply a format command. Returns true if applied to an active editor. */
-  exec: (command: "bold" | "italic" | "underline" | "strikeThrough" | "foreColor" | "justifyLeft" | "justifyCenter" | "justifyRight" | "justifyFull" | "removeFormat", value?: string) => boolean;
+  exec: (command: "bold" | "italic" | "underline" | "strikeThrough" | "foreColor" | "justifyLeft" | "justifyCenter" | "justifyRight" | "justifyFull" | "removeFormat" | "insertUnorderedList" | "insertOrderedList", value?: string) => boolean;
   /** Wrap the current selection in a `<span style="prop: value">` so font /
    *  size / family changes apply ONLY to the selected substring, not to the
    *  whole block. If the selection is collapsed, expands to the entire editor
    *  so clicking a size with the caret somewhere still does something useful. */
   applyInlineStyle: (prop: string, value: string) => boolean;
+  /** Like `applyInlineStyle` but sets several CSS properties at once on a single
+   *  span (e.g. a heading: font-size + font-weight + color). */
+  applyInlineStyles: (styles: Record<string, string>) => boolean;
   /** Force-refresh the toolbar's format state (call after exec). */
   refresh: () => void;
   activeEditor: HTMLElement | null;
@@ -186,7 +189,11 @@ export function CanvasFormatProvider({ children }: { children: React.ReactNode }
     return ok;
   }, [computeState]);
 
-  const applyInlineStyle = useCallback((prop: string, val: string): boolean => {
+  // Core: wrap the current selection (or whole editor if collapsed) in a single
+  // <span> and let `apply` set its style. Shared by applyInlineStyle (one prop)
+  // and applyInlineStyles (several props), so heading/size/family all chain the
+  // same restore-range + reselect logic.
+  const wrapSelectionWithStyle = useCallback((apply: (span: HTMLSpanElement) => void): boolean => {
     const el = activeEditorRef.current ?? anchoredEditorRef.current;
     if (!el || !el.isContentEditable) return false;
 
@@ -221,7 +228,7 @@ export function CanvasFormatProvider({ children }: { children: React.ReactNode }
     try {
       const fragment = range.extractContents();
       const span = document.createElement("span");
-      span.style.setProperty(prop, val);
+      apply(span);
       span.appendChild(fragment);
       range.insertNode(span);
 
@@ -240,7 +247,17 @@ export function CanvasFormatProvider({ children }: { children: React.ReactNode }
     return true;
   }, [computeState]);
 
-  const value = useMemo<FormatApi>(() => ({ state, registerActiveEditor, exec, applyInlineStyle, refresh, activeEditor }), [state, registerActiveEditor, exec, applyInlineStyle, refresh, activeEditor]);
+  const applyInlineStyle = useCallback((prop: string, val: string): boolean =>
+    wrapSelectionWithStyle((span) => span.style.setProperty(prop, val)),
+  [wrapSelectionWithStyle]);
+
+  const applyInlineStyles = useCallback((styles: Record<string, string>): boolean =>
+    wrapSelectionWithStyle((span) => {
+      for (const [prop, val] of Object.entries(styles)) span.style.setProperty(prop, val);
+    }),
+  [wrapSelectionWithStyle]);
+
+  const value = useMemo<FormatApi>(() => ({ state, registerActiveEditor, exec, applyInlineStyle, applyInlineStyles, refresh, activeEditor }), [state, registerActiveEditor, exec, applyInlineStyle, applyInlineStyles, refresh, activeEditor]);
 
   return <FormatContext.Provider value={value}>{children}</FormatContext.Provider>;
 }
@@ -256,6 +273,7 @@ export function useCanvasFormat(): FormatApi {
     registerActiveEditor: () => {},
     exec: () => false,
     applyInlineStyle: () => false,
+    applyInlineStyles: () => false,
     refresh: () => {},
     activeEditor: null,
   };

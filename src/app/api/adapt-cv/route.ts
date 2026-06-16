@@ -65,6 +65,7 @@ The CV often already contains a skill implicitly; your job is to make it EXPLICI
 - NEVER add a new item to any array either.
 - Keep the EXACT same number of experiences, projects, skills groups, and bullets as the input. Adapt their wording and ordering of emphasis only.
 - Even a less-relevant experience or project stays: rewrite it to surface whatever angle is closest to the job, even if minor.
+- customSections[]: keep the SAME sections (same count, same id, same title). Adapt ONLY each section's .content wording toward the job — never invent facts, never add/remove sections.
 
 ## Immutable Fields (Copy VERBATIM)
 - personalInfo.name, email, phone, location, linkedin, portfolio
@@ -73,7 +74,7 @@ The CV often already contains a skill implicitly; your job is to make it EXPLICI
 - projects[].title, stack
 - spokenLanguages[]
 - education[]
-- customSections[]
+- customSections[].id and customSections[].title (the .content IS adapted — see above)
 - Any id / forcePageBreak / customMarginBottom metadata.
 
 ## Hard Constraints (Immediate Failure if violated)
@@ -247,7 +248,15 @@ ${JSON.stringify(cvForAi, null, 2)}
     adaptedCV.personalInfo.interests = cvData.personalInfo.interests;
     adaptedCV.education = cvData.education;
     adaptedCV.spokenLanguages = cvData.spokenLanguages;
-    adaptedCV.customSections = cvData.customSections; // user-authored, never from the AI
+    // Sections libres : structure (nombre, id, titre) pilotée par l'utilisateur ;
+    // le CONTENU est adapté par l'IA (dynamique). On RE-IMPOSE id + titre + nombre
+    // par index → robuste même si le modèle dérive (renomme / ajoute / supprime).
+    adaptedCV.customSections = cvData.customSections
+      ? cvData.customSections.map((orig, i) => {
+          const aiContent = adaptedCV.customSections?.[i]?.content;
+          return { id: orig.id, title: orig.title, content: aiContent?.trim() ? aiContent : orig.content };
+        })
+      : cvData.customSections;
 
     // Layout piloté par l'utilisateur, jamais par l'IA. MAIS on retire les
     // positions absolues du canvas : elles ont été calculées pour l'ANCIEN

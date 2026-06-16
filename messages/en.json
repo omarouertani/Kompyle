@@ -82,7 +82,8 @@
     "placeholder": "Add dates",
     "start": "Start",
     "end": "End",
-    "current": "I currently work here"
+    "current": "I currently work here",
+    "present_short": "Present"
   },
   "Profiles": {
     "active_label": "Active profile:",
@@ -254,6 +255,13 @@
     "color_section_brand_edit": "Edit",
     "color_section_default": "Default solid colors",
     "color_section_default_show_all": "Show all",
+    "color_section_default_show_less": "Show less",
+    "color_brand_pin": "Pin",
+    "color_brand_remove": "Remove this color",
+    "ms_apply_font": "Font (selection)",
+    "ms_apply_color": "Text color (selection)",
+    "ms_apply_bold": "Bold (selection)",
+    "ms_apply_italic": "Italic (selection)",
     "theme_button": "Theme",
     "add_page": "Add a page",
     "remove_page": "Remove page",
@@ -265,6 +273,9 @@
     "zoom_fit": "Fit",
     "zoom_fit_tooltip": "Fit to screen (Ctrl+0)",
     "menu_add_section": "Add a section",
+    "menu_add_page": "Add a page",
+    "menu_delete_page": "Delete page {page}",
+    "menu_delete_block": "Delete this element",
     "menu_realign": "Realign all",
     "menu_auto_height": "Auto height",
     "menu_default_position": "Default position",

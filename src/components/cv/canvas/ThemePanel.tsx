@@ -34,6 +34,16 @@ export const FONT_FAMILIES: Record<CVFontFamily, { label: string; stack: string 
   serif: { label: "Serif", stack: "'Times New Roman', Times, serif" },
   modern: { label: "Modern", stack: "var(--font-inter), 'Inter', system-ui, sans-serif" },
   mono: { label: "Mono", stack: "'Courier New', Courier, monospace" },
+  // Pack pro : la pile référence la variable next/font (canvas) ET le nom
+  // gstatic (repli) — identique à la famille enregistrée côté PDF.
+  lato: { label: "Lato", stack: "var(--font-lato), 'Lato', sans-serif" },
+  montserrat: { label: "Montserrat", stack: "var(--font-montserrat), 'Montserrat', sans-serif" },
+  poppins: { label: "Poppins", stack: "var(--font-poppins), 'Poppins', sans-serif" },
+  opensans: { label: "Open Sans", stack: "var(--font-opensans), 'Open Sans', sans-serif" },
+  sourcesans: { label: "Source Sans", stack: "var(--font-sourcesans), 'Source Sans 3', sans-serif" },
+  merriweather: { label: "Merriweather", stack: "var(--font-merriweather), 'Merriweather', serif" },
+  playfair: { label: "Playfair", stack: "var(--font-serif), 'Playfair Display', serif" },
+  georgia: { label: "Georgia", stack: "var(--font-gelasio), Georgia, serif" },
 };
 
 /** Mode d'affichage des compétences — chaque mode a sa propre vignette visuelle. */
@@ -170,6 +180,78 @@ function SliderField({
   );
 }
 
+/** Fonds de sidebar proposés en un clic (dont « Aucun » = transparent). */
+const SIDEBAR_BG_PRESETS: Array<{ label: string; value: string }> = [
+  { label: "Aucun", value: "transparent" },
+  { label: "Gris clair", value: "#f4f4f5" },
+  { label: "Gris", value: "#e5e7eb" },
+  { label: "Bleu nuit", value: "#1e293b" },
+  { label: "Ardoise", value: "#0f172a" },
+];
+
+/** Édition du style de la barre latérale : couleur de fond + option « aucun
+ *  fond » (transparent) pour la retirer. `sidebarBg` pilote canvas ET PDF. */
+function SidebarStyle({
+  theme,
+  onThemeChange,
+}: {
+  theme: CVTheme;
+  onThemeChange: (updates: Partial<CVTheme>, opts?: { reflow?: boolean }) => void;
+}) {
+  const raw = theme.sidebarBg ?? "";
+  const transparent = raw === "" || raw.toLowerCase() === "transparent";
+  const current = transparent ? "#f4f4f5" : raw;
+
+  return (
+    <div className="flex flex-col gap-3">
+      <button
+        type="button"
+        onClick={() => onThemeChange({ sidebarBg: transparent ? "#f4f4f5" : "transparent" })}
+        className={cn(
+          "self-start text-[10px] font-semibold px-2 py-1 rounded-md border transition-colors",
+          transparent
+            ? "border-primary/40 bg-primary/10 text-primary hover:bg-primary/15"
+            : "border-border/70 text-muted-foreground hover:text-foreground hover:bg-muted/50"
+        )}
+      >
+        {transparent ? "Activer un fond" : "Retirer le fond"}
+      </button>
+
+      {!transparent && (
+        <ColorField
+          label="Couleur de fond"
+          value={current}
+          swatches={QUICK_SWATCHES.sidebar}
+          onChange={(v) => onThemeChange({ sidebarBg: v })}
+        />
+      )}
+
+      <div className="flex flex-wrap gap-1.5">
+        {SIDEBAR_BG_PRESETS.map((p) => {
+          const active = transparent ? p.value === "transparent" : raw.toLowerCase() === p.value.toLowerCase();
+          return (
+            <button
+              key={p.value}
+              type="button"
+              onClick={() => onThemeChange({ sidebarBg: p.value })}
+              title={p.label}
+              className={cn(
+                "size-6 rounded-md border transition-transform hover:scale-110 relative",
+                active ? "border-foreground ring-2 ring-offset-1 ring-offset-popover ring-primary" : "border-border/60"
+              )}
+              style={
+                p.value === "transparent"
+                  ? { backgroundImage: "linear-gradient(45deg,#ddd 25%,transparent 25%,transparent 75%,#ddd 75%),linear-gradient(45deg,#ddd 25%,#fff 25%,#fff 75%,#ddd 75%)", backgroundSize: "8px 8px", backgroundPosition: "0 0,4px 4px" }
+                  : { backgroundColor: p.value }
+              }
+            />
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 /** Petite section avec titre discret pour structurer le popover. */
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -231,7 +313,7 @@ export function ThemePanel({ theme, onThemeChange, compact = false }: ThemePanel
 
       {open && (
         <div
-          className="absolute right-0 top-9 z-50 w-80 rounded-2xl border border-border/70 bg-popover/95 backdrop-blur-xl shadow-2xl shadow-black/20 ring-1 ring-black/5 p-5 flex flex-col gap-5 cursor-default select-text max-h-[76vh] overflow-y-auto scrollbar-thin"
+          className="absolute left-0 top-9 z-50 w-80 rounded-2xl border border-border/70 bg-popover/95 backdrop-blur-xl shadow-2xl shadow-black/20 ring-1 ring-black/5 p-5 flex flex-col gap-5 cursor-default select-text max-h-[76vh] overflow-y-auto scrollbar-thin"
           onMouseDown={(e) => e.stopPropagation()}
         >
           {/* En-tête */}
@@ -286,10 +368,15 @@ export function ThemePanel({ theme, onThemeChange, compact = false }: ThemePanel
           <Section title="Couleurs">
             <div className="grid grid-cols-2 gap-x-5 gap-y-4">
               <ColorField label="Accent" value={theme.primaryColor || "#fbbf24"} swatches={QUICK_SWATCHES.accent} onChange={(v) => onThemeChange({ primaryColor: v })} />
-              <ColorField label="Fond sidebar" value={theme.sidebarBg || "#f4f4f5"} swatches={QUICK_SWATCHES.sidebar} onChange={(v) => onThemeChange({ sidebarBg: v })} />
               <ColorField label="Texte" value={theme.textColor || "#27272a"} swatches={QUICK_SWATCHES.text} onChange={(v) => onThemeChange({ textColor: v })} />
               <ColorField label="Fond de page" value={theme.pageBg || "#ffffff"} swatches={QUICK_SWATCHES.page} onChange={(v) => onThemeChange({ pageBg: v })} />
             </div>
+          </Section>
+
+          {/* Sidebar — fond de la barre latérale (modern / classic), avec option
+              « aucun fond » (transparent) pour la retirer. Canvas + PDF synchros. */}
+          <Section title="Barre latérale (sidebar)">
+            <SidebarStyle theme={theme} onThemeChange={onThemeChange} />
           </Section>
 
           {/* Police — masquée en mode compact (déplacée inline dans la toolbar) */}

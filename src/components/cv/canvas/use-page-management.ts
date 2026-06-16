@@ -27,12 +27,19 @@ export function usePageManagement({ layout, data, onChange }: UsePageManagementA
     setActivePageIndex(nextPages.length - 1);
   }, [layout, data, onChange]);
 
-  const removePage = useCallback(() => {
-    if (layout.pages.length <= 1) return;
-    const nextPages = layout.pages.filter((_, i) => i !== activePageIndex);
-    onChange({ ...data, layout: { ...layout, pages: nextPages } });
-    setActivePageIndex(Math.min(activePageIndex, nextPages.length - 1));
-  }, [layout, data, onChange, activePageIndex]);
+  /** Supprime une page : celle d'index `pageIndex` si fourni (menu contextuel),
+   *  sinon la page active. */
+  const removePage = useCallback(
+    (pageIndex?: number) => {
+      if (layout.pages.length <= 1) return;
+      const idx = pageIndex ?? activePageIndex;
+      if (idx < 0 || idx >= layout.pages.length) return;
+      const nextPages = layout.pages.filter((_, i) => i !== idx);
+      onChange({ ...data, layout: { ...layout, pages: nextPages } });
+      setActivePageIndex(Math.min(idx, nextPages.length - 1));
+    },
+    [layout, data, onChange, activePageIndex]
+  );
 
   return { activePageIndex, setActivePageIndex, addPage, removePage };
 }

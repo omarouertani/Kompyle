@@ -4,6 +4,15 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import type { CVData } from "@/types/cv";
 import { PT_TO_PX, SELECTION_COLOR } from "../cv-canvas-primitives";
 import { findSnapGuides, A4_WIDTH_PT, type BlockPos, type SnapGuide, type SnapRect } from "./snap";
+import {
+  getParentSectionId,
+  isCanadianTemplate,
+  isModernTemplate,
+  ALL_SECTION_IDS,
+  getDefaultPositions,
+  getSectionBlockIds,
+} from "@/lib/cv-layout";
+import type { SectionId } from "@/types/cv";
 
 export type ResizeEdge = "e" | "w" | "n" | "s" | "ne" | "nw" | "se" | "sw";
 
@@ -24,6 +33,9 @@ export interface GrabOffset {
 
 interface UseCanvasInteractionsArgs {
   data: CVData;
+  /** Template courant — sert à savoir si une sidebar existe (modern/classic) et
+   *  à recalculer les positions lors d'un changement de colonne. */
+  template: string;
   defaultPositions: Record<string, BlockPos>;
   onChange: (newData: CVData) => void;
   /** Résout un drop inter-pages : renvoie true si le(s) bloc(s) ont changé de
@@ -54,7 +66,7 @@ function expandGroups(ids: string[], positions: Record<string, BlockPos>): strin
 /** Sélection (simple ou multiple) + drag / resize / snap des blocs absolus.
  *  Pendant un geste, seules les propriétés CSS des blocs sont mises à jour
  *  (RAF) ; le state React n'est commité qu'au mouseup — d'où la fluidité. */
-export function useCanvasInteractions({ data, defaultPositions, onChange, resolveDropRef }: UseCanvasInteractionsArgs) {
+export function useCanvasInteractions({ data, template, defaultPositions, onChange, resolveDropRef }: UseCanvasInteractionsArgs) {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [snapGuides, setSnapGuides] = useState<SnapGuide[]>([]);
   const [isDragging, setIsDragging] = useState(false);
@@ -91,17 +103,58 @@ export function useCanvasInteractions({ data, defaultPositions, onChange, resolv
   }, []);
 
   const commitPositions = useCallback(
-    (updates: Record<string, BlockPos>) => {
+    (updates: Record<string, BlockPos>, primaryId?: string) => {
       const current = dataRef.current;
       const layout = current.layout;
       if (!layout) return;
-      const nextPositions = {
+      let pages = layout.pages;
+      const nextPositions: Record<string, BlockPos> = {
         ...(layout.absolutePositions ?? defaultPositionsRef.current),
         ...updates,
       };
-      onChange({ ...current, layout: { ...layout, absolutePositions: nextPositions } });
+
+      // ── Sidebar = vraie zone : si on dépose un bloc de section dans la bande
+      // sidebar (ou qu'on l'en sort), sa SECTION change de colonne (modern /
+      // classic uniquement). Tout dans le même onChange → pas d'écrasement. ──
+      const pos = primaryId ? updates[primaryId] : undefined;
+      if (primaryId && pos && !isCanadianTemplate(template)) {
+        const sectionId = getParentSectionId(primaryId);
+        const isSection = ALL_SECTION_IDS.includes(sectionId as SectionId) || sectionId.startsWith("custom_");
+        const curPageIdx = pages.findIndex((p) => p.main.includes(sectionId) || p.sidebar.includes(sectionId));
+        if (isSection && curPageIdx >= 0) {
+          const sidebarWidth = layout.sidebarWidth ?? (isModernTemplate(template) ? 175 : 165);
+          const inSidebar = pages[curPageIdx].sidebar.includes(sectionId);
+          // Hystérésis : on ne bascule que sur un franchissement net de la
+          // frontière (évite les changements de colonne accidentels).
+          let target = inSidebar;
+          if (pos.x < sidebarWidth - 25) target = true;
+          else if (pos.x > sidebarWidth + 10) target = false;
+
+          if (target !== inSidebar) {
+            pages = pages.map((p, i) =>
+              i === curPageIdx
+                ? {
+                    main: target ? p.main.filter((s) => s !== sectionId) : [...p.main.filter((s) => s !== sectionId), sectionId],
+                    sidebar: target ? [...p.sidebar.filter((s) => s !== sectionId), sectionId] : p.sidebar.filter((s) => s !== sectionId),
+                  }
+                : p
+            );
+            // Recale les blocs de la section déplacée dans leur NOUVELLE colonne
+            // (sinon ils resteraient aux coordonnées de l'ancienne) → canvas == PDF.
+            const nextData: CVData = { ...current, layout: { ...layout, pages } };
+            const recomputed = getDefaultPositions(template, nextData);
+            for (const bId of getSectionBlockIds(sectionId, nextData)) {
+              if (recomputed[bId]) {
+                nextPositions[bId] = curPageIdx > 0 ? { ...recomputed[bId], page: curPageIdx } : { ...recomputed[bId] };
+              }
+            }
+          }
+        }
+      }
+
+      onChange({ ...current, layout: { ...layout, pages, absolutePositions: nextPositions } });
     },
-    [onChange]
+    [onChange, template]
   );
 
   const startDrag = useCallback(
@@ -279,7 +332,7 @@ export function useCanvasInteractions({ data, defaultPositions, onChange, resolv
             y: Math.max(0, Math.round(b.pos.y + pendingDy)),
           };
         }
-        commitPositions(updates);
+        commitPositions(updates, id);
       };
 
       window.addEventListener("mousemove", handleMouseMove);

@@ -17,6 +17,22 @@ const DEFAULT_SOLIDS: string[] = [
   "#10b981", "#22c55e", "#84cc16", "#fde047", "#fbbf24", "#fb923c", "#dc2626",
 ];
 
+/** Palette étendue (affichée via « Afficher tout ») : nuances supplémentaires
+ *  + teintes claires/foncées pour un choix proche de Canva. */
+const DEFAULT_SOLIDS_ALL: string[] = [
+  ...DEFAULT_SOLIDS,
+  // teintes profondes
+  "#7f1d1d", "#9a3412", "#854d0e", "#3f6212", "#065f46", "#155e75", "#1e1b4b",
+  // teintes moyennes
+  "#b91c1c", "#c2410c", "#a16207", "#4d7c0f", "#047857", "#0e7490", "#4338ca",
+  // pastels
+  "#fecaca", "#fed7aa", "#fef08a", "#bbf7d0", "#a7f3d0", "#a5f3fc", "#c7d2fe",
+  // pastels 2
+  "#fbcfe8", "#e9d5ff", "#ddd6fe", "#bfdbfe", "#99f6e4", "#d9f99d", "#fde68a",
+  // bruns / neutres chauds
+  "#78350f", "#92400e", "#451a03", "#1c1917", "#44403c", "#78716c", "#a8a29e",
+];
+
 const TEXT_PRESETS: string[] = ["#ffffff", "#000000", "#059669", "#1d4ed8", "#7f1d1d"];
 
 const COLOR_NAME_MAP: Record<string, string[]> = {
@@ -52,17 +68,23 @@ interface ColorDrawerProps {
   brand?: string[];
   onPick: (color: string) => void;
   onClose: () => void;
-  /** Optional: invoked when the user clicks "Add brand colors". */
-  onEditBrand?: () => void;
+  /** Épingle une couleur dans l'identité visuelle (brand kit). */
+  onAddBrand?: (color: string) => void;
+  /** Retire une couleur de l'identité visuelle. */
+  onRemoveBrand?: (color: string) => void;
 }
 
 /** Left-side floating drawer matching screenshot 2: search + sections (text
  *  colors, brand kit, default solids). Opens over the canvas without pushing
  *  it, dismissed via close button, Escape, or click outside. */
-export function ColorDrawer({ open, value, recent, brand = [], onPick, onClose, onEditBrand }: ColorDrawerProps) {
+export function ColorDrawer({ open, value, recent, brand = [], onPick, onClose, onAddBrand, onRemoveBrand }: ColorDrawerProps) {
   const t = useTranslations("Canvas");
   const [query, setQuery] = useState("");
+  const [showAll, setShowAll] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
+  /** Couleur courante normalisée — utilisée pour épingler dans le brand kit. */
+  const currentColor = value && /^#[0-9a-f]{6}$/i.test(value) ? value.toLowerCase() : "#000000";
+  const isInBrand = brand.some((c) => c.toLowerCase() === currentColor);
 
   // Dismiss on Escape / outside click. We attach on next tick to skip the
   // click event that just opened the drawer.
@@ -91,7 +113,9 @@ export function ColorDrawer({ open, value, recent, brand = [], onPick, onClose, 
 
   const recentList = (recent ?? []).filter((c) => matchesQuery(c, query));
   const textPresets = TEXT_PRESETS.filter((c) => matchesQuery(c, query));
-  const solids = DEFAULT_SOLIDS.filter((c) => matchesQuery(c, query));
+  // « Afficher tout » (ou une recherche active) déplie la palette étendue.
+  const solidsSource = showAll || query.trim() ? DEFAULT_SOLIDS_ALL : DEFAULT_SOLIDS;
+  const solids = solidsSource.filter((c) => matchesQuery(c, query));
 
   return (
     <div
@@ -106,7 +130,12 @@ export function ColorDrawer({ open, value, recent, brand = [], onPick, onClose, 
         <div className="flex items-center gap-1">
           <button
             type="button"
-            className="size-7 flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/60"
+            onClick={() => setShowAll((v) => !v)}
+            onMouseDown={(e) => e.preventDefault()}
+            className={cn(
+              "size-7 flex items-center justify-center rounded-md hover:bg-muted/60",
+              showAll ? "text-primary bg-primary/10" : "text-muted-foreground hover:text-foreground",
+            )}
             title={t("color_section_default_show_all")}
           >
             <MoreHorizontal size={14} />
@@ -157,18 +186,24 @@ export function ColorDrawer({ open, value, recent, brand = [], onPick, onClose, 
         <section>
           <div className="flex items-center justify-between gap-2 mb-2">
             <span className="text-[11px] font-semibold text-foreground">{t("color_section_brand")}</span>
-            <button
-              type="button"
-              onClick={onEditBrand}
-              className="text-[11px] text-primary hover:underline"
-            >
-              {t("color_section_brand_edit")}
-            </button>
+            {onAddBrand && !isInBrand && (
+              <button
+                type="button"
+                onClick={() => onAddBrand(currentColor)}
+                onMouseDown={(e) => e.preventDefault()}
+                className="text-[11px] text-primary hover:underline flex items-center gap-0.5"
+                title={t("color_brand_pin")}
+              >
+                <Plus size={11} />
+                {t("color_brand_pin")}
+              </button>
+            )}
           </div>
           {brand.length === 0 ? (
             <button
               type="button"
-              onClick={onEditBrand}
+              onClick={() => onAddBrand?.(currentColor)}
+              onMouseDown={(e) => e.preventDefault()}
               className="w-full h-9 flex items-center justify-center gap-1.5 rounded-lg border border-dashed border-border text-muted-foreground hover:text-foreground hover:border-border/80 text-[11px] font-medium transition-colors"
             >
               <Plus size={13} />
@@ -177,7 +212,14 @@ export function ColorDrawer({ open, value, recent, brand = [], onPick, onClose, 
           ) : (
             <div className="grid grid-cols-7 gap-1.5">
               {brand.map((c) => (
-                <Swatch key={c} color={c} active={(value ?? "").toLowerCase() === c.toLowerCase()} onClick={() => onPick(c)} />
+                <BrandSwatch
+                  key={c}
+                  color={c}
+                  active={(value ?? "").toLowerCase() === c.toLowerCase()}
+                  onClick={() => onPick(c)}
+                  onRemove={onRemoveBrand ? () => onRemoveBrand(c) : undefined}
+                  removeTitle={t("color_brand_remove")}
+                />
               ))}
             </div>
           )}
@@ -189,9 +231,11 @@ export function ColorDrawer({ open, value, recent, brand = [], onPick, onClose, 
             <span className="text-[11px] font-semibold text-foreground">{t("color_section_default")}</span>
             <button
               type="button"
+              onClick={() => setShowAll((v) => !v)}
+              onMouseDown={(e) => e.preventDefault()}
               className="text-[11px] text-primary hover:underline"
             >
-              {t("color_section_default_show_all")}
+              {showAll ? t("color_section_default_show_less") : t("color_section_default_show_all")}
             </button>
           </div>
           <div className="grid grid-cols-7 gap-1.5">
@@ -224,6 +268,39 @@ function Swatch({ color, active, onClick }: { color: string; active?: boolean; o
       )}
       style={{ backgroundColor: color }}
     />
+  );
+}
+
+/** Swatch du brand kit : une couleur épinglée, supprimable via un petit × au
+ *  survol (sans voler le focus du texte en édition). */
+function BrandSwatch({
+  color,
+  active,
+  onClick,
+  onRemove,
+  removeTitle,
+}: {
+  color: string;
+  active?: boolean;
+  onClick: () => void;
+  onRemove?: () => void;
+  removeTitle?: string;
+}) {
+  return (
+    <div className="relative group/brand">
+      <Swatch color={color} active={active} onClick={onClick} />
+      {onRemove && (
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); onRemove(); }}
+          onMouseDown={(e) => e.preventDefault()}
+          title={removeTitle}
+          className="absolute -top-1 -right-1 size-3.5 rounded-full bg-foreground text-background flex items-center justify-center opacity-0 group-hover/brand:opacity-100 transition-opacity shadow-sm"
+        >
+          <X size={9} strokeWidth={3} />
+        </button>
+      )}
+    </div>
   );
 }
 

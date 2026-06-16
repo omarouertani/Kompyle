@@ -72,7 +72,20 @@ export interface LayoutPage {
   sidebar: string[];
 }
 
-export type CVFontFamily = "sans" | "serif" | "modern" | "mono";
+export type CVFontFamily =
+  | "sans"
+  | "serif"
+  | "modern"
+  | "mono"
+  // Pack pro (cf. FONT_FAMILIES / pdf-fonts.ts / layout.tsx)
+  | "lato"
+  | "montserrat"
+  | "poppins"
+  | "opensans"
+  | "sourcesans"
+  | "merriweather"
+  | "playfair"
+  | "georgia";
 export type SkillMode = "text" | "tags" | "bars";
 
 export interface CVTheme {
@@ -86,6 +99,10 @@ export interface CVTheme {
   headingSize?: number;  // Taille des titres (pt)
   sectionMargin?: number;// Espacement entre les sections (pt)
   lineHeight?: number;   // Hauteur de ligne (interligne)
+  /** Couleurs de marque épinglées par l'utilisateur (panneau « Identité visuelle »). */
+  brandColors?: string[];
+  /** Dernières couleurs utilisées (persistées pour survivre au rechargement). */
+  recentColors?: string[];
 }
 
 export interface ElementPosition {
