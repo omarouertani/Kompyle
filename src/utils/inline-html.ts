@@ -60,7 +60,7 @@ export function parseInlineHtml(html: string): RichTextRun[] {
     runs.push({ text: decoded, style: mergeStyle() });
   };
 
-  const tagRe = /<\/?(b|strong|i|em|u|s|strike|span|div|p|font|br)(?:\s+([^>]*))?\s*\/?>/gi;
+  const tagRe = /<\/?(b|strong|i|em|u|s|strike|span|div|p|font|br|ul|ol|li)(?:\s+([^>]*))?\s*\/?>/gi;
   let lastIndex = 0;
   let m: RegExpExecArray | null;
   while ((m = tagRe.exec(html)) !== null) {
@@ -70,6 +70,21 @@ export function parseInlineHtml(html: string): RichTextRun[] {
     const isClose = m[0].startsWith("</");
     if (tag === "br") {
       runs.push({ text: "\n", style: mergeStyle() });
+    } else if (tag === "ul" || tag === "ol") {
+      // Conteneurs de liste : aucun style propre, mais on pousse/dépile pour
+      // garder la pile équilibrée avec les <span> internes.
+      if (isClose) { if (stack.length > 1) stack.pop(); }
+      else stack.push({});
+    } else if (tag === "li") {
+      // Puce avant chaque item, saut de ligne à la fermeture → rendu PDF
+      // identique au canvas (où <li> s'affiche comme une liste à puces).
+      if (isClose) {
+        runs.push({ text: "\n", style: mergeStyle() });
+        if (stack.length > 1) stack.pop();
+      } else {
+        stack.push({});
+        runs.push({ text: "• ", style: mergeStyle() });
+      }
     } else if (isClose) {
       if (stack.length > 1) stack.pop();
     } else {

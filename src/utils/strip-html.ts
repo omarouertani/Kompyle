@@ -4,7 +4,7 @@
 
 /** Inline tags the canvas editor can emit (B/I/U/S, color/size/font spans,
  *  alignment divs, legacy <font>). */
-const INLINE_TAG_RE = /<\/?(?:b|strong|i|em|u|s|strike|span|div|p|font|br)[\s/>]/i;
+const INLINE_TAG_RE = /<\/?(?:b|strong|i|em|u|s|strike|span|div|p|font|br|ul|ol|li)[\s/>]/i;
 
 /** True when a string contains markup we should parse (not just a stray `<`). */
 export function hasInlineHtml(text: string): boolean {
@@ -19,7 +19,9 @@ export function stripHtml(text: string): string {
   if (!/[<&]/.test(text)) return text;
   return text
     .replace(/<br\s*\/?>/gi, "\n")
-    .replace(/<\/?(?:b|strong|i|em|u|s|strike|span|div|p|font)(?:\s[^>]*)?>/gi, "")
+    .replace(/<li(?:\s[^>]*)?>/gi, "• ")
+    .replace(/<\/li>/gi, "\n")
+    .replace(/<\/?(?:b|strong|i|em|u|s|strike|span|div|p|font|ul|ol)(?:\s[^>]*)?>/gi, "")
     .replace(/&nbsp;/gi, " ")
     .replace(/&amp;/gi, "&")
     .replace(/&lt;/gi, "<")

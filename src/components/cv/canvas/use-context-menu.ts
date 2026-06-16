@@ -4,7 +4,7 @@ import { useState, useCallback, useMemo } from "react";
 import { useTranslations } from "next-intl";
 import type { CVData, CVLayout } from "@/types/cv";
 import { addCustomSection, getParentSectionId } from "@/lib/cv-layout";
-import { Maximize2, MoveUpRight, MoveRight, Copy, EyeOff, RotateCcw, SquarePlus, Lock, LockOpen, Group, Ungroup } from "lucide-react";
+import { Maximize2, MoveUpRight, MoveRight, Copy, EyeOff, RotateCcw, SquarePlus, Lock, LockOpen, Group, Ungroup, Trash2, FilePlus } from "lucide-react";
 import type { ContextMenuItem } from "./ContextMenu";
 import type { BlockPos } from "./snap";
 import { isSectionBlock } from "./block-helpers";
@@ -22,7 +22,11 @@ interface UseContextMenuArgs {
   resetPosition: (ids: string[]) => void;
   canDuplicate: (blockId: string) => boolean;
   duplicateItem: (blockId: string) => void;
+  canDeleteBlock: (blockId: string) => boolean;
+  deleteBlock: (blockId: string) => void;
   hideSectionOf: (blockId: string) => void;
+  addPage: () => void;
+  removePage: (pageIndex?: number) => void;
   selectionHasGroup: boolean | undefined;
   groupSelected: () => void;
   ungroupSelected: () => void;
@@ -30,7 +34,7 @@ interface UseContextMenuArgs {
   moveSectionToPage: (blockId: string, targetPage: number) => void;
 }
 
-type Menu = { x: number; y: number; blockId: string | null } | null;
+type Menu = { x: number; y: number; blockId: string | null; pageIndex: number | null } | null;
 
 /** Menu contextuel du canvas : état d'ouverture, handlers clic-droit (bloc /
  *  fond), verrouillage, et génération de la liste d'items selon la cible. */
@@ -47,12 +51,16 @@ export function useContextMenu({
   resetPosition,
   canDuplicate,
   duplicateItem,
+  canDeleteBlock,
+  deleteBlock,
   hideSectionOf,
   selectionHasGroup,
   groupSelected,
   ungroupSelected,
   pageOfSection,
   moveSectionToPage,
+  addPage,
+  removePage,
 }: UseContextMenuArgs) {
   const t = useTranslations("Canvas");
   const [menu, setMenu] = useState<Menu>(null);
@@ -85,7 +93,9 @@ export function useContextMenu({
       e.preventDefault();
       e.stopPropagation();
       if (!selectedIds.includes(id)) setSelectedIds([id]);
-      setMenu({ x: e.clientX, y: e.clientY, blockId: id });
+      const pageEl = (e.target as HTMLElement).closest("[data-page-index]") as HTMLElement | null;
+      const pageIndex = pageEl ? Number(pageEl.dataset.pageIndex) : null;
+      setMenu({ x: e.clientX, y: e.clientY, blockId: id, pageIndex });
     },
     [selectedIds, setSelectedIds]
   );
@@ -93,7 +103,9 @@ export function useContextMenu({
   const openCanvasMenu = useCallback((e: React.MouseEvent) => {
     if ((e.target as HTMLElement).closest("[data-block-id]")) return;
     e.preventDefault();
-    setMenu({ x: e.clientX, y: e.clientY, blockId: null });
+    const pageEl = (e.target as HTMLElement).closest("[data-page-index]") as HTMLElement | null;
+    const pageIndex = pageEl ? Number(pageEl.dataset.pageIndex) : null;
+    setMenu({ x: e.clientX, y: e.clientY, blockId: null, pageIndex });
   }, []);
 
   const menuItems = useCallback((): ContextMenuItem[] => {
@@ -103,10 +115,24 @@ export function useContextMenu({
       : [];
 
     if (!menu.blockId) {
-      return [
+      const bg: ContextMenuItem[] = [
         { label: t("menu_add_section"), icon: SquarePlus, onClick: () => onChange(addCustomSection(data)) },
+        { label: t("menu_add_page"), icon: FilePlus, onClick: addPage },
         { label: t("menu_realign"), icon: RotateCcw, onClick: realign },
       ];
+      // Supprimer LA page cliquée (jamais la dernière) — depuis le menu, plus
+      // besoin du bouton corbeille de la barre d'outils.
+      if (layout.pages.length > 1 && menu.pageIndex != null) {
+        const pageIndex = menu.pageIndex;
+        bg.push({
+          label: t("menu_delete_page", { page: pageIndex + 1 }),
+          icon: Trash2,
+          danger: true,
+          separator: true,
+          onClick: () => removePage(pageIndex),
+        });
+      }
+      return bg;
     }
 
     const items: ContextMenuItem[] = [];
@@ -145,6 +171,21 @@ export function useContextMenu({
         });
       });
     }
+    // Supprimer UNIQUEMENT l'élément sélectionné (item de liste / contenu d'un
+    // bloc optionnel) — distinct de « masquer la section ».
+    if (canDeleteBlock(menu.blockId)) {
+      const blockId = menu.blockId;
+      items.push({
+        label: t("menu_delete_block"),
+        icon: Trash2,
+        danger: true,
+        separator: true,
+        onClick: () => {
+          deleteBlock(blockId);
+          clearSelection();
+        },
+      });
+    }
     if (isSectionBlock(menu.blockId)) {
       const blockId = menu.blockId;
       const isCustom = getParentSectionId(blockId).startsWith("custom_");
@@ -152,7 +193,6 @@ export function useContextMenu({
         label: isCustom ? t("menu_delete_section") : t("menu_hide_section"),
         icon: EyeOff,
         danger: true,
-        separator: true,
         onClick: () => {
           hideSectionOf(blockId);
           clearSelection();
@@ -161,7 +201,7 @@ export function useContextMenu({
     }
     items.push({ label: t("menu_realign"), icon: RotateCcw, separator: true, onClick: realign });
     return items;
-  }, [menu, selectedIds, t, onChange, data, realign, savedPositions, defaultPositions, autoHeight, resetPosition, toggleLock, canDuplicate, duplicateItem, selectionHasGroup, ungroupSelected, groupSelected, layout.pages, pageOfSection, moveSectionToPage, hideSectionOf, clearSelection]);
+  }, [menu, selectedIds, t, onChange, data, realign, savedPositions, defaultPositions, autoHeight, resetPosition, toggleLock, canDuplicate, duplicateItem, canDeleteBlock, deleteBlock, selectionHasGroup, ungroupSelected, groupSelected, layout.pages, pageOfSection, moveSectionToPage, hideSectionOf, clearSelection, addPage, removePage]);
 
   return { menu, setMenu, openBlockMenu, openCanvasMenu, menuItems };
 }

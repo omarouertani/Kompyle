@@ -24,7 +24,7 @@ export const MODELS_BY_PROVIDER: Record<AIProvider, OpenRouterModel[]> = {
     { model: "nousresearch/hermes-3-llama-3.1-405b:free", name: "Hermes 3 405B" },
     { model: "qwen/qwen3-next-80b-a3b-instruct:free", name: "Qwen3 Next 80B" },
     { model: "meta-llama/llama-3.3-70b-instruct:free", name: "Llama 3.3 70B" },
-    { model: "nvidia/nemotron-3-super:free", name: "Nemotron 3 Super" },
+    { model: "nvidia/nemotron-3-super-120b-a12b:free", name: "Nemotron 3 Super" },
     { model: "openai/gpt-oss-20b:free", name: "GPT-OSS 20B" },
   ],
   anthropic: [

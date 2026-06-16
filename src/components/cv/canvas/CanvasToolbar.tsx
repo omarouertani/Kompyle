@@ -6,7 +6,6 @@ import { cn } from "@/lib/utils";
 import {
   Minus,
   Plus,
-  Trash2,
   Info,
   FilePlus,
   RotateCcw,
@@ -25,7 +24,7 @@ import {
   ChevronDown,
 } from "lucide-react";
 import type { CVTheme, CVFontFamily } from "@/types/cv";
-import { FONT_FAMILIES } from "./ThemePanel";
+import { FONT_FAMILIES, ThemePanel } from "./ThemePanel";
 import { ColorDrawer } from "./ColorDrawer";
 import { useCanvasFormat } from "./use-canvas-format";
 
@@ -40,7 +39,6 @@ interface CanvasToolbarProps {
   onThemeChange: (updates: Partial<CVTheme>, opts?: { reflow?: boolean }) => void;
   onSelectPage: (index: number) => void;
   onAddPage: () => void;
-  onRemovePage: () => void;
   onZoomChange: (zoom: number) => void;
   onZoomFit: () => void;
   onRealign: () => void;
@@ -49,6 +47,14 @@ interface CanvasToolbarProps {
    *  a block's height — e.g. a selection font-size/font-family change — so the
    *  canvas stays overlap-free and matches the PDF, which uses these positions. */
   onReflow?: () => void;
+  /** Blocs actuellement sélectionnés sur le canvas (sélection au niveau bloc). */
+  selectedIds?: string[];
+  /** Applique une commande d'édition (bold/italic/underline/strikeThrough/foreColor)
+   *  à TOUT le texte des blocs sélectionnés — vrai comportement bascule. Renvoie
+   *  true si appliqué. Utilisé quand aucun texte n'est sélectionné DANS un éditeur. */
+  onBlockCommand?: (command: string, value?: string, opts?: { toggle?: boolean }) => boolean;
+  /** Enveloppe le texte des blocs sélectionnés dans un style (police/taille/titre). */
+  onBlockStyles?: (styles: Record<string, string>) => boolean;
 }
 
 export const ZOOM_MIN = 0.3;
@@ -69,21 +75,23 @@ export function CanvasToolbar({
   canvasBg,
   onSelectPage,
   onAddPage,
-  onRemovePage,
   onZoomChange,
   onZoomFit,
   onRealign,
   onCanvasBgChange,
   onReflow,
-  // onThemeChange intentionally not destructured: now that font, size, and
-  // color all act on the selection (not the global theme), the toolbar no
-  // longer writes the theme. We keep the prop in the interface so callers
-  // don't break, but consume it via _.
+  onThemeChange,
+  selectedIds = [],
+  onBlockCommand,
+  onBlockStyles,
 }: CanvasToolbarProps) {
   const t = useTranslations("Canvas");
   const fmt = useCanvasFormat();
   const [showColorDrawer, setShowColorDrawer] = useState(false);
-  const [recentColors, setRecentColors] = useState<string[]>([]);
+  // Couleurs récentes / de marque persistées dans le thème (survivent au
+  // rechargement et au changement de navigateur, via cv_data JSONB).
+  const recentColors = theme.recentColors ?? [];
+  const brandColors = theme.brandColors ?? [];
 
   const BG_LABELS: Record<CanvasBackground, string> = {
     neutral: t("bg_neutral"),
@@ -108,13 +116,60 @@ export function CanvasToolbar({
     setPendingSize(baseFontSize);
   }
 
+  const normalizeHex = (c: string) => c.trim().toLowerCase();
+
+  // Cœur du formatage : si l'utilisateur a une VRAIE sélection de texte dans un
+  // éditeur (mots surlignés), on applique au niveau caractère (`editorRun`).
+  // Sinon, dès qu'au moins un bloc est sélectionné sur le canvas, on applique au
+  // TOUT le texte du/des bloc(s) via les commandes natives (`blockRun`) —
+  // « sélectionner un bloc » suffit donc, AVEC bascule réelle (gras on/off).
+  const applyFmt = (editorRun: () => boolean, blockRun: () => boolean, reflow = false) => {
+    if (fmt.state.hasSelection && editorRun()) {
+      if (reflow) onReflow?.();
+      return true;
+    }
+    if (selectedIds.length >= 1 && blockRun()) {
+      onReflow?.();
+      return true;
+    }
+    // Repli : caret actif dans un éditeur (sans sélection) → l'éditeur étend au
+    // bloc entier ; sinon no-op.
+    const ok = editorRun();
+    if (ok && reflow) onReflow?.();
+    return ok;
+  };
+
   const handlePickColor = (color: string) => {
-    if (fmt.exec("foreColor", color)) {
-      setRecentColors((prev) => [color, ...prev.filter((c) => c.toLowerCase() !== color.toLowerCase())].slice(0, 5));
+    const c = normalizeHex(color);
+    if (applyFmt(() => fmt.exec("foreColor", color), () => onBlockCommand?.("foreColor", color) ?? false)) {
+      onThemeChange({
+        recentColors: [c, ...recentColors.filter((x) => x.toLowerCase() !== c)].slice(0, 8),
+      });
     }
   };
 
+  const handleAddBrand = (color: string) => {
+    const c = normalizeHex(color);
+    if (brandColors.some((x) => x.toLowerCase() === c)) return;
+    onThemeChange({ brandColors: [...brandColors, c] });
+  };
+
+  const handleRemoveBrand = (color: string) => {
+    const c = normalizeHex(color);
+    onThemeChange({ brandColors: brandColors.filter((x) => x.toLowerCase() !== c) });
+  };
+
   const currentColor = fmt.state.textColor || theme.textColor || "#27272a";
+
+  // H1/H2 = style inline sur la sélection (taille + gras + couleur accent).
+  // Se synchronise au PDF via le pipeline inline-html existant.
+  const headingBase = theme.headingSize ?? 12;
+  const accentColor = theme.primaryColor || "#1a1a1a";
+  const applyHeading = (scale: number) => {
+    const size = Math.round(headingBase * scale * 10) / 10;
+    const styles = { "font-size": `${size}pt`, "font-weight": "bold", color: accentColor };
+    applyFmt(() => fmt.applyInlineStyles(styles), () => onBlockStyles?.(styles) ?? false, true);
+  };
 
   return (
     <>
@@ -123,23 +178,27 @@ export function CanvasToolbar({
         className="border-b border-border/45 bg-background/95 backdrop-blur-md z-20 shrink-0 w-full shadow-sm"
       >
         <div className="px-3 py-2 flex items-center gap-2 flex-wrap">
+          {/* Thème & dimensions (palettes, couleurs, sidebar, compétences,
+              tailles). Compact : police/taille restent inline ci-dessous. */}
+          <ThemePanel theme={theme} onThemeChange={onThemeChange} compact />
+
           {/* ── Format group : font · size · A · B I U S · align · lists · H1 H2 ── */}
           <ToolGroup>
             <FontFamilyPicker
               value={activeFont}
               onChange={(f) => {
-                // Wrap the selection in <span style="font-family: …"> so the
-                // change applies ONLY to selected text, not the whole CV.
-                if (fmt.applyInlineStyle("font-family", FONT_FAMILIES[f].stack)) onReflow?.();
+                // Sélection de texte → applique au texte ; sinon, au(x) bloc(s)
+                // sélectionné(s). Reflow car la hauteur peut changer.
+                const stack = FONT_FAMILIES[f].stack;
+                applyFmt(() => fmt.applyInlineStyle("font-family", stack), () => onBlockStyles?.({ "font-family": stack }) ?? false, true);
               }}
             />
             <FontSizeStepper
               size={pendingSize}
               onChange={(v) => {
                 setPendingSize(v);
-                // A size change alters the block's height → re-stack blocks so
-                // nothing overlaps and the canvas matches the PDF output.
-                if (fmt.applyInlineStyle("font-size", `${v}pt`)) onReflow?.();
+                // Un changement de taille modifie la hauteur du bloc → re-stack.
+                applyFmt(() => fmt.applyInlineStyle("font-size", `${v}pt`), () => onBlockStyles?.({ "font-size": `${v}pt` }) ?? false, true);
               }}
             />
           </ToolGroup>
@@ -165,28 +224,28 @@ export function CanvasToolbar({
             <ToolButton
               title={t("format_bold")}
               active={fmt.state.bold}
-              onClick={() => fmt.exec("bold")}
+              onClick={() => applyFmt(() => fmt.exec("bold"), () => onBlockCommand?.("bold", undefined, { toggle: true }) ?? false)}
             >
               <Bold size={13} strokeWidth={2.5} />
             </ToolButton>
             <ToolButton
               title={t("format_italic")}
               active={fmt.state.italic}
-              onClick={() => fmt.exec("italic")}
+              onClick={() => applyFmt(() => fmt.exec("italic"), () => onBlockCommand?.("italic", undefined, { toggle: true }) ?? false)}
             >
               <Italic size={13} strokeWidth={2.5} />
             </ToolButton>
             <ToolButton
               title={t("format_underline")}
               active={fmt.state.underline}
-              onClick={() => fmt.exec("underline")}
+              onClick={() => applyFmt(() => fmt.exec("underline"), () => onBlockCommand?.("underline", undefined, { toggle: true }) ?? false)}
             >
               <Underline size={13} strokeWidth={2.5} />
             </ToolButton>
             <ToolButton
               title={t("format_strike")}
               active={fmt.state.strike}
-              onClick={() => fmt.exec("strikeThrough")}
+              onClick={() => applyFmt(() => fmt.exec("strikeThrough"), () => onBlockCommand?.("strikeThrough", undefined, { toggle: true }) ?? false)}
             >
               <Strikethrough size={13} strokeWidth={2.5} />
             </ToolButton>
@@ -221,16 +280,19 @@ export function CanvasToolbar({
             >
               <AlignJustify size={13} />
             </ToolButton>
-            <ToolButton title={t("format_list_bullet")}>
+            <ToolButton
+              title={t("format_list_bullet")}
+              onClick={() => { if (fmt.exec("insertUnorderedList")) onReflow?.(); }}
+            >
               <List size={13} />
             </ToolButton>
           </ToolGroup>
 
           <ToolGroup>
-            <ToolButton title={t("format_heading_1")}>
+            <ToolButton title={t("format_heading_1")} onClick={() => applyHeading(1.6)}>
               <Heading1 size={13} strokeWidth={2.5} />
             </ToolButton>
-            <ToolButton title={t("format_heading_2")}>
+            <ToolButton title={t("format_heading_2")} onClick={() => applyHeading(1.3)}>
               <Heading2 size={13} strokeWidth={2.5} />
             </ToolButton>
           </ToolGroup>
@@ -259,11 +321,8 @@ export function CanvasToolbar({
             <ToolButton onClick={onAddPage} title={t("add_page")}>
               <FilePlus size={12} />
             </ToolButton>
-            {pageCount > 1 && (
-              <ToolButton onClick={onRemovePage} title={t("remove_page")} destructive>
-                <Trash2 size={12} />
-              </ToolButton>
-            )}
+            {/* La suppression de page se fait via le menu contextuel (clic droit
+                sur la page) — plus de bouton corbeille ici. */}
           </ToolGroup>
 
           {/* Canvas tools : bg + realign */}
@@ -313,7 +372,10 @@ export function CanvasToolbar({
         open={showColorDrawer}
         value={currentColor}
         recent={recentColors}
+        brand={brandColors}
         onPick={handlePickColor}
+        onAddBrand={handleAddBrand}
+        onRemoveBrand={handleRemoveBrand}
         onClose={() => setShowColorDrawer(false)}
       />
     </>

@@ -54,10 +54,13 @@ export function ExperienceDatePicker({
   const t = useTranslations("DatePicker");
   const monthName = useMonthName(locale);
 
+  // Libellé "en cours" sérialisé dans la chaîne. Doit rester reconnu par
+  // isPresentToken (regex `present` / `en cours`) → aller-retour fiable.
+  const presentLabel = t("present_short");
   const parsed = useMemo(() => parseExperienceDate(value), [value]);
-  const display = formatExperienceDate(parsed, monthName);
+  const display = formatExperienceDate(parsed, monthName, presentLabel);
 
-  const commit = (next: ExperienceDateValue) => onChange(formatExperienceDate(next, monthName));
+  const commit = (next: ExperienceDateValue) => onChange(formatExperienceDate(next, monthName, presentLabel));
   const setStart = (my: MonthYear) => commit({ ...parsed, start: my });
   const setEnd = (my: MonthYear) => commit({ ...parsed, end: my, current: false });
   const toggleCurrent = (checked: boolean) =>

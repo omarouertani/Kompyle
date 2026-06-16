@@ -37,11 +37,13 @@ export function parseExperienceDate(str: string | undefined | null): ExperienceD
 
   const start = parseMonthYear(parts[0]);
 
-  // Un seul fragment : soit "Present" seul (rare), soit une date d'entrée
-  // unique → on considère le poste comme toujours en cours.
+  // Un seul fragment : soit "Present" seul (rare), soit une date d'entrée unique.
+  // Date seule = période OUVERTE mais PAS "poste actuel" (sinon décocher « poste
+  // actuel » reproduirait une date seule → re-parsée comme courante → bascule
+  // bloquée). Le statut "en cours" n'est vrai QUE via un token explicite.
   if (parts.length < 2) {
     if (parts[0] && isPresentToken(parts[0])) return { start: null, end: null, current: true };
-    return { start, end: null, current: !!start };
+    return { start, end: null, current: false };
   }
 
   const endToken = parts[parts.length - 1];
@@ -59,12 +61,14 @@ export function parseExperienceDate(str: string | undefined | null): ExperienceD
 export function formatExperienceDate(
   value: ExperienceDateValue,
   monthName: (month: number) => string,
+  presentLabel = "Present",
 ): string {
   if (!value.start) return "";
   const startLabel = `${monthName(value.start.month)} ${value.start.year}`;
 
-  // Poste en cours → date d'entrée seule.
-  if (value.current) return startLabel;
+  // Poste en cours → token EXPLICITE ("Start - Present") pour que l'aller-retour
+  // chaîne↔modèle conserve l'état (et que décocher ne reste pas bloqué).
+  if (value.current) return `${startLabel} - ${presentLabel}`;
   if (!value.end) return startLabel;
 
   return `${startLabel} - ${monthName(value.end.month)} ${value.end.year}`;

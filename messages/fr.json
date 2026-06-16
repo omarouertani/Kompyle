@@ -82,7 +82,8 @@
     "placeholder": "Ajouter les dates",
     "start": "Début",
     "end": "Fin",
-    "current": "J'occupe toujours ce poste"
+    "current": "J'occupe toujours ce poste",
+    "present_short": "En cours"
   },
   "Profiles": {
     "active_label": "Profil actif :",
@@ -254,6 +255,13 @@
     "color_section_brand_edit": "Modifier",
     "color_section_default": "Couleurs unies par défaut",
     "color_section_default_show_all": "Afficher tout",
+    "color_section_default_show_less": "Afficher moins",
+    "color_brand_pin": "Épingler",
+    "color_brand_remove": "Retirer cette couleur",
+    "ms_apply_font": "Police (sélection)",
+    "ms_apply_color": "Couleur du texte (sélection)",
+    "ms_apply_bold": "Gras (sélection)",
+    "ms_apply_italic": "Italique (sélection)",
     "theme_button": "Thème",
     "add_page": "Ajouter une page",
     "remove_page": "Supprimer la page",
@@ -265,6 +273,9 @@
     "zoom_fit": "Ajuster",
     "zoom_fit_tooltip": "Adapter à l'écran (Ctrl+0)",
     "menu_add_section": "Ajouter une section",
+    "menu_add_page": "Ajouter une page",
+    "menu_delete_page": "Supprimer la page {page}",
+    "menu_delete_block": "Supprimer l'élément",
     "menu_realign": "Tout réaligner",
     "menu_auto_height": "Hauteur auto",
     "menu_default_position": "Position par défaut",
