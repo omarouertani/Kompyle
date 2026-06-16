@@ -94,6 +94,7 @@ export default function AdaptPage() {
   const t = useTranslations("LeftPanel");
   const tr = useTranslations("RightPanel");
   const tp = useTranslations("Profiles");
+  const tAdapt = useTranslations("AIAdapt");
   const locale = useLocale();
 
   const [activeLeftTab, setActiveLeftTab] = useState<LeftTab>("ai");
@@ -112,6 +113,13 @@ export default function AdaptPage() {
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
 
   const profile = useProfileManager(locale, t);
+
+  /** Change d'onglet de droite ; en arrivant sur l'ATS, referme le sidebar s'il
+   *  est ouvert (l'utilisateur reste libre de le rouvrir — on ne le bloque pas). */
+  const goToRightTab = (tab: RightTab) => {
+    setActiveRightTab(tab);
+    if (tab === "ats") setIsSidebarOpen(false);
+  };
 
   /** Profil principal actuellement actif (ligne DB), pour renommer/supprimer. */
   const activeMainProfile = profile.profiles.find((p) => p.id === profile.mainProfileId);
@@ -185,6 +193,7 @@ export default function AdaptPage() {
     setStatusDetails: profile.setStatusDetails,
     setLoadingType: profile.setLoadingType,
     t,
+    tAdapt,
   });
 
   const submitRefine = async (target: "cv" | "letter") => {
@@ -586,7 +595,7 @@ export default function AdaptPage() {
               {isSidebarOpen ? <PanelLeftClose size={17} /> : <PanelLeftOpen size={17} />}
             </Button>
 
-            <Tabs value={activeRightTab} onValueChange={(v) => setActiveRightTab(v as RightTab)}>
+            <Tabs value={activeRightTab} onValueChange={(v) => goToRightTab(v as RightTab)}>
               <TabsList className="w-[420px]">
                 <TabsTrigger value="cv" className="flex-1 gap-1.5">
                   <FileText size={14} />
@@ -619,7 +628,7 @@ export default function AdaptPage() {
                 onVersionChange={profile.selectVersion}
                 onDeleteVersion={profile.deleteVersion}
                 onOpenATS={() => {
-                  setActiveRightTab("ats");
+                  goToRightTab("ats");
                   setAtsTriggerKey((k) => k + 1);
                 }}
                 atsButtonShine={!atsChecked.isChecked(currentCvVersionId)}
@@ -644,7 +653,12 @@ export default function AdaptPage() {
                 model={aiConfig.model}
                 triggerKey={atsTriggerKey}
                 onChecked={atsChecked.markChecked}
-                onApplyRefinedCV={profile.setCurrentCV}
+                onApplyRefinedCV={(cv) => {
+                  // L'adaptation depuis l'ATS s'applique au CV courant ET ouvre
+                  // directement l'aperçu du CV adapté.
+                  profile.setCurrentCV(cv);
+                  setActiveRightTab("cv");
+                }}
               />
             )}
           </div>

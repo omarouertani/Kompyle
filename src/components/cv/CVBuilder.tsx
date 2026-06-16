@@ -41,6 +41,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
+import { ExperienceDatePicker } from "./ExperienceDatePicker";
 
 interface CVBuilderProps {
   data: CVData;
@@ -386,7 +387,15 @@ export default function CVBuilder({ data, onChange }: CVBuilderProps) {
           <>
             <Field label={t("field_exp_title")} value={exp.title} onChange={(v) => updateItem("experiences", exp.id!, { title: v })} />
             <Field label={t("field_exp_org")} value={exp.org} onChange={(v) => updateItem("experiences", exp.id!, { org: v })} />
-            <Field label={t("field_exp_date")} value={exp.date} onChange={(v) => updateItem("experiences", exp.id!, { date: v })} />
+            <div className="flex flex-col gap-2">
+              <Label>{t("field_exp_date")}</Label>
+              <ExperienceDatePicker
+                value={exp.date}
+                onChange={(v) => updateItem("experiences", exp.id!, { date: v })}
+                withIcon
+                triggerClassName="h-9 w-full rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm hover:bg-input/30 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+              />
+            </div>
             <Field
               label={t("field_exp_bullets")}
               value={exp.bullets.join("\n")}

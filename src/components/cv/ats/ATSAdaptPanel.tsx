@@ -2,6 +2,7 @@
 
 import { useCallback, useState } from "react";
 import { useTranslations } from "next-intl";
+import { toast } from "sonner";
 import { Sparkles, Loader2, Wand2, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -25,6 +26,8 @@ interface ATSAdaptPanelProps {
   report: ATSReport;
   /** Appelé avec le CV raffiné — le parent doit le poser dans le state (auto-save). */
   onApplied: (refinedCV: CVData) => void;
+  /** Remonte l'état « adaptation en cours » pour piloter l'overlay de progression. */
+  onAdaptingChange?: (adapting: boolean) => void;
 }
 
 type AdaptStatus = "idle" | "loading" | "success" | "error";
@@ -45,8 +48,9 @@ interface RefineErrorBody {
  * du profile-manager déclenche l'auto-save sur la même ligne DB (pas de nouvelle
  * version créée).
  */
-export function ATSAdaptPanel({ cvData, jobDescription, report, onApplied }: ATSAdaptPanelProps) {
+export function ATSAdaptPanel({ cvData, jobDescription, report, onApplied, onAdaptingChange }: ATSAdaptPanelProps) {
   const t = useTranslations("ATS");
+  const tAdapt = useTranslations("AIAdapt");
   const [model, setModel] = useState<string>("gemini-2.5-flash");
   const provider: AIProvider = providerForModel(model);
   const [extra, setExtra] = useState("");
@@ -78,6 +82,7 @@ Preserve every existing experience, project and skill item (no deletions); refra
 
   const submit = useCallback(async () => {
     setStatus("loading");
+    onAdaptingChange?.(true);
     setError({ msg: null, details: null, failures: null });
     try {
       const res = await fetch("/api/refine-cv", {
@@ -95,18 +100,23 @@ Preserve every existing experience, project and skill item (no deletions); refra
         const errData = (await res.json()) as RefineErrorBody;
         setError({ msg: errData.error ?? null, details: errData.details ?? null, failures: errData.failures ?? null });
         setStatus("error");
+        onAdaptingChange?.(false);
         return;
       }
       const data = (await res.json()) as { refinedCV: CVData };
-      onApplied(data.refinedCV);
       setStatus("success");
       setExtra("");
+      onAdaptingChange?.(false);
+      toast.success(tAdapt("toast_ats_adapt_success"));
+      // Applique le CV adapté ET ouvre directement son aperçu (côté parent).
+      onApplied(data.refinedCV);
     } catch (err) {
       const e = err as { message?: string };
       setError({ msg: e.message ?? "Network error", details: null, failures: null });
       setStatus("error");
+      onAdaptingChange?.(false);
     }
-  }, [extra, cvData, jobDescription, provider, model, onApplied, buildInstruction]);
+  }, [extra, cvData, jobDescription, provider, model, onApplied, onAdaptingChange, tAdapt, buildInstruction]);
 
   if (status === "error") {
     return (

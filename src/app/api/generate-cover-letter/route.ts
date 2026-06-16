@@ -6,6 +6,7 @@ import { coverLetterSchema } from "@/schemas/coverLetterSchema";
 import { extractAndValidate } from "@/utils/ai-helpers";
 import { callWithFallback } from "@/lib/ai-orchestrator";
 import { checkRateLimit } from "@/lib/rate-limiter";
+import { cvForAiPrompt } from "@/lib/cv-payload";
 
 let COVER_LETTER_SCHEMA_JSON = "";
 try {
@@ -82,8 +83,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Strip layout before sending to AI
-    const { layout: _layout, ...cvForAi } = cvData;
+    // Layout + photo retirés avant l'envoi à l'IA (inutiles, gonflent le contexte).
+    const cvForAi = cvForAiPrompt(cvData);
 
     // Date fournie dans les deux langues : le modèle choisit celle de l'offre.
     const today = new Date();

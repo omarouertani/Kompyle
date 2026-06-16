@@ -3,7 +3,7 @@
 import React, { useState, useCallback, useSyncExternalStore, useEffect, useRef } from "react";
 import { useTranslations } from "next-intl";
 import CVInteractiveCanvas from "./CVInteractiveCanvas";
-import AIAdaptOverlay from "./AIAdaptOverlay";
+import AIProgressOverlay from "./AIProgressOverlay";
 import type { CVData } from "@/types/cv";
 import { normalizeTemplate } from "@/lib/cv-layout";
 import { Download, Loader2, LayoutPanelLeft, History, AlertTriangle, LayoutTemplate, Trash2, ShieldCheck } from "lucide-react";
@@ -417,7 +417,7 @@ export default function CVPreview({
             </div>
           )}
         </div>
-        {isAdapting && <AIAdaptOverlay type="cv" />}
+        <AIProgressOverlay active={isAdapting} />
       </div>
     </div>
   );

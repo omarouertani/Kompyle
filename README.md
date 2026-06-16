@@ -210,7 +210,7 @@ graph LR
 │   │   │   ├── LayoutManager.tsx      # Gestionnaire de sections drag-and-drop
 │   │   │   ├── CoverLetterBuilder.tsx # Éditeur de lettre de motivation
 │   │   │   ├── CoverLetterPreview.tsx # Prévisualisation de lettre
-│   │   │   ├── AIAdaptOverlay.tsx     # Overlay skeleton de chargement IA
+│   │   │   ├── AIProgressOverlay.tsx  # Overlay de progression IA (barre shadcn)
 │   │   │   └── status-banner.tsx      # Bannière de statut des opérations IA
 │   │   ├── pdf-primitives/    # Primitives de rendu PDF (@react-pdf/renderer)
 │   │   └── ui/                # Composants shadcn/ui (Button, Input, Select, Tabs…)
