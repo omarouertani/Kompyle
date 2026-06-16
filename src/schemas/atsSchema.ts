@@ -21,13 +21,36 @@ export const atsSubScoresSchema = z.object({
   formatting: z.number().int().min(0).max(100),
 });
 
+/**
+ * Mot-clé TROUVÉ dans le CV — avec preuve contextuelle obligatoire.
+ *
+ * Forcer le couple { term, foundInSection } impose un "chain of thought" :
+ * l'IA ne peut pas se contenter de recracher un terme, elle DOIT prouver où
+ * elle l'a vu dans le JSON. Cela l'oblige à scanner activement les tableaux
+ * imbriqués (skills.items, projects.stack, experiences.bullets…) avant de
+ * conclure, ce qui élimine les faux négatifs du syndrome "Lost in the Middle".
+ */
+export const atsMatchedKeywordSchema = z.object({
+  term: z.string().min(1).describe("Le mot-clé/compétence de l'offre trouvé dans le CV (forme exacte de l'offre)."),
+  foundInSection: z
+    .string()
+    .min(1)
+    .describe(
+      "PREUVE : où exactement ce terme apparaît dans le CV. Cite le chemin précis, ex: 'skills.items (catégorie Backend)', 'projects.stack (projet X)', 'experiences.bullets (poste Y)', 'personalInfo.techLine', 'personalInfo.summary'.",
+    ),
+});
+
 export const atsReportSchema = z.object({
   overallScore: z.number().int().min(0).max(100).describe("Score ATS global du CV face à l'offre (0-100)."),
   scoreLabel: z.string().min(1).describe("Libellé court dans la langue de l'offre : 'Excellent', 'Bon', 'À améliorer', 'Faible'."),
   summary: z.string().min(1).describe("Verdict en 1-2 phrases, dans la langue de l'offre."),
   subScores: atsSubScoresSchema,
-  matchedKeywords: z.array(z.string().min(1)).describe("Mots-clés/compétences de l'offre TROUVÉS dans le CV (forme exacte de l'offre)."),
-  missingKeywords: z.array(z.string().min(1)).describe("Mots-clés/compétences explicitement demandés par l'offre et ABSENTS du CV."),
+  matchedKeywords: z
+    .array(atsMatchedKeywordSchema)
+    .describe(
+      "Mots-clés/compétences de l'offre TROUVÉS dans le CV. Chaque entrée DOIT inclure foundInSection prouvant l'emplacement exact dans le JSON (scan exhaustif des tableaux imbriqués obligatoire).",
+    ),
+  missingKeywords: z.array(z.string().min(1)).describe("Mots-clés/compétences explicitement demandés par l'offre et RÉELLEMENT ABSENTS du CV — uniquement après avoir scanné TOUTES les sections, y compris skills.items, projects.stack et experiences.bullets."),
   sectionFeedback: z.array(atsSectionFeedbackSchema).min(1).describe("Une ligne par section pertinente du CV."),
   strengths: z.array(z.string().min(1)).describe("Points forts du candidat pour cette offre (phrases courtes)."),
   recommendations: z.array(z.string().min(1)).describe("Actions concrètes et atomiques à appliquer au CV pour grimper en score (impératif)."),

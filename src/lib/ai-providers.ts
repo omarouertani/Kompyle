@@ -4,7 +4,8 @@ import Groq from "groq-sdk";
 export async function callGemini(
   systemPrompt: string,
   userPrompt: string,
-  model: string = "gemini-2.5-flash"
+  model: string = "gemini-2.5-flash",
+  temperature: number = 0.3
 ): Promise<string> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error("GEMINI_API_KEY is not set in environment variables.");
@@ -16,7 +17,7 @@ export async function callGemini(
     contents: userPrompt,
     config: {
       systemInstruction: systemPrompt,
-      temperature: 0.3,
+      temperature,
       responseMimeType: "application/json",
     },
   });
@@ -29,7 +30,8 @@ export async function callGemini(
 export async function callGroq(
   systemPrompt: string,
   userPrompt: string,
-  model: string = "llama-3.3-70b-versatile"
+  model: string = "llama-3.3-70b-versatile",
+  temperature: number = 0.3
 ): Promise<string> {
   const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) throw new Error("GROQ_API_KEY is not set in environment variables.");
@@ -42,7 +44,7 @@ export async function callGroq(
       { role: "system", content: systemPrompt },
       { role: "user", content: userPrompt },
     ],
-    temperature: 0.3,
+    temperature,
     response_format: { type: "json_object" },
     max_tokens: 4096,
   });
@@ -55,7 +57,8 @@ export async function callGroq(
 export async function callMistral(
   systemPrompt: string,
   userPrompt: string,
-  model: string = "mistral-large-2512"
+  model: string = "mistral-large-2512",
+  temperature: number = 0.3
 ): Promise<string> {
   const apiKey = process.env.MISTRAL_API_KEY;
   if (!apiKey) throw new Error("MISTRAL_API_KEY is not set in environment variables.");
@@ -72,7 +75,7 @@ export async function callMistral(
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },
       ],
-      temperature: 0.3,
+      temperature,
       response_format: { type: "json_object" },
     }),
   });
