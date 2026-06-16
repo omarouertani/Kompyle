@@ -4,7 +4,7 @@ import { z } from "zod";
 import { resumeSchema, formatZodIssues } from "@/schemas/resumeSchema";
 import { coverLetterSchema } from "@/schemas/coverLetterSchema";
 import { extractAndValidate } from "@/utils/ai-helpers";
-import { callWithFallback } from "@/lib/ai-orchestrator";
+import { callWithFallback, AllProvidersFailedError, providerForModel } from "@/lib/ai-orchestrator";
 import { checkRateLimit } from "@/lib/rate-limiter";
 import { cvForAiPrompt } from "@/lib/cv-payload";
 
@@ -63,7 +63,8 @@ export async function POST(req: NextRequest) {
     }
 
     const body = (await req.json()) as GenerateCoverLetterRequest;
-    const { jobDescription, cvData, provider = "gemini", model } = body;
+    const { jobDescription, cvData, model, apiKey } = body;
+    const provider = body.provider ?? providerForModel(model ?? "");
 
     if (!jobDescription || typeof jobDescription !== "string" || jobDescription.trim().length < 20) {
       return NextResponse.json(
@@ -103,18 +104,28 @@ Write the cover letter in the language of the job posting. Return only the JSON 
 
     let result;
     try {
-      result = await callWithFallback(SYSTEM_PROMPT, userPrompt, provider, model);
+      result = await callWithFallback(SYSTEM_PROMPT, userPrompt, { provider, model, apiKey });
     } catch (err) {
+      if (err instanceof AllProvidersFailedError) {
+        return NextResponse.json(
+          {
+            error: "All AI models failed.",
+            details: err.failures.map((f) => `${f.model}: ${f.reason}`),
+            failures: err.failures,
+          },
+          { status: 502 }
+        );
+      }
       return NextResponse.json(
         {
-          error: "All AI providers failed. Check your API keys and configuration.",
+          error: "All AI models failed. Check your API key and configuration.",
           details: err instanceof Error ? err.message : "Unknown error",
         },
         { status: 502 }
       );
     }
 
-    const { text: rawResponse, provider: usedProvider } = result;
+    const { text: rawResponse, model: usedModel } = result;
 
     // Extract + repair + validate avec self-healing retry (même pipeline que /api/adapt-cv)
     let validation = extractAndValidate(rawResponse, coverLetterSchema);
@@ -123,7 +134,7 @@ Write the cover letter in the language of the job posting. Return only the JSON 
       console.warn("Cover letter failed validation, retrying with self-correction...", validation.issues);
       try {
         const correctionPrompt = buildCorrectionPrompt(userPrompt, validation.issues);
-        const retryResult = await callWithFallback(SYSTEM_PROMPT, correctionPrompt, usedProvider, model);
+        const retryResult = await callWithFallback(SYSTEM_PROMPT, correctionPrompt, { provider, model: usedModel, apiKey });
         validation = extractAndValidate(retryResult.text, coverLetterSchema);
       } catch (retryError) {
         console.error("Self-correction retry failed:", retryError);
@@ -139,7 +150,8 @@ Write the cover letter in the language of the job posting. Return only the JSON 
 
     return NextResponse.json({
       coverLetter: validation.data,
-      provider: usedProvider,
+      provider,
+      model: usedModel,
     });
   } catch (error) {
     console.error("Cover Letter Generation Error:", error);

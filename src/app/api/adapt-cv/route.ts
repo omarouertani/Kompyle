@@ -3,7 +3,7 @@ import type { AdaptCVRequest, AdaptCVResponse, CVData } from "@/types/cv";
 import { z } from "zod";
 import { resumeSchema, formatZodIssues } from "@/schemas/resumeSchema";
 import { extractAndValidate } from "@/utils/ai-helpers";
-import { callWithFallback } from "@/lib/ai-orchestrator";
+import { callWithFallback, AllProvidersFailedError, providerForModel } from "@/lib/ai-orchestrator";
 import { checkRateLimit } from "@/lib/rate-limiter";
 import { SECTION_LABELS_EN } from "@/lib/cv-layout";
 import { describeExperienceForPrompt } from "@/lib/cv-analysis";
@@ -132,7 +132,8 @@ export async function POST(request: NextRequest) {
     }
 
     const body = (await request.json()) as AdaptCVRequest;
-    const { jobDescription, cvData, provider = "gemini", model } = body;
+    const { jobDescription, cvData, model, apiKey } = body;
+    const provider = body.provider ?? providerForModel(model ?? "");
 
     if (!jobDescription || typeof jobDescription !== "string" || jobDescription.trim().length < 20) {
       return Response.json(
@@ -177,22 +178,32 @@ ${JSON.stringify(cvForAi, null, 2)}
 4. Keep the same number of bullets per experience; tighten wording for A4 readability without cutting items.
 5. Return ONLY the modified JSON object. No markdown, no prose.`;
 
-    // Call the selected AI provider with fallback
+    // Call the selected provider/model (OpenRouter falls back across free models)
     let result;
     try {
-      result = await callWithFallback(SYSTEM_PROMPT, userPrompt, provider, model);
+      result = await callWithFallback(SYSTEM_PROMPT, userPrompt, { provider, model, apiKey });
     } catch (err) {
-      console.error("All AI providers failed.");
+      console.error("All AI models failed (adapt-cv).");
+      if (err instanceof AllProvidersFailedError) {
+        return Response.json(
+          {
+            error: "All AI models failed.",
+            details: err.failures.map((f) => `${f.model}: ${f.reason}`),
+            failures: err.failures,
+          },
+          { status: 502 }
+        );
+      }
       return Response.json(
         {
-          error: "All AI providers failed. Check your API keys and configuration.",
+          error: "All AI models failed. Check your API key and configuration.",
           details: err instanceof Error ? err.message : "Unknown error",
         },
         { status: 502 }
       );
     }
 
-    const { text: rawResponse, provider: usedProvider } = result;
+    const { text: rawResponse, model: usedModel } = result;
 
     // Extract + repair + validate the AI output with self-healing retry
     let validation = extractAndValidate(rawResponse, resumeSchema);
@@ -201,7 +212,7 @@ ${JSON.stringify(cvForAi, null, 2)}
       console.warn("Adapted CV failed validation, retrying with self-correction...", validation.issues);
       try {
         const correctionPrompt = buildCorrectionPrompt(userPrompt, validation.issues);
-        const retryResult = await callWithFallback(SYSTEM_PROMPT, correctionPrompt, usedProvider, model);
+        const retryResult = await callWithFallback(SYSTEM_PROMPT, correctionPrompt, { provider, model: usedModel, apiKey });
         validation = extractAndValidate(retryResult.text, resumeSchema);
       } catch (retryError) {
         console.error("Self-correction retry failed:", retryError);
@@ -300,7 +311,8 @@ ${JSON.stringify(cvForAi, null, 2)}
 
     const response: AdaptCVResponse = {
       adaptedCV,
-      provider: usedProvider,
+      provider,
+      model: usedModel,
     };
 
     return Response.json(response);

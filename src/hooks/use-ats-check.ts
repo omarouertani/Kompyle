@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useState } from "react";
+import { useTranslations } from "next-intl";
+import { toast } from "sonner";
 import type { ATSReport, AIProvider, CVData } from "@/types/cv";
 import type { ProviderFailure } from "@/lib/ai-orchestrator";
 
@@ -11,6 +13,8 @@ interface RunArgs {
   jobDescription: string;
   provider?: AIProvider;
   model?: string;
+  /** Clé API du provider sélectionné (BYOK). */
+  apiKey?: string;
 }
 
 interface ATSErrorBody {
@@ -35,8 +39,8 @@ export interface UseATSCheck {
 
 /**
  * Lance un audit ATS du CV face à une offre d'emploi.
- * Le provider/model sont OPTIONNELS — l'API retombe automatiquement sur les
- * autres providers (gemini → groq → mistral) côté serveur via `callWithFallback`.
+ * Le model est OPTIONNEL — l'API retombe automatiquement sur les autres modèles
+ * OpenRouter (gpt-oss-120b → Hermes 3 405B → …) côté serveur via `callWithFallback`.
  */
 export function useATSCheck(): UseATSCheck {
   const [status, setStatus] = useState<ATSStatus>("idle");
@@ -46,14 +50,23 @@ export function useATSCheck(): UseATSCheck {
   const [errorDetails, setErrorDetails] = useState<string | string[] | null>(null);
   const [errorFailures, setErrorFailures] = useState<ProviderFailure[] | null>(null);
   const [lastJobDescription, setLastJobDescription] = useState("");
+  const tErr = useTranslations("AIErrors");
 
-  const run = useCallback(async ({ cvData, jobDescription, provider: prov, model }: RunArgs) => {
+  const run = useCallback(async ({ cvData, jobDescription, provider: prov, model, apiKey }: RunArgs) => {
     const trimmed = jobDescription.trim();
     if (trimmed.length < 20) {
       setStatus("error");
       setErrorMessage("Job description too short (min 20 chars).");
       setErrorDetails(null);
       setErrorFailures(null);
+      return { success: false };
+    }
+    if (!apiKey || !apiKey.trim()) {
+      setStatus("error");
+      setErrorMessage(tErr("missing_key"));
+      setErrorDetails(null);
+      setErrorFailures(null);
+      toast.error(tErr("missing_key"));
       return { success: false };
     }
 
@@ -74,6 +87,7 @@ export function useATSCheck(): UseATSCheck {
           cvData,
           provider: prov,
           model,
+          apiKey,
         }),
       });
       if (!res.ok) {
@@ -91,9 +105,11 @@ export function useATSCheck(): UseATSCheck {
       setErrorDetails(e.details ?? null);
       setErrorFailures(e.failures ?? null);
       setStatus("error");
+      const reason = e.failures?.[0]?.reason;
+      toast.error(reason ? tErr(reason) : (e.error ?? "Unexpected error during ATS check."));
       return { success: false };
     }
-  }, []);
+  }, [tErr]);
 
   const reset = useCallback(() => {
     setStatus("idle");

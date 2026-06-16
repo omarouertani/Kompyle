@@ -1,9 +1,15 @@
 "use client";
 
 import { useCallback } from "react";
+import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import type { CVData, AIProvider, CoverLetterData } from "@/types/cv";
+import { getModelName } from "@/lib/ai-models";
+import type { ProviderFailure } from "@/lib/ai-orchestrator";
 import type { Status } from "./use-profile-manager";
+
+/** Corps d'erreur renvoyé par les routes IA. */
+type AIErrorBody = { error?: string; message?: string; details?: string | string[]; failures?: ProviderFailure[] };
 
 function detectLanguage(text: string): "fr" | "en" {
   const frenchWords = [" de ", " la ", " le ", " et ", " pour ", " dans ", " en ", " une ", " des ", " est ", " avec ", " plus ", " sur ", " par "];
@@ -35,12 +41,13 @@ interface UseAISubmissionDeps {
   jobDescription: string;
   provider: AIProvider;
   model: string;
+  /** Clé API du provider sélectionné (BYOK). Vide → l'appel est bloqué avant le réseau. */
+  apiKey: string | undefined;
   currentCV: CVData;
   coverLetterData: CoverLetterData | null;
   locale: string;
   selectedProfile: string;
   selectedTemplate: string;
-  getProviderName: (p: AIProvider) => string;
   /** Enregistre l'adaptation comme copie liée au profil (l'original reste intact). */
   applyAdaptation: (cv: CVData) => Promise<void>;
   /** Applique une modification IA au CV courant (même version, auto-save sur la même ligne DB). */
@@ -58,11 +65,28 @@ interface UseAISubmissionDeps {
 
 export function useAISubmission(deps: UseAISubmissionDeps) {
   const {
-    jobDescription, provider, model, currentCV, coverLetterData, locale, selectedProfile, selectedTemplate,
-    getProviderName,
+    jobDescription, provider, model, apiKey, currentCV, coverLetterData, locale, selectedProfile, selectedTemplate,
     applyAdaptation, setCurrentCV, setCoverLetterData,
     setActiveRightTab, setStatus, setStatusMessage, setStatusDetails, setLoadingType, t, tAdapt,
   } = deps;
+
+  const tErr = useTranslations("AIErrors");
+
+  /** Toast d'erreur enrichi : on choisit le message selon la raison du 1er échec. */
+  const showErrorToast = useCallback((e: AIErrorBody) => {
+    const reason = e.failures?.[0]?.reason;
+    toast.error(reason ? tErr(reason) : (e.error || e.message || t("status_error")));
+  }, [tErr, t]);
+
+  /** Garde BYOK : pas de clé pour ce provider → on bloque avant le réseau. */
+  const ensureKey = useCallback((): boolean => {
+    if (apiKey && apiKey.trim()) return true;
+    setStatus("error");
+    setStatusMessage(tErr("missing_key"));
+    setStatusDetails(null);
+    toast.error(tErr("missing_key"));
+    return false;
+  }, [apiKey, setStatus, setStatusMessage, setStatusDetails, tErr]);
 
   const handleAdaptCV = useCallback(async () => {
     if (!jobDescription.trim() || jobDescription.trim().length < 20) {
@@ -71,6 +95,7 @@ export function useAISubmission(deps: UseAISubmissionDeps) {
       setStatusDetails(null);
       return;
     }
+    if (!ensureKey()) return;
     setStatus("loading");
     setLoadingType("cv");
     setActiveRightTab("cv");
@@ -89,7 +114,7 @@ export function useAISubmission(deps: UseAISubmissionDeps) {
       const res = await fetch("/api/adapt-cv", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ jobDescription: jobDescription.trim(), cvData: sourceCV, provider, model }),
+        body: JSON.stringify({ jobDescription: jobDescription.trim(), cvData: sourceCV, provider, model, apiKey }),
       });
       if (!res.ok) {
         const errData = await res.json();
@@ -104,24 +129,26 @@ export function useAISubmission(deps: UseAISubmissionDeps) {
           jobDescription: jobDescription.trim(),
           profile: selectedProfile,
           template: selectedTemplate,
+          model: data.model,
         }));
         window.location.href = `/${jobLang}`;
       } else {
         await applyAdaptation(data.adaptedCV);
         setActiveRightTab("cv");
         setStatus("success");
-        setStatusMessage(t("status_success_cv", { provider: getProviderName(data.provider) }));
+        setStatusMessage(t("status_success_cv", { provider: getModelName(data.model) }));
         toast.success(tAdapt("toast_cv_success"));
       }
     } catch (err) {
       setStatus("error");
-      const e = err as { error?: string; message?: string; details?: string | string[] };
+      const e = err as AIErrorBody;
       setStatusMessage(e.error || e.message || t("status_error"));
       setStatusDetails(e.details || null);
+      showErrorToast(e);
     } finally {
       setLoadingType(null);
     }
-  }, [jobDescription, provider, model, currentCV, locale, selectedProfile, selectedTemplate, t, tAdapt, setActiveRightTab, getProviderName, applyAdaptation, setStatus, setStatusMessage, setStatusDetails, setLoadingType]);
+  }, [jobDescription, provider, model, apiKey, currentCV, locale, selectedProfile, selectedTemplate, t, tAdapt, setActiveRightTab, applyAdaptation, setStatus, setStatusMessage, setStatusDetails, setLoadingType, ensureKey, showErrorToast]);
 
   const handleGenerateLetter = useCallback(async () => {
     if (!jobDescription.trim() || jobDescription.trim().length < 20) {
@@ -130,6 +157,7 @@ export function useAISubmission(deps: UseAISubmissionDeps) {
       setStatusDetails(null);
       return;
     }
+    if (!ensureKey()) return;
     setStatus("loading");
     setLoadingType("letter");
     setActiveRightTab("letter");
@@ -139,7 +167,7 @@ export function useAISubmission(deps: UseAISubmissionDeps) {
       const res = await fetch("/api/generate-cover-letter", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ jobDescription: jobDescription.trim(), cvData: currentCV, provider, model }),
+        body: JSON.stringify({ jobDescription: jobDescription.trim(), cvData: currentCV, provider, model, apiKey }),
       });
       if (!res.ok) {
         const errData = await res.json();
@@ -149,17 +177,18 @@ export function useAISubmission(deps: UseAISubmissionDeps) {
       setCoverLetterData(data.coverLetter);
       setActiveRightTab("letter");
       setStatus("success");
-      setStatusMessage(t("status_success_letter", { provider: getProviderName(data.provider) }));
+      setStatusMessage(t("status_success_letter", { provider: getModelName(data.model) }));
       toast.success(tAdapt("toast_letter_success"));
     } catch (err) {
       setStatus("error");
-      const e = err as { error?: string; message?: string; details?: string | string[] };
+      const e = err as AIErrorBody;
       setStatusMessage(e.error || e.message || t("status_error"));
       setStatusDetails(e.details || null);
+      showErrorToast(e);
     } finally {
       setLoadingType(null);
     }
-  }, [jobDescription, provider, model, currentCV, t, tAdapt, setActiveRightTab, getProviderName, setCoverLetterData, setStatus, setStatusMessage, setStatusDetails, setLoadingType]);
+  }, [jobDescription, provider, model, apiKey, currentCV, t, tAdapt, setActiveRightTab, setCoverLetterData, setStatus, setStatusMessage, setStatusDetails, setLoadingType, ensureKey, showErrorToast]);
 
   /** Modification ciblée du CV courant (même version — pas une nouvelle copie). */
   const handleRefineCV = useCallback(async (instruction: string): Promise<boolean> => {
@@ -169,6 +198,7 @@ export function useAISubmission(deps: UseAISubmissionDeps) {
       setStatusDetails(null);
       return false;
     }
+    if (!ensureKey()) return false;
     setStatus("loading");
     setLoadingType("cv");
     setActiveRightTab("cv");
@@ -184,6 +214,7 @@ export function useAISubmission(deps: UseAISubmissionDeps) {
           jobDescription: jobDescription.trim() || undefined,
           provider,
           model,
+          apiKey,
         }),
       });
       if (!res.ok) {
@@ -194,19 +225,20 @@ export function useAISubmission(deps: UseAISubmissionDeps) {
       // Même version : l'auto-save persiste sur la même ligne DB (pas de nouvelle copie)
       setCurrentCV(data.refinedCV);
       setStatus("success");
-      setStatusMessage(t("status_success_refine", { provider: getProviderName(data.provider) }));
+      setStatusMessage(t("status_success_refine", { provider: getModelName(data.model) }));
       toast.success(tAdapt("toast_refine_success"));
       return true;
     } catch (err) {
       setStatus("error");
-      const e = err as { error?: string; message?: string; details?: string | string[] };
+      const e = err as AIErrorBody;
       setStatusMessage(e.error || e.message || t("status_error"));
       setStatusDetails(e.details || null);
+      showErrorToast(e);
       return false;
     } finally {
       setLoadingType(null);
     }
-  }, [jobDescription, provider, model, currentCV, t, tAdapt, setActiveRightTab, getProviderName, setCurrentCV, setStatus, setStatusMessage, setStatusDetails, setLoadingType]);
+  }, [jobDescription, provider, model, apiKey, currentCV, t, tAdapt, setActiveRightTab, setCurrentCV, setStatus, setStatusMessage, setStatusDetails, setLoadingType, ensureKey, showErrorToast]);
 
   /** Modification ciblée de la lettre courante. */
   const handleRefineLetter = useCallback(async (instruction: string): Promise<boolean> => {
@@ -217,6 +249,7 @@ export function useAISubmission(deps: UseAISubmissionDeps) {
       return false;
     }
     if (!coverLetterData) return false;
+    if (!ensureKey()) return false;
     setStatus("loading");
     setLoadingType("letter");
     setActiveRightTab("letter");
@@ -232,6 +265,7 @@ export function useAISubmission(deps: UseAISubmissionDeps) {
           jobDescription: jobDescription.trim() || undefined,
           provider,
           model,
+          apiKey,
         }),
       });
       if (!res.ok) {
@@ -241,19 +275,20 @@ export function useAISubmission(deps: UseAISubmissionDeps) {
       const data = await res.json();
       setCoverLetterData(data.coverLetter);
       setStatus("success");
-      setStatusMessage(t("status_success_refine", { provider: getProviderName(data.provider) }));
+      setStatusMessage(t("status_success_refine", { provider: getModelName(data.model) }));
       toast.success(tAdapt("toast_refine_success"));
       return true;
     } catch (err) {
       setStatus("error");
-      const e = err as { error?: string; message?: string; details?: string | string[] };
+      const e = err as AIErrorBody;
       setStatusMessage(e.error || e.message || t("status_error"));
       setStatusDetails(e.details || null);
+      showErrorToast(e);
       return false;
     } finally {
       setLoadingType(null);
     }
-  }, [jobDescription, provider, model, coverLetterData, t, tAdapt, setActiveRightTab, getProviderName, setCoverLetterData, setStatus, setStatusMessage, setStatusDetails, setLoadingType]);
+  }, [jobDescription, provider, model, apiKey, coverLetterData, t, tAdapt, setActiveRightTab, setCoverLetterData, setStatus, setStatusMessage, setStatusDetails, setLoadingType, ensureKey, showErrorToast]);
 
   return { handleAdaptCV, handleGenerateLetter, handleRefineCV, handleRefineLetter };
 }

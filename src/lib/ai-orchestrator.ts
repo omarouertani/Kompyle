@@ -1,14 +1,8 @@
 import type { AIProvider } from "@/types/cv";
-import { callGemini, callGroq, callMistral } from "./ai-providers";
+import { callOpenRouter, callOpenAI, callGoogle, callAnthropic } from "./ai-providers";
+import { DEFAULT_MODEL, FALLBACK_MODELS, providerForModel } from "./ai-models";
 
-const DEFAULT_MODELS: Record<AIProvider, string> = {
-  gemini: "gemini-2.5-flash",
-  groq: "llama-3.3-70b-versatile",
-  mistral: "mistral-large-2512",
-};
-
-/** Catégorise la raison d'échec d'un appel provider, pour pouvoir guider
- *  l'utilisateur (clé API manquante, quota épuisé, panne, …). */
+/** Catégorise la raison d'échec d'un appel modèle, pour guider l'utilisateur. */
 export type ProviderFailureReason =
   | "missing_key"
   | "auth"
@@ -21,7 +15,8 @@ export type ProviderFailureReason =
   | "unknown";
 
 export interface ProviderFailure {
-  provider: AIProvider;
+  /** Identifiant du modèle qui a échoué (ex: "claude-opus-4-8", "openai/gpt-oss-120b:free"). */
+  model: string;
   reason: ProviderFailureReason;
   message: string;
 }
@@ -29,96 +24,134 @@ export interface ProviderFailure {
 export interface CallWithFallbackResult {
   text: string;
   provider: AIProvider;
-  /** Providers tentés et tombés en panne avant celui qui a réussi (ordre chronologique). */
+  /** Modèle qui a effectivement répondu. */
+  model: string;
   failures: ProviderFailure[];
 }
 
-/** Erreur enrichie : on connaît PRÉCISÉMENT pourquoi chaque provider a planté. */
+/** Erreur enrichie : on connaît PRÉCISÉMENT pourquoi chaque modèle a planté. */
 export class AllProvidersFailedError extends Error {
   failures: ProviderFailure[];
   constructor(failures: ProviderFailure[]) {
     super(
       failures.length === 0
-        ? "All AI providers failed."
-        : `All AI providers failed — ${failures.map((f) => `${f.provider}: ${f.reason}`).join(" · ")}`,
+        ? "All AI models failed."
+        : `All AI models failed — ${failures.map((f) => `${f.model}: ${f.reason}`).join(" · ")}`,
     );
     this.name = "AllProvidersFailedError";
     this.failures = failures;
   }
 }
 
-function classifyFailure(provider: AIProvider, err: unknown): ProviderFailure {
+function classifyFailure(model: string, err: unknown): ProviderFailure {
   const msg = err instanceof Error ? err.message : String(err ?? "Unknown error");
   const lower = msg.toLowerCase();
 
-  if (lower.includes("api_key") || lower.includes("api key") || lower.includes("not set in environment")) {
-    return { provider, reason: "missing_key", message: msg };
+  if (lower.includes("api key is not set") || lower.includes("api_key") || lower.includes("not set")) {
+    return { model, reason: "missing_key", message: msg };
   }
-  if (lower.includes("401") || lower.includes("unauthorized") || lower.includes("invalid api key") || lower.includes("authentication")) {
-    return { provider, reason: "auth", message: msg };
+  if (lower.includes("401") || lower.includes("403") || lower.includes("unauthorized") || lower.includes("unauthenticated") || lower.includes("invalid api key") || lower.includes("api key not valid") || lower.includes("api_key_invalid") || lower.includes("invalid x-api-key") || lower.includes("authentication") || lower.includes("permission")) {
+    return { model, reason: "auth", message: msg };
   }
-  if (lower.includes("429") || lower.includes("rate limit") || lower.includes("too many requests")) {
-    return { provider, reason: "rate_limit", message: msg };
+  // Plus de crédit / facturation : à distinguer AVANT le rate limit générique
+  // (OpenAI renvoie 429 + "insufficient_quota" quand le solde est épuisé).
+  if (lower.includes("402") || lower.includes("payment required") || lower.includes("insufficient_quota") || lower.includes("quota") || lower.includes("billing") || lower.includes("credit") || lower.includes("balance") || lower.includes("exceeded your current quota")) {
+    return { model, reason: "quota", message: msg };
   }
-  if (lower.includes("quota") || lower.includes("billing") || lower.includes("exceeded") || lower.includes("insufficient_quota")) {
-    return { provider, reason: "quota", message: msg };
+  if (lower.includes("429") || lower.includes("rate limit") || lower.includes("too many requests") || lower.includes("resource_exhausted") || lower.includes("resource exhausted")) {
+    return { model, reason: "rate_limit", message: msg };
   }
   if (lower.includes("timeout") || lower.includes("etimedout") || lower.includes("abort")) {
-    return { provider, reason: "timeout", message: msg };
+    return { model, reason: "timeout", message: msg };
   }
   if (lower.includes("network") || lower.includes("fetch failed") || lower.includes("enotfound") || lower.includes("econnreset")) {
-    return { provider, reason: "network", message: msg };
+    return { model, reason: "network", message: msg };
   }
-  if (lower.includes("500") || lower.includes("502") || lower.includes("503") || lower.includes("504")) {
-    return { provider, reason: "server", message: msg };
+  if (lower.includes("500") || lower.includes("502") || lower.includes("503") || lower.includes("504") || lower.includes("overloaded")) {
+    return { model, reason: "server", message: msg };
   }
   if (lower.includes("empty response")) {
-    return { provider, reason: "empty", message: msg };
+    return { model, reason: "empty", message: msg };
   }
-  return { provider, reason: "unknown", message: msg };
+  return { model, reason: "unknown", message: msg };
+}
+
+async function dispatch(
+  provider: AIProvider,
+  systemPrompt: string,
+  userPrompt: string,
+  model: string,
+  temperature: number,
+  apiKey?: string
+): Promise<string> {
+  switch (provider) {
+    case "openai":
+      return callOpenAI(systemPrompt, userPrompt, model, temperature, apiKey);
+    case "google":
+      return callGoogle(systemPrompt, userPrompt, model, temperature, apiKey);
+    case "anthropic":
+      return callAnthropic(systemPrompt, userPrompt, model, temperature, apiKey);
+    case "openrouter":
+    default:
+      return callOpenRouter(systemPrompt, userPrompt, model, temperature, apiKey);
+  }
 }
 
 export interface CallWithFallbackOptions {
-  /** Température transmise à tous les providers. Bas (0–0.1) = extraction factuelle
-   *  déterministe (ATS) ; plus haut = plus de créativité (rédaction). Défaut 0.3. */
+  provider: AIProvider;
+  model?: string;
+  /** Clé API du provider (BYOK). Pour OpenRouter, env peut servir de fallback. */
+  apiKey?: string;
+  /** Température. Bas (0–0.1) = extraction factuelle (ATS) ; défaut 0.3. */
   temperature?: number;
 }
 
+/**
+ * Appelle le provider/modèle choisi.
+ * - OpenRouter (gratuit) : fallback inter-modèles (modèle choisi → FALLBACK_MODELS).
+ * - Google / OpenAI / Anthropic (payant) : STRICT, uniquement le modèle choisi
+ *   (pas de changement automatique → aucun coût surprise).
+ */
 export async function callWithFallback(
   systemPrompt: string,
   userPrompt: string,
-  preferredProvider: AIProvider = "gemini",
-  model?: string,
-  options?: CallWithFallbackOptions
+  opts: CallWithFallbackOptions
 ): Promise<CallWithFallbackResult> {
-  const temperature = options?.temperature ?? 0.3;
-  const providersToTry: AIProvider[] = [preferredProvider];
-  for (const p of ["gemini", "groq", "mistral"] as AIProvider[]) {
-    if (!providersToTry.includes(p)) providersToTry.push(p);
+  const { provider, apiKey } = opts;
+  const temperature = opts.temperature ?? 0.3;
+  const chosenModel = opts.model || (provider === "openrouter" ? DEFAULT_MODEL : undefined);
+
+  if (!chosenModel) {
+    throw new AllProvidersFailedError([
+      { model: `(${provider})`, reason: "unknown", message: "No model selected." },
+    ]);
+  }
+
+  // OpenRouter free → chaîne de fallback ; payant → modèle unique (strict).
+  const modelsToTry: string[] = [chosenModel];
+  if (provider === "openrouter") {
+    for (const m of FALLBACK_MODELS) {
+      if (!modelsToTry.includes(m)) modelsToTry.push(m);
+    }
   }
 
   const failures: ProviderFailure[] = [];
 
-  for (const p of providersToTry) {
+  for (const model of modelsToTry) {
+    const startedAt = Date.now();
     try {
-      const modelToUse = (p === preferredProvider && model) ? model : DEFAULT_MODELS[p];
-      let text: string;
-
-      if (p === "groq") {
-        text = await callGroq(systemPrompt, userPrompt, modelToUse, temperature);
-      } else if (p === "mistral") {
-        text = await callMistral(systemPrompt, userPrompt, modelToUse, temperature);
-      } else {
-        text = await callGemini(systemPrompt, userPrompt, modelToUse, temperature);
-      }
-
-      return { text, provider: p, failures };
+      const text = await dispatch(provider, systemPrompt, userPrompt, model, temperature, apiKey);
+      console.info(`[ai] ${provider}/${model} OK in ${Date.now() - startedAt}ms (${text.length} chars)`);
+      return { text, provider, model, failures };
     } catch (err) {
-      const f = classifyFailure(p, err);
-      console.warn(`Provider ${p} failed (${f.reason}):`, f.message);
+      const f = classifyFailure(model, err);
+      console.warn(`[ai] ${provider}/${model} failed (${f.reason}) after ${Date.now() - startedAt}ms:`, f.message);
       failures.push(f);
     }
   }
 
   throw new AllProvidersFailedError(failures);
 }
+
+/** Provider d'un modèle — réexport pratique pour les routes/UI. */
+export { providerForModel };

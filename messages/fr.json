@@ -46,6 +46,27 @@
     "cv": "Chargement du moteur CV…",
     "letter": "Chargement du moteur Lettre…"
   },
+  "ApiKeys": {
+    "manage_button": "Clés API",
+    "title": "Clés API",
+    "subtitle": "Utilisez vos propres clés. Elles sont stockées localement dans votre navigateur et servent uniquement à appeler le fournisseur que vous choisissez.",
+    "saved": "Enregistrée",
+    "get_key": "Obtenir une clé",
+    "placeholder": "Collez votre clé API…",
+    "security_note": "Vos clés ne quittent jamais cet appareil, sauf dans les requêtes vers le fournisseur choisi. Elles sont enregistrées dans le stockage local de ce navigateur — videz le champ pour les supprimer.",
+    "done": "Terminé"
+  },
+  "AIErrors": {
+    "missing_key": "Aucune clé API pour ce fournisseur. Ajoutez-en une via le bouton Clés API (OpenRouter est gratuit).",
+    "auth": "Clé API invalide ou révoquée. Vérifiez-la dans Clés API.",
+    "rate_limit": "Limite de requêtes atteinte pour ce modèle. Patientez un instant, puis réessayez.",
+    "quota": "Plus de crédit sur ce fournisseur. Rechargez votre solde ou choisissez un autre modèle.",
+    "timeout": "Le modèle a mis trop de temps à répondre. Réessayez.",
+    "network": "Erreur réseau vers le fournisseur IA. Vérifiez votre connexion.",
+    "server": "Le fournisseur IA est surchargé ou temporairement indisponible. Réessayez sous peu.",
+    "empty": "Le modèle a renvoyé une réponse vide. Réessayez.",
+    "unknown": "La requête IA a échoué. Réessayez."
+  },
   "AIAdapt": {
     "adapting_cv": "L'IA travaille sur votre CV…",
     "adapting_letter": "L'IA rédige votre lettre…",
@@ -178,7 +199,7 @@
     "strengths_empty": "Aucun point fort identifié pour cette offre.",
 
     "error_title": "L'audit a échoué",
-    "error_hint_missing_key": "Aucune clé API n'est configurée pour les fournisseurs IA. Ajoutez au moins une clé (GEMINI_API_KEY, GROQ_API_KEY ou MISTRAL_API_KEY) dans votre environnement.",
+    "error_hint_missing_key": "Aucune clé API n'est définie pour le fournisseur sélectionné. Ajoutez-en une via le bouton Clés API — les modèles OpenRouter sont gratuits.",
     "error_hint_quota": "Le quota d'au moins un fournisseur est épuisé. Vérifiez votre tableau de bord de facturation ou attendez le renouvellement, puis réessayez.",
     "error_hint_auth": "Une clé API est invalide ou a été révoquée. Vérifiez vos clés dans la configuration.",
     "error_hint_network": "Connexion réseau instable vers les fournisseurs IA. Vérifiez votre accès Internet, puis réessayez.",

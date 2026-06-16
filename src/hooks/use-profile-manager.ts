@@ -3,6 +3,7 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import type { CVData, CoverLetterData } from "@/types/cv";
 import { defaultLayout, emptyCV, normalizeTemplate, migrateLayoutForTemplate } from "@/lib/cv-layout";
+import { getModelName, DEFAULT_MODEL } from "@/lib/ai-models";
 import { v4 as uuidv4 } from "uuid";
 
 const injectIds = (data: CVData): CVData => ({
@@ -188,7 +189,7 @@ export function useProfileManager(locale: string, t: (key: string, values?: Reco
       const pending = sessionStorage.getItem("pending_adapted_cv");
       if (pending) {
         try {
-          const { adaptedCV, originalCV: origCV, profile, template: pendingTemplate } = JSON.parse(pending);
+          const { adaptedCV, originalCV: origCV, profile, template: pendingTemplate, model: pendingModel } = JSON.parse(pending);
           setCurrentCV(adaptedCV);
           setOriginalCV(origCV);
           setIsAdapted(true);
@@ -196,7 +197,7 @@ export function useProfileManager(locale: string, t: (key: string, values?: Reco
           const template = normalizeTemplate(pendingTemplate);
           setSelectedTemplate(template);
           setStatus("success");
-          setStatusMessage(t("status_success_cv", { provider: "Gemini" }));
+          setStatusMessage(t("status_success_cv", { provider: getModelName(pendingModel ?? DEFAULT_MODEL) }));
           setStatusDetails(null);
           lastSavedRef.current = JSON.stringify(adaptedCV);
 

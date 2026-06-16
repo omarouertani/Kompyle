@@ -3,7 +3,7 @@ import type { RefineCoverLetterRequest, RefineCoverLetterResponse } from "@/type
 import { z } from "zod";
 import { coverLetterSchema } from "@/schemas/coverLetterSchema";
 import { extractAndValidate } from "@/utils/ai-helpers";
-import { callWithFallback } from "@/lib/ai-orchestrator";
+import { callWithFallback, AllProvidersFailedError, providerForModel } from "@/lib/ai-orchestrator";
 import { checkRateLimit } from "@/lib/rate-limiter";
 
 let COVER_LETTER_SCHEMA_JSON = "";
@@ -50,7 +50,8 @@ export async function POST(req: NextRequest) {
     }
 
     const body = (await req.json()) as RefineCoverLetterRequest;
-    const { instruction, coverLetter, jobDescription, provider = "gemini", model } = body;
+    const { instruction, coverLetter, jobDescription, model, apiKey } = body;
+    const provider = body.provider ?? providerForModel(model ?? "");
 
     if (!instruction || typeof instruction !== "string" || instruction.trim().length < 3) {
       return NextResponse.json(
@@ -87,18 +88,28 @@ Apply this instruction surgically and return only the modified JSON.`;
 
     let result;
     try {
-      result = await callWithFallback(SYSTEM_PROMPT, userPrompt, provider, model);
+      result = await callWithFallback(SYSTEM_PROMPT, userPrompt, { provider, model, apiKey });
     } catch (err) {
+      if (err instanceof AllProvidersFailedError) {
+        return NextResponse.json(
+          {
+            error: "All AI models failed.",
+            details: err.failures.map((f) => `${f.model}: ${f.reason}`),
+            failures: err.failures,
+          },
+          { status: 502 }
+        );
+      }
       return NextResponse.json(
         {
-          error: "All AI providers failed. Check your API keys and configuration.",
+          error: "All AI models failed. Check your API key and configuration.",
           details: err instanceof Error ? err.message : "Unknown error",
         },
         { status: 502 }
       );
     }
 
-    const { text: rawResponse, provider: usedProvider } = result;
+    const { text: rawResponse, model: usedModel } = result;
 
     let validation = extractAndValidate(rawResponse, coverLetterSchema);
 
@@ -106,7 +117,7 @@ Apply this instruction surgically and return only the modified JSON.`;
       console.warn("Refined cover letter failed validation, retrying with self-correction...", validation.issues);
       try {
         const correctionPrompt = buildCorrectionPrompt(userPrompt, validation.issues);
-        const retryResult = await callWithFallback(SYSTEM_PROMPT, correctionPrompt, usedProvider, model);
+        const retryResult = await callWithFallback(SYSTEM_PROMPT, correctionPrompt, { provider, model: usedModel, apiKey });
         validation = extractAndValidate(retryResult.text, coverLetterSchema);
       } catch (retryError) {
         console.error("Self-correction retry failed:", retryError);
@@ -122,7 +133,8 @@ Apply this instruction surgically and return only the modified JSON.`;
 
     const response: RefineCoverLetterResponse = {
       coverLetter: validation.data,
-      provider: usedProvider,
+      provider,
+      model: usedModel,
     };
 
     return NextResponse.json(response);

@@ -47,6 +47,8 @@ import {
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useProfileManager } from "@/hooks/use-profile-manager";
 import { useAIProviderConfig, PROVIDER_MODELS, PROVIDER_META } from "@/hooks/use-ai-provider-config";
+import { useApiKeys } from "@/hooks/use-api-keys";
+import { ApiKeysDialog } from "@/components/ApiKeysDialog";
 import type { AIProvider } from "@/types/cv";
 import { useAISubmission } from "@/hooks/use-ai-submission";
 import { StatusBanner } from "@/components/cv/status-banner";
@@ -95,6 +97,7 @@ export default function AdaptPage() {
   const tr = useTranslations("RightPanel");
   const tp = useTranslations("Profiles");
   const tAdapt = useTranslations("AIAdapt");
+  const te = useTranslations("AIErrors");
   const locale = useLocale();
 
   const [activeLeftTab, setActiveLeftTab] = useState<LeftTab>("ai");
@@ -155,6 +158,7 @@ export default function AdaptPage() {
     if (!ok) setProfileActionError(tp("delete_error"));
   };
   const aiConfig = useAIProviderConfig();
+  const apiKeys = useApiKeys();
   const atsChecked = useATSCheckedVersions();
 
   // ID de la version de CV affichée (CV principal ou adaptation sélectionnée).
@@ -178,12 +182,12 @@ export default function AdaptPage() {
     jobDescription,
     provider: aiConfig.provider,
     model: aiConfig.model,
+    apiKey: apiKeys.keys[aiConfig.provider],
     currentCV: profile.currentCV,
     coverLetterData: profile.coverLetterData,
     locale,
     selectedProfile: profile.selectedProfile,
     selectedTemplate: profile.selectedTemplate,
-    getProviderName: aiConfig.getProviderName,
     applyAdaptation: profile.applyAdaptation,
     setCurrentCV: profile.setCurrentCV,
     setCoverLetterData: profile.setCoverLetterData,
@@ -252,7 +256,7 @@ export default function AdaptPage() {
                         {PROVIDER_META[prov].label}
                       </SelectLabel>
                       {PROVIDER_MODELS[prov].map((m) => (
-                        <SelectItem key={m.id} value={m.id} className="cursor-pointer rounded-lg text-sm">
+                        <SelectItem key={m.model} value={m.model} className="cursor-pointer rounded-lg text-sm">
                           {m.name}
                         </SelectItem>
                       ))}
@@ -260,6 +264,14 @@ export default function AdaptPage() {
                   ))}
                 </SelectContent>
               </Select>
+              <div className="flex items-center justify-between gap-2">
+                <ApiKeysDialog />
+                {!apiKeys.keys[aiConfig.provider] && (
+                  <span className="text-[10px] text-amber-600 dark:text-amber-400 text-right leading-tight">
+                    {te("missing_key")}
+                  </span>
+                )}
+              </div>
             </div>
 
             {/* ── Hiérarchie d'actions : Adapter CV (primaire) · Créer Lettre (secondaire) ── */}
@@ -651,6 +663,7 @@ export default function AdaptPage() {
                 jobDescription={jobDescription}
                 provider={aiConfig.provider}
                 model={aiConfig.model}
+                apiKey={apiKeys.keys[aiConfig.provider]}
                 triggerKey={atsTriggerKey}
                 onChecked={atsChecked.markChecked}
                 onApplyRefinedCV={(cv) => {
