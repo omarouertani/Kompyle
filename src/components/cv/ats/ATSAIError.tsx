@@ -5,7 +5,7 @@ import { AlertTriangle, KeyRound, Clock, ShieldX, ServerCrash, Wifi, RotateCcw }
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import type { ProviderFailure, ProviderFailureReason } from "@/lib/ai-orchestrator";
-import { PROVIDER_META } from "@/hooks/use-ai-provider-config";
+import { PROVIDER_META, getModelName, providerForModel } from "@/hooks/use-ai-provider-config";
 
 interface ATSAIErrorProps {
   message: string | null;
@@ -63,14 +63,14 @@ export function ATSAIError({ message, details, failures, onRetry }: ATSAIErrorPr
           <Separator />
           <ul className="flex flex-col gap-2.5 mt-1">
             {failures!.map((f, i) => (
-              <li key={`${f.provider}-${i}`} className="flex items-start gap-3 text-sm">
+              <li key={`${f.model}-${i}`} className="flex items-start gap-3 text-sm">
                 <span
                   className="size-2.5 rounded-full mt-1.5 shrink-0"
-                  style={{ backgroundColor: PROVIDER_META[f.provider].color }}
+                  style={{ backgroundColor: PROVIDER_META[providerForModel(f.model)].color }}
                 />
                 <div className="flex flex-col gap-0.5 flex-1 min-w-0">
                   <div className="flex items-center gap-1.5 flex-wrap">
-                    <span className="font-semibold text-foreground">{PROVIDER_META[f.provider].label}</span>
+                    <span className="font-semibold text-foreground">{getModelName(f.model)}</span>
                     <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-semibold uppercase tracking-wide bg-muted text-muted-foreground">
                       {REASON_ICON[f.reason]}
                       {t(`error_reason_${f.reason}` as const)}

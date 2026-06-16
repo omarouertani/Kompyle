@@ -131,18 +131,24 @@ export interface CVData {
 
 // ─── API Types ──────────────────────────────────────────────────────────────
 
-export type AIProvider = "gemini" | "groq" | "mistral";
+// Providers supportés. OpenRouter = modèles gratuits (clé user). Google/OpenAI/
+// Anthropic = modèles payants, appelés directement avec la clé du provider (BYOK).
+export type AIProvider = "openrouter" | "google" | "openai" | "anthropic";
 
 export interface AdaptCVRequest {
   jobDescription: string;
   cvData: CVData;
   provider?: AIProvider;
   model?: string;
+  /** Clé API du provider, saisie par l'utilisateur (BYOK). Jamais loggée. */
+  apiKey?: string;
 }
 
 export interface AdaptCVResponse {
   adaptedCV: CVData;
   provider: AIProvider;
+  /** Modèle OpenRouter qui a effectivement répondu (après fallback éventuel). */
+  model: string;
 }
 
 export interface AdaptCVErrorResponse {
@@ -159,11 +165,14 @@ export interface RefineCVRequest {
   jobDescription?: string;
   provider?: AIProvider;
   model?: string;
+  /** Clé API du provider, saisie par l'utilisateur (BYOK). Jamais loggée. */
+  apiKey?: string;
 }
 
 export interface RefineCVResponse {
   refinedCV: CVData;
   provider: AIProvider;
+  model: string;
 }
 
 export interface RefineCoverLetterRequest {
@@ -172,11 +181,14 @@ export interface RefineCoverLetterRequest {
   jobDescription?: string;
   provider?: AIProvider;
   model?: string;
+  /** Clé API du provider, saisie par l'utilisateur (BYOK). Jamais loggée. */
+  apiKey?: string;
 }
 
 export interface RefineCoverLetterResponse {
   coverLetter: CoverLetterData;
   provider: AIProvider;
+  model: string;
 }
 
 // ─── Cover Letter Types ─────────────────────────────────────────────────────
@@ -197,11 +209,14 @@ export interface GenerateCoverLetterRequest {
   cvData: CVData;
   provider?: AIProvider;
   model?: string;
+  /** Clé API du provider, saisie par l'utilisateur (BYOK). Jamais loggée. */
+  apiKey?: string;
 }
 
 export interface GenerateCoverLetterResponse {
   coverLetter: CoverLetterData;
   provider: AIProvider;
+  model: string;
 }
 
 // ─── ATS Checker ────────────────────────────────────────────────────────────
@@ -245,9 +260,12 @@ export interface ATSCheckRequest {
   cvData: CVData;
   provider?: AIProvider;
   model?: string;
+  /** Clé API du provider, saisie par l'utilisateur (BYOK). Jamais loggée. */
+  apiKey?: string;
 }
 
 export interface ATSCheckResponse {
   report: ATSReport;
   provider: AIProvider;
+  model: string;
 }

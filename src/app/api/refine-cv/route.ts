@@ -3,7 +3,7 @@ import type { RefineCVRequest, RefineCVResponse, CVData } from "@/types/cv";
 import { z } from "zod";
 import { resumeSchema, formatZodIssues } from "@/schemas/resumeSchema";
 import { extractAndValidate } from "@/utils/ai-helpers";
-import { callWithFallback, AllProvidersFailedError } from "@/lib/ai-orchestrator";
+import { callWithFallback, AllProvidersFailedError, providerForModel } from "@/lib/ai-orchestrator";
 import { checkRateLimit } from "@/lib/rate-limiter";
 import { cvForAiPrompt } from "@/lib/cv-payload";
 
@@ -72,7 +72,8 @@ export async function POST(request: NextRequest) {
     }
 
     const body = (await request.json()) as RefineCVRequest;
-    const { instruction, cvData, jobDescription, provider = "gemini", model } = body;
+    const { instruction, cvData, jobDescription, model, apiKey } = body;
+    const provider = body.provider ?? providerForModel(model ?? "");
 
     if (!instruction || typeof instruction !== "string" || instruction.trim().length < 3) {
       return Response.json(
@@ -116,14 +117,14 @@ Apply this instruction surgically and return only the modified JSON.`;
 
     let result;
     try {
-      result = await callWithFallback(SYSTEM_PROMPT, userPrompt, provider, model);
+      result = await callWithFallback(SYSTEM_PROMPT, userPrompt, { provider, model, apiKey });
     } catch (err) {
-      console.error("All AI providers failed (refine-cv).");
+      console.error("All AI models failed (refine-cv).");
       if (err instanceof AllProvidersFailedError) {
         return Response.json(
           {
-            error: "All AI providers failed.",
-            details: err.failures.map((f) => `${f.provider}: ${f.reason}`),
+            error: "All AI models failed.",
+            details: err.failures.map((f) => `${f.model}: ${f.reason}`),
             failures: err.failures,
           },
           { status: 502 }
@@ -131,14 +132,14 @@ Apply this instruction surgically and return only the modified JSON.`;
       }
       return Response.json(
         {
-          error: "All AI providers failed. Check your API keys and configuration.",
+          error: "All AI models failed. Check your API key and configuration.",
           details: err instanceof Error ? err.message : "Unknown error",
         },
         { status: 502 }
       );
     }
 
-    const { text: rawResponse, provider: usedProvider } = result;
+    const { text: rawResponse, model: usedModel } = result;
 
     // Extract + repair + validate avec self-healing retry (même pipeline que /api/adapt-cv)
     let validation = extractAndValidate(rawResponse, resumeSchema);
@@ -147,7 +148,7 @@ Apply this instruction surgically and return only the modified JSON.`;
       console.warn("Refined CV failed validation, retrying with self-correction...", validation.issues);
       try {
         const correctionPrompt = buildCorrectionPrompt(userPrompt, validation.issues);
-        const retryResult = await callWithFallback(SYSTEM_PROMPT, correctionPrompt, usedProvider, model);
+        const retryResult = await callWithFallback(SYSTEM_PROMPT, correctionPrompt, { provider, model: usedModel, apiKey });
         validation = extractAndValidate(retryResult.text, resumeSchema);
       } catch (retryError) {
         console.error("Self-correction retry failed:", retryError);
@@ -183,7 +184,8 @@ Apply this instruction surgically and return only the modified JSON.`;
 
     const response: RefineCVResponse = {
       refinedCV,
-      provider: usedProvider,
+      provider,
+      model: usedModel,
     };
 
     return Response.json(response);

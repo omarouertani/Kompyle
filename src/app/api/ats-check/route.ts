@@ -4,7 +4,7 @@ import { z } from "zod";
 import { resumeSchema, formatZodIssues } from "@/schemas/resumeSchema";
 import { atsReportSchema } from "@/schemas/atsSchema";
 import { extractAndValidate } from "@/utils/ai-helpers";
-import { callWithFallback, AllProvidersFailedError } from "@/lib/ai-orchestrator";
+import { callWithFallback, AllProvidersFailedError, providerForModel } from "@/lib/ai-orchestrator";
 import { checkRateLimit } from "@/lib/rate-limiter";
 import { describeExperienceForPrompt } from "@/lib/cv-analysis";
 import { cvForAiPrompt, buildAtsKeywordSurface } from "@/lib/cv-payload";
@@ -107,7 +107,8 @@ export async function POST(request: NextRequest) {
     }
 
     const body = (await request.json()) as ATSCheckRequest;
-    const { jobDescription, cvData, provider = "gemini", model } = body;
+    const { jobDescription, cvData, model, apiKey } = body;
+    const provider = body.provider ?? providerForModel(model ?? "");
 
     if (!jobDescription || typeof jobDescription !== "string" || jobDescription.trim().length < 20) {
       return Response.json(
@@ -161,14 +162,14 @@ ${JSON.stringify(cvForAi, null, 2)}
 
     let result;
     try {
-      result = await callWithFallback(SYSTEM_PROMPT, userPrompt, provider, model, { temperature: ATS_TEMPERATURE });
+      result = await callWithFallback(SYSTEM_PROMPT, userPrompt, { provider, model, apiKey, temperature: ATS_TEMPERATURE });
     } catch (err) {
-      console.error("All AI providers failed (ATS check).");
+      console.error("All AI models failed (ATS check).");
       if (err instanceof AllProvidersFailedError) {
         return Response.json(
           {
-            error: "All AI providers failed.",
-            details: err.failures.map((f) => `${f.provider}: ${f.reason}`),
+            error: "All AI models failed.",
+            details: err.failures.map((f) => `${f.model}: ${f.reason}`),
             failures: err.failures,
           },
           { status: 502 }
@@ -176,14 +177,14 @@ ${JSON.stringify(cvForAi, null, 2)}
       }
       return Response.json(
         {
-          error: "All AI providers failed. Check your API keys and configuration.",
+          error: "All AI models failed. Check your API key and configuration.",
           details: err instanceof Error ? err.message : "Unknown error",
         },
         { status: 502 }
       );
     }
 
-    const { text: rawResponse, provider: usedProvider } = result;
+    const { text: rawResponse, model: usedModel } = result;
 
     let validation = extractAndValidate(rawResponse, atsReportSchema);
 
@@ -191,7 +192,7 @@ ${JSON.stringify(cvForAi, null, 2)}
       console.warn("ATS report failed validation, retrying with self-correction...", validation.issues);
       try {
         const correctionPrompt = buildCorrectionPrompt(userPrompt, validation.issues);
-        const retryResult = await callWithFallback(SYSTEM_PROMPT, correctionPrompt, usedProvider, model, { temperature: ATS_TEMPERATURE });
+        const retryResult = await callWithFallback(SYSTEM_PROMPT, correctionPrompt, { provider, model: usedModel, apiKey, temperature: ATS_TEMPERATURE });
         validation = extractAndValidate(retryResult.text, atsReportSchema);
       } catch (retryError) {
         console.error("Self-correction retry failed (ATS check):", retryError);
@@ -229,7 +230,8 @@ ${JSON.stringify(cvForAi, null, 2)}
         matchedKeywords: reconciled.matchedKeywords,
         missingKeywords: reconciled.missingKeywords,
       },
-      provider: usedProvider,
+      provider,
+      model: usedModel,
     };
 
     return Response.json(response);

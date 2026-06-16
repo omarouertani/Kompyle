@@ -24,6 +24,8 @@ interface ATSCheckerProps {
   jobDescription: string;
   provider: AIProvider;
   model: string;
+  /** Clé API du provider sélectionné (BYOK). */
+  apiKey: string | undefined;
   /** Compteur incrémenté par le parent quand l'utilisateur ouvre l'ATS Checker. */
   triggerKey: number;
   /** Notifie le parent qu'un audit s'est terminé avec succès (pour le marquage). */
@@ -46,6 +48,7 @@ export function ATSChecker({
   jobDescription,
   provider,
   model,
+  apiKey,
   triggerKey,
   onChecked,
   onApplyRefinedCV,
@@ -87,9 +90,9 @@ export function ATSChecker({
 
   const handleConfirm = useCallback(
     (jd: string) => {
-      void run({ cvData, jobDescription: jd, provider, model });
+      void run({ cvData, jobDescription: jd, provider, model, apiKey });
     },
-    [run, cvData, provider, model],
+    [run, cvData, provider, model, apiKey],
   );
 
   const openDialog = useCallback(() => setDialogOpen(true), []);

@@ -15,7 +15,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { PROVIDER_META, PROVIDER_MODELS, providerForModel } from "@/hooks/use-ai-provider-config";
+import { PROVIDER_META, PROVIDER_MODELS, providerForModel, DEFAULT_MODEL } from "@/hooks/use-ai-provider-config";
+import { useApiKeys } from "@/hooks/use-api-keys";
+import { ApiKeysDialog } from "@/components/ApiKeysDialog";
 import type { ATSReport, AIProvider, CVData } from "@/types/cv";
 import type { ProviderFailure } from "@/lib/ai-orchestrator";
 import { ATSAIError } from "./ATSAIError";
@@ -51,8 +53,11 @@ interface RefineErrorBody {
 export function ATSAdaptPanel({ cvData, jobDescription, report, onApplied, onAdaptingChange }: ATSAdaptPanelProps) {
   const t = useTranslations("ATS");
   const tAdapt = useTranslations("AIAdapt");
-  const [model, setModel] = useState<string>("gemini-2.5-flash");
+  const tErr = useTranslations("AIErrors");
+  const { keys } = useApiKeys();
+  const [model, setModel] = useState<string>(DEFAULT_MODEL);
   const provider: AIProvider = providerForModel(model);
+  const apiKey = keys[provider];
   const [extra, setExtra] = useState("");
   const [status, setStatus] = useState<AdaptStatus>("idle");
   const [error, setError] = useState<{ msg: string | null; details: string | string[] | null; failures: ProviderFailure[] | null }>({ msg: null, details: null, failures: null });
@@ -81,6 +86,12 @@ Preserve every existing experience, project and skill item (no deletions); refra
   }, [report]);
 
   const submit = useCallback(async () => {
+    if (!apiKey || !apiKey.trim()) {
+      setError({ msg: tErr("missing_key"), details: null, failures: null });
+      setStatus("error");
+      toast.error(tErr("missing_key"));
+      return;
+    }
     setStatus("loading");
     onAdaptingChange?.(true);
     setError({ msg: null, details: null, failures: null });
@@ -94,6 +105,7 @@ Preserve every existing experience, project and skill item (no deletions); refra
           jobDescription: jobDescription || undefined,
           provider,
           model,
+          apiKey,
         }),
       });
       if (!res.ok) {
@@ -116,7 +128,7 @@ Preserve every existing experience, project and skill item (no deletions); refra
       setStatus("error");
       onAdaptingChange?.(false);
     }
-  }, [extra, cvData, jobDescription, provider, model, onApplied, onAdaptingChange, tAdapt, buildInstruction]);
+  }, [extra, cvData, jobDescription, provider, model, apiKey, onApplied, onAdaptingChange, tAdapt, tErr, buildInstruction]);
 
   if (status === "error") {
     return (
@@ -203,7 +215,7 @@ Preserve every existing experience, project and skill item (no deletions); refra
                     {PROVIDER_META[prov].label}
                   </SelectLabel>
                   {PROVIDER_MODELS[prov].map((m) => (
-                    <SelectItem key={m.id} value={m.id} className="cursor-pointer rounded-lg text-sm">
+                    <SelectItem key={m.model} value={m.model} className="cursor-pointer rounded-lg text-sm">
                       {m.name}
                     </SelectItem>
                   ))}
@@ -211,6 +223,10 @@ Preserve every existing experience, project and skill item (no deletions); refra
               ))}
             </SelectContent>
           </Select>
+          <ApiKeysDialog className="w-full justify-center" />
+          {!apiKey && (
+            <span className="text-[10px] text-amber-600 dark:text-amber-400">{tErr("missing_key")}</span>
+          )}
           <Button
             size="lg"
             onClick={submit}

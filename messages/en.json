@@ -46,6 +46,27 @@
     "cv": "Loading CV engine...",
     "letter": "Loading Letter engine..."
   },
+  "ApiKeys": {
+    "manage_button": "API Keys",
+    "title": "API Keys",
+    "subtitle": "Bring your own keys. They're stored locally in your browser and only used to call the provider you select.",
+    "saved": "Saved",
+    "get_key": "Get a key",
+    "placeholder": "Paste your API key…",
+    "security_note": "Your keys never leave this machine except in requests to the provider you choose. They are saved in this browser's local storage — clear them anytime by emptying the field.",
+    "done": "Done"
+  },
+  "AIErrors": {
+    "missing_key": "No API key for this provider. Add one via the API Keys button (OpenRouter is free).",
+    "auth": "Invalid or revoked API key. Check it in API Keys.",
+    "rate_limit": "Rate limit reached for this model. Wait a moment, then try again.",
+    "quota": "Out of credit on this provider. Top up your balance or pick another model.",
+    "timeout": "The model took too long to respond. Please try again.",
+    "network": "Network error reaching the AI provider. Check your connection.",
+    "server": "The AI provider is overloaded or temporarily down. Try again shortly.",
+    "empty": "The model returned an empty response. Please try again.",
+    "unknown": "The AI request failed. Please try again."
+  },
   "AIAdapt": {
     "adapting_cv": "AI is working on your CV…",
     "adapting_letter": "AI is writing your letter…",
@@ -178,7 +199,7 @@
     "strengths_empty": "No strength identified for this posting.",
 
     "error_title": "Audit failed",
-    "error_hint_missing_key": "No AI provider API key is configured. Add at least one key (GEMINI_API_KEY, GROQ_API_KEY or MISTRAL_API_KEY) to your environment.",
+    "error_hint_missing_key": "No API key is set for the selected provider. Add one via the API Keys button — OpenRouter models are free.",
     "error_hint_quota": "At least one provider's quota is exhausted. Check your billing dashboard or wait for the reset, then retry.",
     "error_hint_auth": "An API key is invalid or has been revoked. Check your keys in the configuration.",
     "error_hint_network": "Unstable network connection to the AI providers. Check your internet access, then retry.",
