@@ -4,9 +4,10 @@ import React, { useEffect, useState } from "react";
 import { Link } from "@/i18n/routing";
 import { useTranslations, useLocale } from "next-intl";
 import { useTheme } from "next-themes";
-import { Moon, Sun, Globe, Layers, PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { Moon, Sun, Globe, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { ApiKeysDialog } from "@/components/ApiKeysDialog";
+import { Logo } from "@/components/Logo";
 import { cn } from "@/lib/utils";
 
 interface HeaderProps {
@@ -90,13 +91,8 @@ export default function Header({ toggleSidebar, isSidebarCollapsed }: HeaderProp
             <PanelLeftOpen size={18} />
           </Button>
         )}
-        <div className="size-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground shadow-sm">
-          <Layers size={16} />
-        </div>
-        <Link href="/" className="flex items-center gap-2.5 group">
-          <span className="text-lg font-semibold tracking-tight text-foreground">
-            Kompyle
-          </span>
+        <Link href="/" aria-label="Kompyle" className="flex items-center group">
+          <Logo className="h-6 text-foreground transition-opacity group-hover:opacity-80" />
         </Link>
       </div>
 
