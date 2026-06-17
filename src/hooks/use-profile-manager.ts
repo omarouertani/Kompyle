@@ -2,7 +2,8 @@
 
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import type { CVData, CoverLetterData } from "@/types/cv";
-import { defaultLayout, emptyCV, normalizeTemplate, migrateLayoutForTemplate } from "@/lib/cv-layout";
+import { defaultLayout, normalizeTemplate, migrateLayoutForTemplate } from "@/lib/cv-layout";
+import { mockCV } from "@/lib/mock-cv";
 import { getModelName, DEFAULT_MODEL } from "@/lib/ai-models";
 import { v4 as uuidv4 } from "uuid";
 
@@ -32,10 +33,12 @@ export interface CVProfile {
 export type Status = "idle" | "loading" | "success" | "error";
 export type SaveStatus = "idle" | "saving" | "saved" | "error";
 
-/** Plus de données codées en dur : les profils vivent en base. Si la BD est
- *  indisponible, on démarre sur un CV vierge (éditable / à reconstruire). */
+/** Les profils vivent en base. À défaut (BD indisponible, ou tout premier
+ *  démarrage sans aucun profil), on démarre sur un CV d'EXEMPLE (mock) plutôt
+ *  que vierge : chaque nouvel utilisateur voit des templates remplis, qu'il
+ *  remplace ensuite champ par champ par ses propres données. */
 function getFallbackCV(template: string): CVData {
-  return injectIds(emptyCV(template));
+  return injectIds(mockCV(template));
 }
 
 /** Nom lisible d'une adaptation : titre du CV (rôle, sinon nom) + date courte —
@@ -290,7 +293,11 @@ export function useProfileManager(locale: string, t: (key: string, values?: Reco
         trimmed.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "")
           .replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || `profil-${Date.now()}`;
 
-      const blank = injectIds(emptyCV(template));
+      // Nouveau profil : pré-rempli avec des données d'EXEMPLE (mock) pour que
+      // les templates ne s'affichent jamais vides. L'utilisateur remplace chaque
+      // champ par ses vraies données — l'exemple disparaît au fur et à mesure.
+      // Le nom saisi à la création prime sur le nom d'exemple.
+      const blank = injectIds(mockCV(template));
       blank.personalInfo = { ...blank.personalInfo, name: trimmed };
 
       try {
