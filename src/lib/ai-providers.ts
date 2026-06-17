@@ -87,6 +87,82 @@ export async function callOpenAI(
   return text;
 }
 
+/** Groq — API compatible OpenAI, inférence rapide. JSON mode. */
+export async function callGroq(
+  systemPrompt: string,
+  userPrompt: string,
+  model: string,
+  temperature: number = 0.3,
+  apiKey?: string
+): Promise<string> {
+  if (!apiKey) throw new Error("Groq API key is not set (add your Groq API key).");
+
+  const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model,
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+      temperature,
+      response_format: { type: "json_object" },
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Groq API error: ${response.status} ${response.statusText} - ${errorText}`);
+  }
+
+  const data = await response.json();
+  const text = data.choices?.[0]?.message?.content;
+  if (!text) throw new Error("Groq returned an empty response.");
+  return text;
+}
+
+/** Mistral — Chat Completions, compatible OpenAI. JSON mode. */
+export async function callMistral(
+  systemPrompt: string,
+  userPrompt: string,
+  model: string,
+  temperature: number = 0.3,
+  apiKey?: string
+): Promise<string> {
+  if (!apiKey) throw new Error("Mistral API key is not set (add your Mistral API key).");
+
+  const response = await fetch("https://api.mistral.ai/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model,
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+      temperature,
+      response_format: { type: "json_object" },
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Mistral API error: ${response.status} ${response.statusText} - ${errorText}`);
+  }
+
+  const data = await response.json();
+  const text = data.choices?.[0]?.message?.content;
+  if (!text) throw new Error("Mistral returned an empty response.");
+  return text;
+}
+
 /** Google Gemini — generateContent REST, sortie JSON forcée. */
 export async function callGoogle(
   systemPrompt: string,

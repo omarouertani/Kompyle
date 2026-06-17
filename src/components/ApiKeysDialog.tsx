@@ -26,6 +26,8 @@ const KEY_URLS: Record<AIProvider, string> = {
   anthropic: "https://console.anthropic.com/settings/keys",
   openai: "https://platform.openai.com/api-keys",
   google: "https://aistudio.google.com/apikey",
+  groq: "https://console.groq.com/keys",
+  mistral: "https://console.mistral.ai/api-keys",
 };
 
 function KeyRow({ provider }: { provider: AIProvider }) {

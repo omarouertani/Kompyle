@@ -1,5 +1,5 @@
 import type { AIProvider } from "@/types/cv";
-import { callOpenRouter, callOpenAI, callGoogle, callAnthropic } from "./ai-providers";
+import { callOpenRouter, callOpenAI, callGoogle, callAnthropic, callGroq, callMistral } from "./ai-providers";
 import { DEFAULT_MODEL, FALLBACK_MODELS, providerForModel } from "./ai-models";
 
 /** Catégorise la raison d'échec d'un appel modèle, pour guider l'utilisateur. */
@@ -91,6 +91,10 @@ async function dispatch(
       return callGoogle(systemPrompt, userPrompt, model, temperature, apiKey);
     case "anthropic":
       return callAnthropic(systemPrompt, userPrompt, model, temperature, apiKey);
+    case "groq":
+      return callGroq(systemPrompt, userPrompt, model, temperature, apiKey);
+    case "mistral":
+      return callMistral(systemPrompt, userPrompt, model, temperature, apiKey);
     case "openrouter":
     default:
       return callOpenRouter(systemPrompt, userPrompt, model, temperature, apiKey);

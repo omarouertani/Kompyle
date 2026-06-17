@@ -45,10 +45,20 @@ export const MODELS_BY_PROVIDER: Record<AIProvider, OpenRouterModel[]> = {
     { model: "gemini-2.0-flash", name: "Gemini 2.0 Flash" },
     { model: "gemini-1.5-pro", name: "Gemini 1.5 Pro" },
   ],
+  groq: [
+    { model: "llama-3.3-70b-versatile", name: "Llama 3.3 70B (Fast)" },
+    { model: "llama-3.1-8b-instant", name: "Llama 3.1 8B" },
+    { model: "mixtral-8x7b-32768", name: "Mixtral 8x7B" },
+  ],
+  mistral: [
+    { model: "open-mistral-nemo", name: "Mistral Nemo" },
+    { model: "mistral-small-latest", name: "Mistral Small" },
+    { model: "open-mixtral-8x22b", name: "Mixtral 8x22B" },
+  ],
 };
 
 /** Ordre d'affichage des providers (OpenRouter gratuit en premier). */
-export const PROVIDERS: AIProvider[] = ["openrouter", "anthropic", "openai", "google"];
+export const PROVIDERS: AIProvider[] = ["openrouter", "anthropic", "openai", "google", "groq", "mistral"];
 
 /** Tous les modèles, à plat (lookups). */
 const ALL_MODELS: { provider: AIProvider; model: string; name: string }[] = PROVIDERS.flatMap(

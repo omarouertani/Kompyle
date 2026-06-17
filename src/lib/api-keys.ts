@@ -22,7 +22,7 @@ function readStorage(): ApiKeys {
     const parsed = JSON.parse(raw);
     if (!parsed || typeof parsed !== "object") return {};
     const out: ApiKeys = {};
-    for (const p of ["openrouter", "google", "openai", "anthropic"] as AIProvider[]) {
+    for (const p of ["openrouter", "google", "openai", "anthropic", "groq", "mistral"] as AIProvider[]) {
       const v = (parsed as Record<string, unknown>)[p];
       if (typeof v === "string" && v.trim()) out[p] = v.trim();
     }

@@ -15,6 +15,8 @@ export const PROVIDER_META: Record<AIProvider, { label: string; color: string }>
   anthropic: { label: "Anthropic Claude", color: "#d97757" },
   openai: { label: "OpenAI", color: "#10a37f" },
   google: { label: "Google Gemini", color: "#4285f4" },
+  groq: { label: "Groq", color: "#f55036" },
+  mistral: { label: "Mistral", color: "#fa5208" },
 };
 
 export function useAIProviderConfig() {
