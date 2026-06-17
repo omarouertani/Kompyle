@@ -14,12 +14,20 @@ import {
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
+import { ModelSelect } from "@/components/ai/ModelSelect";
+import { ApiKeysDialog } from "@/components/ApiKeysDialog";
+import { useApiKeys } from "@/hooks/use-api-keys";
+import { providerForModel } from "@/hooks/use-ai-provider-config";
 
 interface ATSJobDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   /** Offre déjà saisie dans le sidebar (peut être vide). */
   existingJobDescription: string;
+  /** Modèle IA sélectionné pour l'audit. */
+  model: string;
+  /** Change le modèle IA de l'audit. */
+  onModelChange: (model: string) => void;
   /** Lance l'audit avec l'offre choisie. */
   onConfirm: (jobDescription: string) => void;
 }
@@ -31,7 +39,7 @@ interface ATSJobDialogProps {
  * son state local) n'est monté que pendant que `open === true` — donc l'état
  * se resync naturellement à chaque ouverture, sans useEffect → setState.
  */
-export function ATSJobDialog({ open, onOpenChange, existingJobDescription, onConfirm }: ATSJobDialogProps) {
+export function ATSJobDialog({ open, onOpenChange, existingJobDescription, model, onModelChange, onConfirm }: ATSJobDialogProps) {
   const trimmed = existingJobDescription.trim();
   const hasExisting = trimmed.length >= 20;
 
@@ -41,6 +49,8 @@ export function ATSJobDialog({ open, onOpenChange, existingJobDescription, onCon
         <ATSJobDialogBody
           existingJobDescription={trimmed}
           hasExisting={hasExisting}
+          model={model}
+          onModelChange={onModelChange}
           onConfirm={(jd) => { onConfirm(jd); onOpenChange(false); }}
           onCancel={() => onOpenChange(false)}
         />
@@ -52,16 +62,21 @@ export function ATSJobDialog({ open, onOpenChange, existingJobDescription, onCon
 interface BodyProps {
   existingJobDescription: string;
   hasExisting: boolean;
+  model: string;
+  onModelChange: (model: string) => void;
   onConfirm: (jd: string) => void;
   onCancel: () => void;
 }
 
-function ATSJobDialogBody({ existingJobDescription, hasExisting, onConfirm, onCancel }: BodyProps) {
+function ATSJobDialogBody({ existingJobDescription, hasExisting, model, onModelChange, onConfirm, onCancel }: BodyProps) {
   const t = useTranslations("ATS");
+  const tErr = useTranslations("AIErrors");
+  const { keys } = useApiKeys();
   const [text, setText] = useState(existingJobDescription);
   const [mode, setMode] = useState<"reuse" | "new">(hasExisting ? "reuse" : "new");
 
-  const canSubmit = text.trim().length >= 20;
+  const hasKey = !!keys[providerForModel(model)];
+  const canSubmit = text.trim().length >= 20 && hasKey;
 
   const submit = () => {
     if (!canSubmit) return;
@@ -133,6 +148,21 @@ function ATSJobDialogBody({ existingJobDescription, hasExisting, onConfirm, onCa
           </span>
         </div>
       )}
+
+      <Separator className="my-1" />
+
+      {/* Choix du modèle IA pour cet audit (réutilise le sélecteur d'adapt CV). */}
+      <div className="flex flex-col gap-1.5">
+        <ModelSelect model={model} onModelChange={onModelChange} label={t("dialog_model_label")} elevated />
+        <div className="flex items-center justify-between gap-2">
+          <ApiKeysDialog />
+          {!hasKey && (
+            <span className="text-[10px] text-amber-600 dark:text-amber-400 text-right leading-tight">
+              {tErr("missing_key")}
+            </span>
+          )}
+        </div>
+      </div>
 
       <AlertDialogFooter>
         <Button variant="outline" className="h-8 px-3 text-xs" onClick={onCancel}>

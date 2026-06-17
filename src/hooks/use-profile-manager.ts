@@ -38,16 +38,17 @@ function getFallbackCV(template: string): CVData {
   return injectIds(emptyCV(template));
 }
 
-/** Nom lisible d'une adaptation : titre du CV (rôle, sinon nom) + date —
- *  jamais un identifiant technique de base de données. */
+/** Nom lisible d'une adaptation : titre du CV (rôle, sinon nom) + date courte —
+ *  jamais un identifiant technique de base de données. Le titre reste COMPLET
+ *  (pas de troncature à la source) : le dropdown le tronque visuellement et le
+ *  révèle au survol via l'effet marquee. Format compact (`·`, mois court). */
 function adaptationName(cv: CVData, locale: string): string {
   const title = cv.personalInfo?.role?.trim() || cv.personalInfo?.name?.trim() || "CV";
   const date = new Date().toLocaleDateString(locale === "fr" ? "fr-FR" : "en-US", {
     day: "2-digit",
     month: "short",
-    year: "numeric",
   });
-  return `${title} — ${date}`;
+  return `${title} · ${date}`;
 }
 
 export function useProfileManager(locale: string, t: (key: string, values?: Record<string, string>) => string) {

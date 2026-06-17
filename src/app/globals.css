@@ -332,6 +332,20 @@
 				0 0 24px 2px color-mix(in oklab, var(--primary) 35%, transparent);
 		}
 	}
+
+	/* Texte défilant au survol — pour les libellés longs tronqués (ex: noms de
+	 * versions de CV dans le dropdown d'historique). Le décalage `--marquee-shift`
+	 * (négatif) et la durée `--marquee-dur` sont calculés en JS selon le débordement
+	 * réel : aucun mouvement si le texte tient déjà dans son conteneur. */
+	.marquee-track {
+		transform: translateX(0);
+		transition: transform var(--marquee-dur, 3s) linear;
+	}
+
+	[data-slot="select-item"]:hover .marquee-track,
+	[data-slot="select-item"][data-highlighted] .marquee-track {
+		transform: translateX(var(--marquee-shift, 0px));
+	}
 }
 
 @media (prefers-reduced-motion: reduce) {

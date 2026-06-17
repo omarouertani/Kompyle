@@ -6,16 +6,8 @@ import { toast } from "sonner";
 import { Sparkles, Loader2, Wand2, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectLabel,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { PROVIDER_META, PROVIDER_MODELS, providerForModel, DEFAULT_MODEL } from "@/hooks/use-ai-provider-config";
+import { ModelSelect } from "@/components/ai/ModelSelect";
+import { providerForModel, DEFAULT_MODEL } from "@/hooks/use-ai-provider-config";
 import { useApiKeys } from "@/hooks/use-api-keys";
 import { ApiKeysDialog } from "@/components/ApiKeysDialog";
 import type { ATSReport, AIProvider, CVData } from "@/types/cv";
@@ -191,38 +183,12 @@ Preserve every existing experience, project and skill item (no deletions); refra
         </div>
 
         <div className="flex flex-col gap-1.5">
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-            {t("adapt_model_label")}
-          </span>
-          <Select value={model} onValueChange={(v) => v && setModel(v)} disabled={status === "loading"}>
-            <SelectTrigger className="w-full h-11 rounded-xl border border-border bg-muted/40 hover:bg-muted/60 transition-colors px-3">
-              <span className="flex items-center gap-2.5 min-w-0">
-                <span
-                  className="size-2.5 rounded-full shrink-0"
-                  style={{ backgroundColor: PROVIDER_META[provider].color }}
-                />
-                <span className="flex flex-col items-start min-w-0 leading-tight">
-                  <span className="text-[10px] text-muted-foreground truncate">{PROVIDER_META[provider].label}</span>
-                  <SelectValue className="text-sm font-semibold" />
-                </span>
-              </span>
-            </SelectTrigger>
-            <SelectContent alignItemWithTrigger={false} className="border border-border shadow-xl rounded-xl p-1.5">
-              {(Object.keys(PROVIDER_MODELS) as AIProvider[]).map((prov) => (
-                <SelectGroup key={prov}>
-                  <SelectLabel className="flex items-center gap-2 px-2 pt-2 pb-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                    <span className="size-2 rounded-full" style={{ backgroundColor: PROVIDER_META[prov].color }} />
-                    {PROVIDER_META[prov].label}
-                  </SelectLabel>
-                  {PROVIDER_MODELS[prov].map((m) => (
-                    <SelectItem key={m.model} value={m.model} className="cursor-pointer rounded-lg text-sm">
-                      {m.name}
-                    </SelectItem>
-                  ))}
-                </SelectGroup>
-              ))}
-            </SelectContent>
-          </Select>
+          <ModelSelect
+            model={model}
+            onModelChange={setModel}
+            disabled={status === "loading"}
+            label={t("adapt_model_label")}
+          />
           <ApiKeysDialog className="w-full justify-center" />
           {!apiKey && (
             <span className="text-[10px] text-amber-600 dark:text-amber-400">{tErr("missing_key")}</span>

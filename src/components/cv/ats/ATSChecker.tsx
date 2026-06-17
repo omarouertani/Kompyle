@@ -3,10 +3,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Sparkles, RotateCcw, ShieldCheck } from "lucide-react";
-import type { AIProvider, CVData } from "@/types/cv";
+import type { CVData } from "@/types/cv";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { useATSCheck } from "@/hooks/use-ats-check";
+import { providerForModel, DEFAULT_MODEL } from "@/hooks/use-ai-provider-config";
+import { useApiKeys } from "@/hooks/use-api-keys";
 import AIProgressOverlay from "@/components/cv/AIProgressOverlay";
 import { ATSEmptyState } from "./ATSEmptyState";
 import { ATSSkeleton } from "./ATSSkeleton";
@@ -22,10 +24,6 @@ interface ATSCheckerProps {
   /** ID de la version DB du CV courant — sert au marquage « déjà audité ». */
   cvVersionId: string | null;
   jobDescription: string;
-  provider: AIProvider;
-  model: string;
-  /** Clé API du provider sélectionné (BYOK). */
-  apiKey: string | undefined;
   /** Compteur incrémenté par le parent quand l'utilisateur ouvre l'ATS Checker. */
   triggerKey: number;
   /** Notifie le parent qu'un audit s'est terminé avec succès (pour le marquage). */
@@ -46,9 +44,6 @@ export function ATSChecker({
   cvDisplayName,
   cvVersionId,
   jobDescription,
-  provider,
-  model,
-  apiKey,
   triggerKey,
   onChecked,
   onApplyRefinedCV,
@@ -56,6 +51,11 @@ export function ATSChecker({
   const t = useTranslations("ATS");
   const tAdapt = useTranslations("AIAdapt");
   const [adapting, setAdapting] = useState(false);
+  // Modèle IA propre à l'audit ATS (indépendant du sélecteur global du sidebar).
+  const { keys } = useApiKeys();
+  const [model, setModel] = useState<string>(DEFAULT_MODEL);
+  const provider = providerForModel(model);
+  const apiKey = keys[provider];
   const {
     status,
     report,
@@ -105,9 +105,12 @@ export function ATSChecker({
           <div className="size-9 rounded-lg bg-primary/10 ring-1 ring-primary/20 flex items-center justify-center shrink-0">
             <ShieldCheck size={16} className="text-primary" />
           </div>
-          <div className="flex flex-col min-w-0">
+          <div className="flex flex-col min-w-0 gap-1">
             <span className="text-sm font-semibold text-foreground leading-tight">{t("header_title")}</span>
-            <span className="text-xs text-muted-foreground truncate">
+            <span
+              className="inline-flex w-fit max-w-full items-center rounded-full bg-muted px-2.5 py-0.5 text-[11px] font-medium text-muted-foreground truncate"
+              title={cvDisplayName}
+            >
               {t("header_subtitle", { name: cvDisplayName })}
             </span>
           </div>
@@ -125,21 +128,23 @@ export function ATSChecker({
               {t("btn_reset")}
             </Button>
           )}
-          {status !== "loading" && (
+          {/* Bouton run UNIQUEMENT après un audit (relancer). En idle, seul le
+              CTA central de l'empty-state lance l'audit → pas de doublon. */}
+          {status === "success" && (
             <Button
               size="sm"
               className="h-9 px-4 text-xs gap-1.5 font-semibold shadow-md shadow-primary/25 bg-gradient-to-b from-primary to-primary/90"
               onClick={openDialog}
             >
               <Sparkles size={14} />
-              {status === "success" ? t("btn_run_again") : t("btn_run")}
+              {t("btn_run_again")}
             </Button>
           )}
         </div>
       </div>
 
       <div className="flex-1 min-h-0 overflow-y-auto pr-1">
-        {status === "idle" && <ATSEmptyState cvName={cvDisplayName} onStart={openDialog} />}
+        {status === "idle" && <ATSEmptyState onStart={openDialog} />}
 
         {status === "loading" && <ATSSkeleton providerHint={t("loading_hint")} />}
 
@@ -171,6 +176,8 @@ export function ATSChecker({
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         existingJobDescription={lastJobDescription || jobDescription}
+        model={model}
+        onModelChange={setModel}
         onConfirm={handleConfirm}
       />
 

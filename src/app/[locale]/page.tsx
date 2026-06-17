@@ -22,8 +22,6 @@ import {
   CloudOff,
   Plus,
   X,
-  Pencil,
-  Trash2,
   ShieldCheck,
 } from "lucide-react";
 import { ATSChecker } from "@/components/cv/ats/ATSChecker";
@@ -34,22 +32,14 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SidebarProvider, Sidebar, SidebarHeader, SidebarContent, SidebarRail, SidebarInset } from "@/components/ui/sidebar";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectLabel,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useProfileManager } from "@/hooks/use-profile-manager";
-import { useAIProviderConfig, PROVIDER_MODELS, PROVIDER_META } from "@/hooks/use-ai-provider-config";
+import { useAIProviderConfig } from "@/hooks/use-ai-provider-config";
+import { ModelSelect } from "@/components/ai/ModelSelect";
+import { ProfileActionsMenu } from "@/components/ProfileActionsMenu";
 import { useApiKeys } from "@/hooks/use-api-keys";
 import { ApiKeysDialog } from "@/components/ApiKeysDialog";
-import type { AIProvider } from "@/types/cv";
 import { useAISubmission } from "@/hooks/use-ai-submission";
 import { StatusBanner } from "@/components/cv/status-banner";
 
@@ -218,7 +208,7 @@ export default function AdaptPage() {
         return (
           <div className="flex flex-col gap-6 p-6">
             <div>
-              <h1 className="font-serif text-2xl font-semibold tracking-tight text-foreground mb-1.5">{t("title")}</h1>
+              <h1 className="text-2xl font-semibold tracking-tight text-foreground mb-1.5">{t("title")}</h1>
               <p className="text-sm text-muted-foreground leading-relaxed">{t("subtitle")}</p>
             </div>
 
@@ -230,48 +220,26 @@ export default function AdaptPage() {
               disabled={profile.status === "loading"}
             />
 
-            {/* ── Sélection unifiée du modèle IA (fournisseur + modèle) ── */}
+            {/* ── Sélection unifiée du modèle IA (label discret + clés API en icône) ── */}
             <div className="flex flex-col gap-1.5">
-              <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground pl-0.5">
-                {t("label_model")}
-              </span>
-              <Select value={aiConfig.model} onValueChange={(val) => val && aiConfig.selectModel(val)} disabled={profile.status === "loading"}>
-                <SelectTrigger className="w-full h-11 rounded-xl border border-border bg-muted/40 hover:bg-muted/60 transition-colors px-3">
-                  <span className="flex items-center gap-2.5 min-w-0">
-                    <span
-                      className="size-2.5 rounded-full shrink-0 ring-2 ring-offset-1 ring-offset-background"
-                      style={{ backgroundColor: PROVIDER_META[aiConfig.provider].color, boxShadow: `0 0 0 2px ${PROVIDER_META[aiConfig.provider].color}30` }}
-                    />
-                    <span className="flex flex-col items-start min-w-0 leading-tight">
-                      <span className="text-[10px] text-muted-foreground truncate">{PROVIDER_META[aiConfig.provider].label}</span>
-                      <SelectValue className="text-sm font-semibold" />
+              <div className="flex items-center justify-between gap-2 pl-0.5">
+                <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+                  {t("label_model")}
+                </span>
+                <div className="flex items-center gap-2">
+                  {!apiKeys.keys[aiConfig.provider] && (
+                    <span className="text-[10px] text-amber-600 dark:text-amber-400 leading-tight">
+                      {te("missing_key")}
                     </span>
-                  </span>
-                </SelectTrigger>
-                <SelectContent alignItemWithTrigger={false} className="border border-border shadow-xl rounded-xl p-1.5">
-                  {(Object.keys(PROVIDER_MODELS) as AIProvider[]).map((prov) => (
-                    <SelectGroup key={prov}>
-                      <SelectLabel className="flex items-center gap-2 px-2 pt-2 pb-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                        <span className="size-2 rounded-full" style={{ backgroundColor: PROVIDER_META[prov].color }} />
-                        {PROVIDER_META[prov].label}
-                      </SelectLabel>
-                      {PROVIDER_MODELS[prov].map((m) => (
-                        <SelectItem key={m.model} value={m.model} className="cursor-pointer rounded-lg text-sm">
-                          {m.name}
-                        </SelectItem>
-                      ))}
-                    </SelectGroup>
-                  ))}
-                </SelectContent>
-              </Select>
-              <div className="flex items-center justify-between gap-2">
-                <ApiKeysDialog />
-                {!apiKeys.keys[aiConfig.provider] && (
-                  <span className="text-[10px] text-amber-600 dark:text-amber-400 text-right leading-tight">
-                    {te("missing_key")}
-                  </span>
-                )}
+                  )}
+                  <ApiKeysDialog iconOnly />
+                </div>
               </div>
+              <ModelSelect
+                model={aiConfig.model}
+                onModelChange={aiConfig.selectModel}
+                disabled={profile.status === "loading"}
+              />
             </div>
 
             {/* ── Hiérarchie d'actions : Adapter CV (primaire) · Créer Lettre (secondaire) ── */}
@@ -280,7 +248,7 @@ export default function AdaptPage() {
                 size="lg"
                 onClick={() => { setRefineHistory([]); handleAdaptCV(); }}
                 disabled={profile.status === "loading" || !jobDescription.trim()}
-                className="w-full gap-2 h-12 text-sm font-semibold shadow-md shadow-primary/25 bg-gradient-to-b from-primary to-primary/90 hover:shadow-lg hover:shadow-primary/30 transition-all"
+                className="w-full gap-2 h-11 text-sm font-semibold bg-gradient-to-b from-primary to-primary/90 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.2),0_4px_14px_-3px_color-mix(in_oklab,var(--primary)_40%,transparent)] hover:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.2),0_8px_20px_-4px_color-mix(in_oklab,var(--primary)_55%,transparent)] transition-all"
               >
                 {profile.status === "loading" && profile.loadingType === "cv" ? (
                   <Loader2 size={17} className="animate-spin" />
@@ -430,80 +398,105 @@ export default function AdaptPage() {
       >
         <Sidebar side="left" variant="sidebar" className="border-r border-border !top-14 !h-[calc(100svh-3.5rem)]">
           <SidebarHeader className="px-3 pt-3 pb-2 border-b border-border shrink-0 bg-sidebar flex flex-col gap-2.5">
-            <div className="flex flex-col gap-1.5 bg-muted/40 rounded-lg p-1.5 border border-border/40">
-              <div className="flex items-center justify-between px-1 gap-2">
-                <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground pl-1 shrink-0">{tp("active_label")}</span>
-                <div className="flex gap-1 items-center flex-wrap justify-end">
-                  {(profile.profiles.length > 0
-                    ? [...new Map(profile.profiles.map((p) => [p.slug, p])).values()]
-                    : [{ slug: "omar", name: "Omar" }]
-                  ).map((p) => (
-                    <Button
-                      key={p.slug}
-                      variant={profile.selectedProfile === p.slug ? "default" : "ghost"}
-                      size="xs"
-                      className={cn("h-6 px-3 text-xs font-semibold rounded-md transition-all", profile.selectedProfile === p.slug ? "shadow-sm" : "text-muted-foreground hover:text-foreground")}
-                      onClick={() => { setIsRenamingProfile(false); setProfileActionError(null); profile.handleProfileChange(p.slug); }}
-                    >
-                      {p.name.split(" ")[0]}
-                    </Button>
-                  ))}
-                  {isCreatingProfile ? (
-                    <div className="flex items-center gap-1">
-                      <input
-                        autoFocus
-                        value={newProfileName}
-                        onChange={(e) => setNewProfileName(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") submitNewProfile();
-                          if (e.key === "Escape") { setIsCreatingProfile(false); setNewProfileName(""); }
-                        }}
-                        placeholder={tp("new_placeholder")}
-                        className="h-6 w-28 px-2 text-xs rounded-md border border-border bg-input-bg focus:outline-none focus:ring-1 focus:ring-ring/40"
-                      />
-                      <Button variant="default" size="xs" className="h-6 px-2 text-xs" onClick={submitNewProfile} disabled={!newProfileName.trim()} title={tp("create_blank")}>
-                        <Check size={12} />
-                      </Button>
-                      <Button variant="ghost" size="xs" className="h-6 px-1.5 text-muted-foreground" onClick={() => { setIsCreatingProfile(false); setNewProfileName(""); }}>
-                        <X size={12} />
-                      </Button>
-                    </div>
-                  ) : (
-                    <>
-                      <Button
-                        variant="ghost"
-                        size="xs"
-                        className="h-6 px-2 text-xs gap-1 text-muted-foreground hover:text-foreground"
-                        onClick={() => setIsCreatingProfile(true)}
-                        title={tp("new_profile_tooltip")}
-                      >
-                        <Plus size={12} />
-                      </Button>
-                      {activeMainProfile && !isRenamingProfile && (
-                        <>
-                          <Button
-                            variant="ghost"
-                            size="xs"
-                            className="h-6 px-1.5 text-muted-foreground hover:text-foreground"
-                            onClick={() => { setProfileActionError(null); setRenameValue(activeMainProfile.name); setIsRenamingProfile(true); }}
-                            title={tp("rename_tooltip")}
-                          >
-                            <Pencil size={12} />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="xs"
-                            className="h-6 px-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                            onClick={handleDeleteProfile}
-                            title={tp("delete_tooltip")}
-                          >
-                            <Trash2 size={12} />
-                          </Button>
-                        </>
-                      )}
-                    </>
-                  )}
+            <div className="flex flex-col gap-2 bg-muted/40 rounded-lg p-2 border border-border/40">
+              {/* Ligne 1 : libellé + statut de sauvegarde (intégré, plus de barre flottante) */}
+              <div className="flex items-center justify-between gap-2 px-1">
+                <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">{tp("active_label")}</span>
+                <div className="flex items-center gap-1.5">
+                  <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                    {profile.saveStatus === "saving" && (
+                      <>
+                        <Loader2 size={12} className="animate-spin" />
+                        <span>{tp("saving")}</span>
+                      </>
+                    )}
+                    {profile.saveStatus === "saved" && (
+                      <>
+                        <Check size={12} className="text-emerald-500" />
+                        <span className="text-emerald-500">{tp("saved")}</span>
+                      </>
+                    )}
+                    {profile.saveStatus === "error" && (
+                      <>
+                        <CloudOff size={12} className="text-destructive" />
+                        <span className="text-destructive">{tp("save_error")}</span>
+                      </>
+                    )}
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="xs"
+                    className={cn(
+                      "h-6 px-2 text-xs gap-1 rounded-lg transition-all",
+                      profile.hasUnsavedChanges ? "text-primary font-semibold" : "text-muted-foreground"
+                    )}
+                    onClick={profile.handleSave}
+                    disabled={!profile.hasUnsavedChanges || profile.saveStatus === "saving"}
+                  >
+                    <Save size={12} />
+                    {tp("save")}
+                  </Button>
                 </div>
+              </div>
+
+              {/* Ligne 2 : profils + créer + menu d'actions (renommer/supprimer regroupés) */}
+              <div className="flex items-center gap-1 flex-wrap px-1">
+                {(profile.profiles.length > 0
+                  ? [...new Map(profile.profiles.map((p) => [p.slug, p])).values()]
+                  : [{ slug: "omar", name: "Omar" }]
+                ).map((p) => (
+                  <Button
+                    key={p.slug}
+                    variant={profile.selectedProfile === p.slug ? "default" : "ghost"}
+                    size="xs"
+                    className={cn("h-6 px-3 text-xs font-semibold rounded-lg transition-all", profile.selectedProfile === p.slug ? "shadow-sm" : "text-muted-foreground hover:text-foreground")}
+                    onClick={() => { setIsRenamingProfile(false); setProfileActionError(null); profile.handleProfileChange(p.slug); }}
+                  >
+                    {p.name.split(" ")[0]}
+                  </Button>
+                ))}
+                {isCreatingProfile ? (
+                  <div className="flex items-center gap-1">
+                    <input
+                      autoFocus
+                      value={newProfileName}
+                      onChange={(e) => setNewProfileName(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") submitNewProfile();
+                        if (e.key === "Escape") { setIsCreatingProfile(false); setNewProfileName(""); }
+                      }}
+                      placeholder={tp("new_placeholder")}
+                      className="h-6 w-28 px-2 text-xs rounded-lg border border-border bg-input-bg focus:outline-none focus:ring-1 focus:ring-ring/40"
+                    />
+                    <Button variant="default" size="xs" className="h-6 px-2 text-xs" onClick={submitNewProfile} disabled={!newProfileName.trim()} title={tp("create_blank")}>
+                      <Check size={12} />
+                    </Button>
+                    <Button variant="ghost" size="xs" className="h-6 px-1.5 text-muted-foreground" onClick={() => { setIsCreatingProfile(false); setNewProfileName(""); }}>
+                      <X size={12} />
+                    </Button>
+                  </div>
+                ) : (
+                  <>
+                    <Button
+                      variant="ghost"
+                      size="xs"
+                      className="h-6 px-2 text-xs gap-1 text-muted-foreground hover:text-foreground"
+                      onClick={() => setIsCreatingProfile(true)}
+                      title={tp("new_profile_tooltip")}
+                    >
+                      <Plus size={12} />
+                    </Button>
+                    {activeMainProfile && !isRenamingProfile && (
+                      <ProfileActionsMenu
+                        onRename={() => { setProfileActionError(null); setRenameValue(activeMainProfile.name); setIsRenamingProfile(true); }}
+                        onDelete={handleDeleteProfile}
+                        renameLabel={tp("rename_tooltip")}
+                        deleteLabel={tp("delete_tooltip")}
+                        menuLabel={tp("more_actions")}
+                      />
+                    )}
+                  </>
+                )}
               </div>
 
               {isRenamingProfile && activeMainProfile && (
@@ -517,7 +510,7 @@ export default function AdaptPage() {
                       if (e.key === "Escape") { setIsRenamingProfile(false); setRenameValue(""); }
                     }}
                     placeholder={tp("rename_placeholder")}
-                    className="h-6 flex-1 px-2 text-xs rounded-md border border-border bg-input-bg focus:outline-none focus:ring-1 focus:ring-ring/40"
+                    className="h-6 flex-1 px-2 text-xs rounded-lg border border-border bg-input-bg focus:outline-none focus:ring-1 focus:ring-ring/40"
                   />
                   <Button variant="default" size="xs" className="h-6 px-2 text-xs" onClick={submitRename} disabled={!renameValue.trim()} title={tp("rename_tooltip")}>
                     <Check size={12} />
@@ -533,56 +526,18 @@ export default function AdaptPage() {
               )}
             </div>
 
-            <div className="flex items-center justify-between px-1">
-              <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                {profile.saveStatus === "saving" && (
-                  <>
-                    <Loader2 size={12} className="animate-spin" />
-                    <span>{tp("saving")}</span>
-                  </>
-                )}
-                {profile.saveStatus === "saved" && (
-                  <>
-                    <Check size={12} className="text-emerald-500" />
-                    <span className="text-emerald-500">{tp("saved")}</span>
-                  </>
-                )}
-                {profile.saveStatus === "error" && (
-                  <>
-                    <CloudOff size={12} className="text-destructive" />
-                    <span className="text-destructive">{tp("save_error")}</span>
-                  </>
-                )}
-              </div>
-              <Button
-                variant="ghost"
-                size="xs"
-                className={cn(
-                  "h-6 px-2 text-xs gap-1 rounded-md transition-all",
-                  profile.hasUnsavedChanges
-                    ? "text-primary font-semibold"
-                    : "text-muted-foreground"
-                )}
-                onClick={profile.handleSave}
-                disabled={!profile.hasUnsavedChanges || profile.saveStatus === "saving"}
-              >
-                <Save size={12} />
-                {tp("save")}
-              </Button>
-            </div>
-
             <Tabs value={activeLeftTab} onValueChange={(v) => setActiveLeftTab(v as LeftTab)}>
-              <TabsList className="w-full h-10">
-                <TabsTrigger value="ai" className="flex-1 gap-1.5">
-                  <Sparkles size={14} />
+              <TabsList className="w-full h-9 bg-muted/60 gap-0.5">
+                <TabsTrigger value="ai" className="flex-1 gap-1.5 text-xs font-medium">
+                  <Sparkles size={13} />
                   {t("tab_ai")}
                 </TabsTrigger>
-                <TabsTrigger value="cv-builder" className="flex-1 gap-1.5">
-                  <PencilRuler size={14} />
+                <TabsTrigger value="cv-builder" className="flex-1 gap-1.5 text-xs font-medium">
+                  <PencilRuler size={13} />
                   {t("tab_cv")}
                 </TabsTrigger>
-                <TabsTrigger value="letter-builder" className="flex-1 gap-1.5">
-                  <PenTool size={14} />
+                <TabsTrigger value="letter-builder" className="flex-1 gap-1.5 text-xs font-medium">
+                  <PenTool size={13} />
                   {t("tab_letter")}
                 </TabsTrigger>
               </TabsList>
@@ -661,9 +616,6 @@ export default function AdaptPage() {
                 cvDisplayName={cvDisplayName}
                 cvVersionId={currentCvVersionId}
                 jobDescription={jobDescription}
-                provider={aiConfig.provider}
-                model={aiConfig.model}
-                apiKey={apiKeys.keys[aiConfig.provider]}
                 triggerKey={atsTriggerKey}
                 onChecked={atsChecked.markChecked}
                 onApplyRefinedCV={(cv) => {

@@ -93,6 +93,7 @@
     "rename_tooltip": "Renommer le profil",
     "rename_placeholder": "Nouveau nom…",
     "delete_tooltip": "Supprimer le profil",
+    "more_actions": "Options du profil",
     "delete_confirm": "Supprimer le profil « {name} » et toutes ses adaptations ? Cette action est irréversible.",
     "delete_title": "Supprimer le profil ?",
     "cancel": "Annuler",
@@ -163,6 +164,7 @@
     "dialog_input_hint": "Au moins 20 caractères. Plus l'offre est détaillée, plus l'audit est précis.",
     "dialog_cancel": "Annuler",
     "dialog_confirm": "Lancer l'audit ATS",
+    "dialog_model_label": "Modèle IA",
 
     "loading_title": "Audit ATS en cours…",
     "loading_hint": "Analyse du CV face à l'offre",

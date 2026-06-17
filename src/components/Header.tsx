@@ -46,7 +46,7 @@ export default function Header({ toggleSidebar, isSidebarCollapsed }: HeaderProp
           <Layers size={16} />
         </div>
         <Link href="/" className="flex items-center gap-2.5 group">
-          <span className="font-serif text-lg font-semibold tracking-tight text-foreground">
+          <span className="text-lg font-semibold tracking-tight text-foreground">
             Kompyle
           </span>
         </Link>
