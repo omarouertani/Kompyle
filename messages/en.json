@@ -93,6 +93,7 @@
     "rename_tooltip": "Rename profile",
     "rename_placeholder": "New name…",
     "delete_tooltip": "Delete profile",
+    "more_actions": "Profile options",
     "delete_confirm": "Delete profile \"{name}\" and all its adaptations? This cannot be undone.",
     "delete_title": "Delete profile?",
     "cancel": "Cancel",
@@ -163,6 +164,7 @@
     "dialog_input_hint": "At least 20 characters. The more detailed, the sharper the audit.",
     "dialog_cancel": "Cancel",
     "dialog_confirm": "Run ATS audit",
+    "dialog_model_label": "AI model",
 
     "loading_title": "Running ATS audit…",
     "loading_hint": "Comparing CV against the posting",

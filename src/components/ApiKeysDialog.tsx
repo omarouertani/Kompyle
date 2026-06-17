@@ -91,7 +91,7 @@ function KeyRow({ provider }: { provider: AIProvider }) {
  * Gestion des clés API (BYOK). Bouton-déclencheur + dialog. Les clés sont stockées
  * en localStorage (jamais commitées, envoyées uniquement vers le provider choisi).
  */
-export function ApiKeysDialog({ className }: { className?: string }) {
+export function ApiKeysDialog({ className, iconOnly }: { className?: string; iconOnly?: boolean }) {
   const t = useTranslations("ApiKeys");
   const { keys } = useApiKeys();
   const configuredCount = PROVIDERS.filter((p) => keys[p]).length;
@@ -99,15 +99,30 @@ export function ApiKeysDialog({ className }: { className?: string }) {
   return (
     <AlertDialog>
       <AlertDialogTrigger asChild>
-        <Button variant="outline" size="sm" className={cn("h-9 gap-1.5 text-xs", className)}>
-          <KeyRound size={14} />
-          {t("manage_button")}
-          {configuredCount > 0 && (
-            <span className="ml-0.5 inline-flex items-center justify-center rounded-full bg-emerald-500/15 px-1.5 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
-              {configuredCount}
-            </span>
-          )}
-        </Button>
+        {iconOnly ? (
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            className={cn("relative text-muted-foreground hover:text-foreground", className)}
+            title={t("manage_button")}
+            aria-label={t("manage_button")}
+          >
+            <KeyRound size={15} />
+            {configuredCount > 0 && (
+              <span className="absolute -top-0.5 -right-0.5 size-2 rounded-full bg-emerald-500 ring-2 ring-sidebar" />
+            )}
+          </Button>
+        ) : (
+          <Button variant="outline" size="sm" className={cn("h-9 gap-1.5 text-xs", className)}>
+            <KeyRound size={14} />
+            {t("manage_button")}
+            {configuredCount > 0 && (
+              <span className="ml-0.5 inline-flex items-center justify-center rounded-full bg-emerald-500/15 px-1.5 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
+                {configuredCount}
+              </span>
+            )}
+          </Button>
+        )}
       </AlertDialogTrigger>
       <AlertDialogContent className="max-w-md">
         <AlertDialogHeader>

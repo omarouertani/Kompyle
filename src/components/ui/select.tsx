@@ -58,6 +58,8 @@ function SelectTrigger({
 
 function SelectContent({
   className,
+  positionerClassName,
+  container,
   children,
   side = "bottom",
   sideOffset = 4,
@@ -69,16 +71,22 @@ function SelectContent({
   Pick<
     SelectPrimitive.Positioner.Props,
     "align" | "alignOffset" | "side" | "sideOffset" | "alignItemWithTrigger"
-  >) {
+  > & {
+    /** Classe du positionneur — sert à élever le z-index au-dessus d'un dialog. */
+    positionerClassName?: string
+    /** Nœud de portail — pointe vers le contenu d'un dialog pour rester dans son
+     *  focus-trap (sinon clic/clavier bloqués sur un Select dans un dialog modal). */
+    container?: SelectPrimitive.Portal.Props["container"]
+  }) {
   return (
-    <SelectPrimitive.Portal>
+    <SelectPrimitive.Portal container={container}>
       <SelectPrimitive.Positioner
         side={side}
         sideOffset={sideOffset}
         align={align}
         alignOffset={alignOffset}
         alignItemWithTrigger={alignItemWithTrigger}
-        className="isolate z-50"
+        className={cn("isolate", positionerClassName ?? "z-50")}
       >
         <SelectPrimitive.Popup
           data-slot="select-content"

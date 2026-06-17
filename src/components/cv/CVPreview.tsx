@@ -259,11 +259,11 @@ export default function CVPreview({
                 <SelectContent className="bg-popover border border-border shadow-md rounded-lg p-1">
                   <SelectGroup>
                     <SelectItem value={mainProfileId} className="cursor-pointer text-xs">
-                      {t("version_main")}
+                      <MarqueeText text={t("version_main")} />
                     </SelectItem>
                     {versions.map((v) => (
                       <SelectItem key={v.id} value={v.id} className="cursor-pointer text-xs">
-                        {v.name}
+                        <MarqueeText text={v.name} />
                       </SelectItem>
                     ))}
                   </SelectGroup>
@@ -420,6 +420,43 @@ export default function CVPreview({
         <AIProgressOverlay active={isAdapting} />
       </div>
     </div>
+  );
+}
+
+/**
+ * Libellé qui défile au survol quand il dépasse de son conteneur. Le décalage
+ * exact est mesuré (scrollWidth − clientWidth) → aucun mouvement si le texte
+ * tient déjà ; vitesse constante (~45 px/s) pour les noms longs. L'animation est
+ * pilotée par CSS via `:hover` du SelectItem parent (cf. globals.css).
+ */
+function MarqueeText({ text }: { text: string }) {
+  const wrapRef = useRef<HTMLSpanElement>(null);
+  const innerRef = useRef<HTMLSpanElement>(null);
+  const [shift, setShift] = useState(0);
+
+  useEffect(() => {
+    const wrap = wrapRef.current;
+    const inner = innerRef.current;
+    if (!wrap || !inner) return;
+    const overflow = inner.scrollWidth - wrap.clientWidth;
+    setShift(overflow > 1 ? overflow : 0);
+  }, [text]);
+
+  const duration = Math.max(1.5, shift / 45);
+
+  // Largeur FIXE (le SelectItem fait 210px : −pl-2 −pr-8 ≈ 168px utiles). Sans
+  // borne, le parent `ItemText` (shrink-0 + whitespace-nowrap) s'étire au texte
+  // complet → aucun débordement détecté → le marquee ne bougerait jamais.
+  return (
+    <span ref={wrapRef} className="block w-[168px] overflow-hidden whitespace-nowrap">
+      <span
+        ref={innerRef}
+        className="marquee-track inline-block whitespace-nowrap"
+        style={{ "--marquee-shift": `-${shift}px`, "--marquee-dur": `${duration}s` } as React.CSSProperties}
+      >
+        {text}
+      </span>
+    </span>
   );
 }
 
