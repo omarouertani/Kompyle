@@ -1,15 +1,14 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
-import { Sparkles, Loader2, Wand2, CheckCircle2 } from "lucide-react";
+import { Sparkles, Wand2, CheckCircle2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
+import { PromptInput, PromptInputTextarea, PromptInputToolbar, PromptInputAction } from "@/components/ui/prompt-input";
 import { ModelSelect } from "@/components/ai/ModelSelect";
 import { providerForModel, DEFAULT_MODEL } from "@/hooks/use-ai-provider-config";
 import { useApiKeys } from "@/hooks/use-api-keys";
-import { ApiKeysDialog } from "@/components/ApiKeysDialog";
 import type { ATSReport, AIProvider, CVData } from "@/types/cv";
 import type { ProviderFailure } from "@/lib/ai-orchestrator";
 import { ATSAIError } from "./ATSAIError";
@@ -53,6 +52,9 @@ export function ATSAdaptPanel({ cvData, jobDescription, report, onApplied, onAda
   const [extra, setExtra] = useState("");
   const [status, setStatus] = useState<AdaptStatus>("idle");
   const [error, setError] = useState<{ msg: string | null; details: string | string[] | null; failures: ProviderFailure[] | null }>({ msg: null, details: null, failures: null });
+  // Annulation de l'adaptation ATS en cours.
+  const abortRef = useRef<AbortController | null>(null);
+  const cancel = useCallback(() => abortRef.current?.abort(), []);
 
   const buildInstruction = useCallback((userExtra: string) => {
     const recos = report.recommendations.length
@@ -87,6 +89,8 @@ Preserve every existing experience, project and skill item (no deletions); refra
     setStatus("loading");
     onAdaptingChange?.(true);
     setError({ msg: null, details: null, failures: null });
+    const controller = new AbortController();
+    abortRef.current = controller;
     try {
       const res = await fetch("/api/refine-cv", {
         method: "POST",
@@ -99,6 +103,7 @@ Preserve every existing experience, project and skill item (no deletions); refra
           model,
           apiKey,
         }),
+        signal: controller.signal,
       });
       if (!res.ok) {
         const errData = (await res.json()) as RefineErrorBody;
@@ -115,10 +120,18 @@ Preserve every existing experience, project and skill item (no deletions); refra
       // Applique le CV adapté ET ouvre directement son aperçu (côté parent).
       onApplied(data.refinedCV);
     } catch (err) {
-      const e = err as { message?: string };
+      const e = err as { message?: string; name?: string };
+      // Annulation utilisateur : on revient à l'état initial, pas d'erreur.
+      if (e?.name === "AbortError") {
+        setStatus("idle");
+        onAdaptingChange?.(false);
+        return;
+      }
       setError({ msg: e.message ?? "Network error", details: null, failures: null });
       setStatus("error");
       onAdaptingChange?.(false);
+    } finally {
+      abortRef.current = null;
     }
   }, [extra, cvData, jobDescription, provider, model, apiKey, onApplied, onAdaptingChange, tAdapt, tErr, buildInstruction]);
 
@@ -167,42 +180,40 @@ Preserve every existing experience, project and skill item (no deletions); refra
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-[1fr_240px] gap-3">
-        <div className="flex flex-col gap-1.5">
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-            {t("adapt_extra_label")}
-          </span>
-          <Textarea
+      {/* Même PromptInput que le sidebar : consignes optionnelles + modèle (icône
+          à gauche) + action d'adaptation (icône qui s'agrandit au survol) à droite. */}
+      <div className="flex flex-col gap-1.5">
+        <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+          {t("adapt_extra_label")}
+        </span>
+        <PromptInput>
+          <PromptInputTextarea
             value={extra}
             onChange={(e) => setExtra(e.target.value)}
             placeholder={t("adapt_extra_placeholder")}
-            className="min-h-[88px] resize-y text-sm leading-relaxed"
             disabled={status === "loading"}
+            minHeight={88}
+            maxHeight={220}
           />
-          <span className="text-[10px] text-muted-foreground">{t("adapt_extra_hint")}</span>
-        </div>
-
-        <div className="flex flex-col gap-1.5">
-          <ModelSelect
-            model={model}
-            onModelChange={setModel}
-            disabled={status === "loading"}
-            label={t("adapt_model_label")}
-          />
-          <ApiKeysDialog className="w-full justify-center" />
-          {!apiKey && (
-            <span className="text-[10px] text-amber-600 dark:text-amber-400">{tErr("missing_key")}</span>
-          )}
-          <Button
-            size="lg"
-            onClick={submit}
-            disabled={status === "loading"}
-            className="w-full h-12 gap-2 text-sm font-semibold shadow-md shadow-primary/25 bg-gradient-to-b from-primary to-primary/90 hover:shadow-lg hover:shadow-primary/30 transition-all mt-1"
-          >
-            {status === "loading" ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
-            {status === "loading" ? t("adapt_running") : t("adapt_cta")}
-          </Button>
-        </div>
+          <PromptInputToolbar className="justify-between">
+            <ModelSelect compact model={model} onModelChange={setModel} disabled={status === "loading"} />
+            {status === "loading" ? (
+              /* Travail en cours → bouton d'annulation. */
+              <PromptInputAction variant="outline" label={t("adapt_cancel")} icon={<X className="size-4" />} onClick={cancel} />
+            ) : (
+              <PromptInputAction
+                variant="default"
+                label={t("adapt_cta")}
+                icon={<Sparkles className="size-4" />}
+                onClick={submit}
+              />
+            )}
+          </PromptInputToolbar>
+        </PromptInput>
+        {!apiKey && (
+          <span className="text-[10px] text-amber-600 dark:text-amber-400">{tErr("missing_key")}</span>
+        )}
+        <span className="text-[10px] text-muted-foreground">{t("adapt_extra_hint")}</span>
       </div>
     </div>
   );

@@ -12,10 +12,9 @@ import {
   AlertDialogFooter,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
+import { PromptInput, PromptInputTextarea } from "@/components/ui/prompt-input";
 import { Separator } from "@/components/ui/separator";
 import { ModelSelect } from "@/components/ai/ModelSelect";
-import { ApiKeysDialog } from "@/components/ApiKeysDialog";
 import { useApiKeys } from "@/hooks/use-api-keys";
 import { providerForModel } from "@/hooks/use-ai-provider-config";
 
@@ -136,13 +135,17 @@ function ATSJobDialogBody({ existingJobDescription, hasExisting, model, onModelC
           <label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
             {t("dialog_input_label")}
           </label>
-          <Textarea
-            autoFocus
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            placeholder={t("dialog_input_placeholder")}
-            className="min-h-[140px] resize-y text-sm leading-relaxed"
-          />
+          {/* Même PromptInput que le sidebar (bordure thème + auto-grandissement). */}
+          <PromptInput>
+            <PromptInputTextarea
+              autoFocus
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              placeholder={t("dialog_input_placeholder")}
+              minHeight={140}
+              maxHeight={260}
+            />
+          </PromptInput>
           <span className="text-[10px] text-muted-foreground">
             {t("dialog_input_hint")}
           </span>
@@ -151,17 +154,21 @@ function ATSJobDialogBody({ existingJobDescription, hasExisting, model, onModelC
 
       <Separator className="my-1" />
 
-      {/* Choix du modèle IA pour cet audit (réutilise le sélecteur d'adapt CV). */}
-      <div className="flex flex-col gap-1.5">
-        <ModelSelect model={model} onModelChange={onModelChange} label={t("dialog_model_label")} elevated />
-        <div className="flex items-center justify-between gap-2">
-          <ApiKeysDialog />
-          {!hasKey && (
-            <span className="text-[10px] text-amber-600 dark:text-amber-400 text-right leading-tight">
-              {tErr("missing_key")}
-            </span>
-          )}
+      {/* Modèle IA pour cet audit — même sélecteur compact (icône + nom). Affiché
+          quel que soit le mode (réutilisation ou nouvelle offre). `elevated` pour
+          que le menu passe au-dessus de l'overlay du dialog. */}
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground shrink-0">
+            {t("dialog_model_label")}
+          </span>
+          <ModelSelect compact elevated model={model} onModelChange={onModelChange} />
         </div>
+        {!hasKey && (
+          <span className="text-[10px] text-amber-600 dark:text-amber-400 text-right leading-tight">
+            {tErr("missing_key")}
+          </span>
+        )}
       </div>
 
       <AlertDialogFooter>

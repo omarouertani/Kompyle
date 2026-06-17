@@ -361,10 +361,10 @@ export function computeDefaultPositions(template: string, data: CVData): Record<
     positions["role"] = { x: 200, y: 48, w: 370 };
     positions["techLine"] = { x: 200, y: 66, w: 370 };
   } else {
-    positions["name"] = { x: 24, y: 12, w: 450 };
-    positions["role"] = { x: 24, y: 42, w: 450 };
-    positions["techLine"] = { x: 24, y: 60, w: 450 };
-    positions["photo"] = getDefaultPhotoPosition("default", sidebarWidth);
+    // Classique « sans photo » : en-tête pleine largeur, aucune photo.
+    positions["name"] = { x: 24, y: 12, w: 547 };
+    positions["role"] = { x: 24, y: 42, w: 547 };
+    positions["techLine"] = { x: 24, y: 60, w: 547 };
   }
 
   // Iterate through pages
@@ -781,10 +781,9 @@ export function getDefaultPositions(template: string, data?: CVData): Record<str
     };
   } else {
     return {
-      name: { x: 24, y: 16, w: 450 },
-      role: { x: 24, y: 46, w: 450 },
-      techLine: { x: 24, y: 64, w: 450 },
-      photo: getDefaultPhotoPosition("default", 165),
+      name: { x: 24, y: 16, w: 547 },
+      role: { x: 24, y: 46, w: 547 },
+      techLine: { x: 24, y: 64, w: 547 },
       title_contact: { x: 24, y: 95, w: 165 },
       content_contact: { x: 24, y: 112, w: 165 },
       title_skills: { x: 24, y: 230, w: 165 },

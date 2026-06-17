@@ -21,6 +21,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { v4 as uuidv4 } from "uuid";
 import type { CVData, Experience, Project, Education, SkillGroup } from "@/types/cv";
+import { stripHtml } from "@/utils/strip-html";
 import LayoutManager from "./LayoutManager";
 import {
   User,
@@ -254,15 +255,17 @@ export default function CVBuilder({ data, onChange }: CVBuilderProps) {
       <section>
         <SectionHeading icon={User}>{t("section_personal")}</SectionHeading>
         <div className="grid grid-cols-2 gap-5">
-          <Field label={t("field_name")} value={data.personalInfo.name} onChange={(v) => updatePersonalInfo("name", v)} />
-          <Field label={t("field_role")} value={data.personalInfo.role} onChange={(v) => updatePersonalInfo("role", v)} />
-          <Field label={t("field_techline")} value={data.personalInfo.techLine} onChange={(v) => updatePersonalInfo("techLine", v)} className="col-span-2" />
-          <Field label={t("field_summary")} value={data.personalInfo.summary} onChange={(v) => updatePersonalInfo("summary", v)} multiline rows={4} className="col-span-2" />
-          <Field label={t("field_email")} value={data.personalInfo.email} onChange={(v) => updatePersonalInfo("email", v)} />
-          <Field label={t("field_phone")} value={data.personalInfo.phone} onChange={(v) => updatePersonalInfo("phone", v)} />
-          <Field label={t("field_location")} value={data.personalInfo.location} onChange={(v) => updatePersonalInfo("location", v)} />
-          <Field label={t("field_linkedin")} value={data.personalInfo.linkedin} onChange={(v) => updatePersonalInfo("linkedin", v)} />
-          <Field label={t("field_portfolio")} value={data.personalInfo.portfolio ?? ""} onChange={(v) => updatePersonalInfo("portfolio", v)} className="col-span-2" />
+          {/* Éditeur structuré = texte brut. On retire le HTML inline qu'un style
+              appliqué sur le canvas aurait pu injecter dans ces champs. */}
+          <Field label={t("field_name")} value={stripHtml(data.personalInfo.name)} onChange={(v) => updatePersonalInfo("name", v)} />
+          <Field label={t("field_role")} value={stripHtml(data.personalInfo.role)} onChange={(v) => updatePersonalInfo("role", v)} />
+          <Field label={t("field_techline")} value={stripHtml(data.personalInfo.techLine)} onChange={(v) => updatePersonalInfo("techLine", v)} className="col-span-2" />
+          <Field label={t("field_summary")} value={stripHtml(data.personalInfo.summary)} onChange={(v) => updatePersonalInfo("summary", v)} multiline rows={4} className="col-span-2" />
+          <Field label={t("field_email")} value={stripHtml(data.personalInfo.email)} onChange={(v) => updatePersonalInfo("email", v)} />
+          <Field label={t("field_phone")} value={stripHtml(data.personalInfo.phone)} onChange={(v) => updatePersonalInfo("phone", v)} />
+          <Field label={t("field_location")} value={stripHtml(data.personalInfo.location)} onChange={(v) => updatePersonalInfo("location", v)} />
+          <Field label={t("field_linkedin")} value={stripHtml(data.personalInfo.linkedin)} onChange={(v) => updatePersonalInfo("linkedin", v)} />
+          <Field label={t("field_portfolio")} value={stripHtml(data.personalInfo.portfolio ?? "")} onChange={(v) => updatePersonalInfo("portfolio", v)} className="col-span-2" />
 
           {/* Uploader de photo de profil */}
           <div className="flex flex-col gap-2 col-span-2 border border-border/60 rounded-lg p-3 bg-muted/10 mt-1">

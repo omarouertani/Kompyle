@@ -6,6 +6,7 @@ import CVInteractiveCanvas from "./CVInteractiveCanvas";
 import AIProgressOverlay from "./AIProgressOverlay";
 import type { CVData } from "@/types/cv";
 import { normalizeTemplate } from "@/lib/cv-layout";
+import { stripHtml } from "@/utils/strip-html";
 import { Download, Loader2, LayoutPanelLeft, History, AlertTriangle, LayoutTemplate, Trash2, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -142,7 +143,7 @@ export default function CVPreview({
   // Le CV affiché est-il une adaptation supprimable (≠ CV principal) ?
   const selectedVersionId = currentProfileId ?? mainProfileId;
   const isAdaptedVersion = !!currentProfileId && currentProfileId !== mainProfileId;
-  const selectedVersionName = versions.find((v) => v.id === currentProfileId)?.name ?? "";
+  const selectedVersionName = stripHtml(versions.find((v) => v.id === currentProfileId)?.name ?? "");
 
   // Template normalisé : les anciennes lignes "chaima" → "modern".
   const tpl = normalizeTemplate(template);
@@ -182,7 +183,7 @@ export default function CVPreview({
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `CV_${data.personalInfo.name.replace(/\s+/g, "_")}_${data.personalInfo.role.replace(/\s+/g, "_")}.pdf`;
+      a.download = `CV_${stripHtml(data.personalInfo.name).replace(/\s+/g, "_")}_${stripHtml(data.personalInfo.role).replace(/\s+/g, "_")}.pdf`;
       a.click();
       URL.revokeObjectURL(url);
     } catch (err) {
@@ -263,7 +264,7 @@ export default function CVPreview({
                     </SelectItem>
                     {versions.map((v) => (
                       <SelectItem key={v.id} value={v.id} className="cursor-pointer text-xs">
-                        <MarqueeText text={v.name} />
+                        <MarqueeText text={stripHtml(v.name)} />
                       </SelectItem>
                     ))}
                   </SelectGroup>
