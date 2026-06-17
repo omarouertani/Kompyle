@@ -79,14 +79,26 @@ export function DiffText({
     return <Text style={style as never}>{cleanNew}</Text>;
   }
 
+  // Rendu lisible : le texte final se lit normalement. Les AJOUTS sont surlignés
+  // en vert (fond doux), les SUPPRESSIONS sont barrées en rouge atténué (plus
+  // petites) pour ne pas casser la lecture de la nouvelle phrase. Pas de crochets
+  // [+]/[-] qui bruitaient le flux. Couleurs en dur : rendu PDF (pas de CSS vars).
   return (
     <Text style={style as never}>
       {chunks.map((chunk, index) => {
         if (chunk.added) {
-          return <Text key={index} style={{ color: "green" }}>[+ {chunk.value}]</Text>;
+          return (
+            <Text key={index} style={{ color: "#166534", backgroundColor: "#dcfce7" }}>
+              {chunk.value}
+            </Text>
+          );
         }
         if (chunk.removed) {
-          return <Text key={index} style={{ color: "red", textDecoration: "line-through" }}>[- {chunk.value}]</Text>;
+          return (
+            <Text key={index} style={{ color: "#b91c1c", backgroundColor: "#fee2e2", textDecoration: "line-through" }}>
+              {chunk.value}
+            </Text>
+          );
         }
         return <Text key={index}>{chunk.value}</Text>;
       })}

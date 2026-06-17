@@ -6,6 +6,7 @@ import { useTranslations, useLocale } from "next-intl";
 import { useTheme } from "next-themes";
 import { Moon, Sun, Globe, Layers, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { ApiKeysDialog } from "@/components/ApiKeysDialog";
 import { cn } from "@/lib/utils";
 
 interface HeaderProps {
@@ -21,8 +22,55 @@ export default function Header({ toggleSidebar, isSidebarCollapsed }: HeaderProp
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
-  const toggleTheme = () => {
-    setTheme(theme === "dark" ? "light" : "dark");
+  const toggleTheme = (e: React.MouseEvent<HTMLButtonElement>) => {
+    const next = theme === "dark" ? "light" : "dark";
+    const doc = document as Document & {
+      startViewTransition?: (cb: () => void) => { ready: Promise<void> };
+    };
+    const reduce =
+      typeof window !== "undefined" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    // Pas de View Transitions (Firefox) ou motion réduit → bascule directe.
+    if (!doc.startViewTransition || reduce) {
+      setTheme(next);
+      return;
+    }
+
+    // Ondulation circulaire qui jaillit du bouton cliqué et recouvre l'écran.
+    const x = e.clientX;
+    const y = e.clientY;
+    const endRadius = Math.hypot(
+      Math.max(x, window.innerWidth - x),
+      Math.max(y, window.innerHeight - y),
+    );
+
+    const transition = doc.startViewTransition(() => {
+      // next-themes applique la classe via un useEffect (asynchrone) → le snapshot
+      // "new" serait capturé avec l'ANCIEN thème, d'où le flash. On bascule la
+      // classe nous-mêmes, de façon synchrone, pour un snapshot correct, puis on
+      // resynchronise l'état next-themes (qui réappliquera la même classe).
+      const root = document.documentElement;
+      root.classList.remove("light", "dark");
+      root.classList.add(next);
+      root.style.colorScheme = next;
+      setTheme(next);
+    });
+    transition.ready.then(() => {
+      document.documentElement.animate(
+        {
+          clipPath: [
+            `circle(0px at ${x}px ${y}px)`,
+            `circle(${endRadius}px at ${x}px ${y}px)`,
+          ],
+        },
+        {
+          duration: 700,
+          easing: "cubic-bezier(0.4, 0, 0.2, 1)",
+          pseudoElement: "::view-transition-new(root)",
+        },
+      );
+    });
   };
 
   const nextLocale = locale === "fr" ? "en" : "fr";
@@ -54,6 +102,9 @@ export default function Header({ toggleSidebar, isSidebarCollapsed }: HeaderProp
 
       {/* Actions */}
       <div className="flex items-center gap-1">
+        {/* Clés API — visible en haut, séparé des bascules thème/langue par un divider. */}
+        <ApiKeysDialog />
+        <span className="mx-1.5 h-5 w-px bg-border" aria-hidden />
         {mounted ? (
           <Button
             variant="ghost"

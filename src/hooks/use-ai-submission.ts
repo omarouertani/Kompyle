@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useRef } from "react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import type { CVData, AIProvider, CoverLetterData } from "@/types/cv";
@@ -72,6 +72,19 @@ export function useAISubmission(deps: UseAISubmissionDeps) {
 
   const tErr = useTranslations("AIErrors");
 
+  // Contrôleur d'annulation de la requête IA en cours. `cancel()` l'avorte ;
+  // chaque handler en crée un neuf et le pose ici avant son fetch.
+  const abortRef = useRef<AbortController | null>(null);
+
+  /** Annule l'opération IA en cours (adaptation, lettre, modification). */
+  const cancel = useCallback(() => {
+    abortRef.current?.abort();
+  }, []);
+
+  /** Vrai si l'erreur provient d'une annulation utilisateur (fetch aborté). */
+  const isAbortError = (err: unknown): boolean =>
+    err instanceof DOMException ? err.name === "AbortError" : (err as { name?: string })?.name === "AbortError";
+
   /** Toast d'erreur enrichi : on choisit le message selon la raison du 1er échec. */
   const showErrorToast = useCallback((e: AIErrorBody) => {
     const reason = e.failures?.[0]?.reason;
@@ -110,11 +123,15 @@ export function useAISubmission(deps: UseAISubmissionDeps) {
     const sourceCV = currentCV;
     const originalSourceCV = currentCV;
 
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     try {
       const res = await fetch("/api/adapt-cv", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ jobDescription: jobDescription.trim(), cvData: sourceCV, provider, model, apiKey }),
+        signal: controller.signal,
       });
       if (!res.ok) {
         const errData = await res.json();
@@ -140,12 +157,19 @@ export function useAISubmission(deps: UseAISubmissionDeps) {
         toast.success(tAdapt("toast_cv_success"));
       }
     } catch (err) {
-      setStatus("error");
-      const e = err as AIErrorBody;
-      setStatusMessage(e.error || e.message || t("status_error"));
-      setStatusDetails(e.details || null);
-      showErrorToast(e);
+      if (isAbortError(err)) {
+        setStatus("idle");
+        setStatusMessage("");
+        setStatusDetails(null);
+      } else {
+        setStatus("error");
+        const e = err as AIErrorBody;
+        setStatusMessage(e.error || e.message || t("status_error"));
+        setStatusDetails(e.details || null);
+        showErrorToast(e);
+      }
     } finally {
+      abortRef.current = null;
       setLoadingType(null);
     }
   }, [jobDescription, provider, model, apiKey, currentCV, locale, selectedProfile, selectedTemplate, t, tAdapt, setActiveRightTab, applyAdaptation, setStatus, setStatusMessage, setStatusDetails, setLoadingType, ensureKey, showErrorToast]);
@@ -163,11 +187,14 @@ export function useAISubmission(deps: UseAISubmissionDeps) {
     setActiveRightTab("letter");
     setStatusMessage(t("status_loading_letter"));
     setStatusDetails(null);
+    const controller = new AbortController();
+    abortRef.current = controller;
     try {
       const res = await fetch("/api/generate-cover-letter", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ jobDescription: jobDescription.trim(), cvData: currentCV, provider, model, apiKey }),
+        signal: controller.signal,
       });
       if (!res.ok) {
         const errData = await res.json();
@@ -180,12 +207,19 @@ export function useAISubmission(deps: UseAISubmissionDeps) {
       setStatusMessage(t("status_success_letter", { provider: getModelName(data.model) }));
       toast.success(tAdapt("toast_letter_success"));
     } catch (err) {
-      setStatus("error");
-      const e = err as AIErrorBody;
-      setStatusMessage(e.error || e.message || t("status_error"));
-      setStatusDetails(e.details || null);
-      showErrorToast(e);
+      if (isAbortError(err)) {
+        setStatus("idle");
+        setStatusMessage("");
+        setStatusDetails(null);
+      } else {
+        setStatus("error");
+        const e = err as AIErrorBody;
+        setStatusMessage(e.error || e.message || t("status_error"));
+        setStatusDetails(e.details || null);
+        showErrorToast(e);
+      }
     } finally {
+      abortRef.current = null;
       setLoadingType(null);
     }
   }, [jobDescription, provider, model, apiKey, currentCV, t, tAdapt, setActiveRightTab, setCoverLetterData, setStatus, setStatusMessage, setStatusDetails, setLoadingType, ensureKey, showErrorToast]);
@@ -204,6 +238,8 @@ export function useAISubmission(deps: UseAISubmissionDeps) {
     setActiveRightTab("cv");
     setStatusMessage(t("status_loading_refine_cv"));
     setStatusDetails(null);
+    const controller = new AbortController();
+    abortRef.current = controller;
     try {
       const res = await fetch("/api/refine-cv", {
         method: "POST",
@@ -216,6 +252,7 @@ export function useAISubmission(deps: UseAISubmissionDeps) {
           model,
           apiKey,
         }),
+        signal: controller.signal,
       });
       if (!res.ok) {
         const errData = await res.json();
@@ -229,6 +266,12 @@ export function useAISubmission(deps: UseAISubmissionDeps) {
       toast.success(tAdapt("toast_refine_success"));
       return true;
     } catch (err) {
+      if (isAbortError(err)) {
+        setStatus("idle");
+        setStatusMessage("");
+        setStatusDetails(null);
+        return false;
+      }
       setStatus("error");
       const e = err as AIErrorBody;
       setStatusMessage(e.error || e.message || t("status_error"));
@@ -236,6 +279,7 @@ export function useAISubmission(deps: UseAISubmissionDeps) {
       showErrorToast(e);
       return false;
     } finally {
+      abortRef.current = null;
       setLoadingType(null);
     }
   }, [jobDescription, provider, model, apiKey, currentCV, t, tAdapt, setActiveRightTab, setCurrentCV, setStatus, setStatusMessage, setStatusDetails, setLoadingType, ensureKey, showErrorToast]);
@@ -255,6 +299,8 @@ export function useAISubmission(deps: UseAISubmissionDeps) {
     setActiveRightTab("letter");
     setStatusMessage(t("status_loading_refine_letter"));
     setStatusDetails(null);
+    const controller = new AbortController();
+    abortRef.current = controller;
     try {
       const res = await fetch("/api/refine-cover-letter", {
         method: "POST",
@@ -267,6 +313,7 @@ export function useAISubmission(deps: UseAISubmissionDeps) {
           model,
           apiKey,
         }),
+        signal: controller.signal,
       });
       if (!res.ok) {
         const errData = await res.json();
@@ -279,6 +326,12 @@ export function useAISubmission(deps: UseAISubmissionDeps) {
       toast.success(tAdapt("toast_refine_success"));
       return true;
     } catch (err) {
+      if (isAbortError(err)) {
+        setStatus("idle");
+        setStatusMessage("");
+        setStatusDetails(null);
+        return false;
+      }
       setStatus("error");
       const e = err as AIErrorBody;
       setStatusMessage(e.error || e.message || t("status_error"));
@@ -286,9 +339,10 @@ export function useAISubmission(deps: UseAISubmissionDeps) {
       showErrorToast(e);
       return false;
     } finally {
+      abortRef.current = null;
       setLoadingType(null);
     }
   }, [jobDescription, provider, model, apiKey, coverLetterData, t, tAdapt, setActiveRightTab, setCoverLetterData, setStatus, setStatusMessage, setStatusDetails, setLoadingType, ensureKey, showErrorToast]);
 
-  return { handleAdaptCV, handleGenerateLetter, handleRefineCV, handleRefineLetter };
+  return { handleAdaptCV, handleGenerateLetter, handleRefineCV, handleRefineLetter, cancel };
 }

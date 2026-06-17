@@ -10,7 +10,6 @@ import Header from "@/components/Header";
 import {
   Sparkles,
   PencilRuler,
-  RotateCcw,
   Loader2,
   FileText,
   Mail,
@@ -28,8 +27,9 @@ import { ATSChecker } from "@/components/cv/ats/ATSChecker";
 import { useATSCheckedVersions } from "@/hooks/use-ats-checked-versions";
 
 import { cn } from "@/lib/utils";
+import { stripHtml } from "@/utils/strip-html";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
+import { PromptInput, PromptInputTextarea, PromptInputToolbar, PromptInputAction } from "@/components/ui/prompt-input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SidebarProvider, Sidebar, SidebarHeader, SidebarContent, SidebarRail, SidebarInset } from "@/components/ui/sidebar";
 
@@ -39,7 +39,6 @@ import { useAIProviderConfig } from "@/hooks/use-ai-provider-config";
 import { ModelSelect } from "@/components/ai/ModelSelect";
 import { ProfileActionsMenu } from "@/components/ProfileActionsMenu";
 import { useApiKeys } from "@/hooks/use-api-keys";
-import { ApiKeysDialog } from "@/components/ApiKeysDialog";
 import { useAISubmission } from "@/hooks/use-ai-submission";
 import { StatusBanner } from "@/components/cv/status-banner";
 
@@ -96,6 +95,9 @@ export default function AdaptPage() {
   const [atsTriggerKey, setAtsTriggerKey] = useState(0);
   const [jobDescription, setJobDescription] = useState("");
   const [refineInstruction, setRefineInstruction] = useState("");
+  /** Mode du composeur unifié : "new" = adapter l'offre dans une NOUVELLE version
+   *  depuis le CV sélectionné · "continue" = modifier le CV sélectionné EN PLACE. */
+  const [composerMode, setComposerMode] = useState<"new" | "continue">("new");
   const [refineHistory, setRefineHistory] = useState<string[]>([]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isCreatingProfile, setIsCreatingProfile] = useState(false);
@@ -158,17 +160,19 @@ export default function AdaptPage() {
   // dans le sélecteur de versions et le menu de profil, pas un identifiant DB.
   const cvDisplayName = (() => {
     const pi = profile.currentCV.personalInfo;
-    const fullName = pi.name?.trim() || tp("active_label");
-    const role = pi.role?.trim();
+    // Les champs CV peuvent porter du HTML inline (style appliqué sur le canvas) :
+    // on le retire ici car ce libellé s'affiche en texte brut (sélecteur, ATS, menu).
+    const fullName = stripHtml(pi.name || "").trim() || tp("active_label");
+    const role = stripHtml(pi.role || "").trim();
     const isAdaptation = !!profile.currentProfileId && profile.currentProfileId !== profile.mainProfileId;
     const versionName = isAdaptation
-      ? profile.versions.find((v) => v.id === profile.currentProfileId)?.name
+      ? stripHtml(profile.versions.find((v) => v.id === profile.currentProfileId)?.name || "")
       : tr("tab_cv");
     const head = role ? `${fullName} — ${role}` : fullName;
     return versionName ? `${head} · ${versionName}` : head;
   })();
 
-  const { handleAdaptCV, handleGenerateLetter, handleRefineCV, handleRefineLetter } = useAISubmission({
+  const { handleAdaptCV, handleGenerateLetter, handleRefineCV, handleRefineLetter, cancel: aiCancel } = useAISubmission({
     jobDescription,
     provider: aiConfig.provider,
     model: aiConfig.model,
@@ -204,147 +208,130 @@ export default function AdaptPage() {
 
   const renderLeftContent = () => {
     switch (activeLeftTab) {
-      case "ai":
+      case "ai": {
+        // Composeur unifié. "continue" (modif en place) n'est proposé qu'une fois
+        // qu'un document existe ; sinon on force "new" (nouvelle version depuis l'offre).
+        const canContinue = profile.isAdapted || !!profile.coverLetterData;
+        const mode: "new" | "continue" = canContinue ? composerMode : "new";
+        const composerValue = mode === "new" ? jobDescription : refineInstruction;
+        const onComposerChange = mode === "new" ? setJobDescription : setRefineInstruction;
+        const isLoading = profile.status === "loading";
         return (
           <div className="flex flex-col gap-6 p-6">
             <div>
-              <h1 className="text-2xl font-semibold tracking-tight text-foreground mb-1.5">{t("title")}</h1>
-              <p className="text-sm text-muted-foreground leading-relaxed">{t("subtitle")}</p>
+              <h1 className="text-2xl font-semibold tracking-tight text-foreground mb-1.5">{mode === "new" ? t("title") : t("refine_title")}</h1>
+              <p className="text-sm text-muted-foreground leading-relaxed">{mode === "new" ? t("subtitle") : t("refine_subtitle")}</p>
             </div>
 
-            <Textarea
-              className="min-h-[180px] resize-y text-sm leading-relaxed"
-              placeholder={t("placeholder")}
-              value={jobDescription}
-              onChange={(e) => setJobDescription(e.target.value)}
-              disabled={profile.status === "loading"}
-            />
-
-            {/* ── Sélection unifiée du modèle IA (label discret + clés API en icône) ── */}
-            <div className="flex flex-col gap-1.5">
-              <div className="flex items-center justify-between gap-2 pl-0.5">
-                <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-                  {t("label_model")}
-                </span>
-                <div className="flex items-center gap-2">
-                  {!apiKeys.keys[aiConfig.provider] && (
-                    <span className="text-[10px] text-amber-600 dark:text-amber-400 leading-tight">
-                      {te("missing_key")}
-                    </span>
-                  )}
-                  <ApiKeysDialog iconOnly />
-                </div>
-              </div>
-              <ModelSelect
-                model={aiConfig.model}
-                onModelChange={aiConfig.selectModel}
-                disabled={profile.status === "loading"}
+            {/* ── Saisie du poste : PromptInput réutilisable, actions intégrées ── */}
+            <PromptInput>
+              <PromptInputTextarea
+                placeholder={mode === "new" ? t("placeholder") : t("refine_placeholder")}
+                value={composerValue}
+                onChange={(e) => onComposerChange(e.target.value)}
+                disabled={isLoading}
+                minHeight={150}
+                maxHeight={300}
               />
-            </div>
-
-            {/* ── Hiérarchie d'actions : Adapter CV (primaire) · Créer Lettre (secondaire) ── */}
-            <div className="flex flex-col gap-2.5">
-              <Button
-                size="lg"
-                onClick={() => { setRefineHistory([]); handleAdaptCV(); }}
-                disabled={profile.status === "loading" || !jobDescription.trim()}
-                className="w-full gap-2 h-11 text-sm font-semibold bg-gradient-to-b from-primary to-primary/90 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.2),0_4px_14px_-3px_color-mix(in_oklab,var(--primary)_40%,transparent)] hover:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.2),0_8px_20px_-4px_color-mix(in_oklab,var(--primary)_55%,transparent)] transition-all"
-              >
-                {profile.status === "loading" && profile.loadingType === "cv" ? (
-                  <Loader2 size={17} className="animate-spin" />
-                ) : (
-                  <Sparkles size={17} />
-                )}
-                {t("btn_adapt")}
-              </Button>
-              <Button
-                variant="outline"
-                className="w-full gap-2 h-10 text-primary border-primary/30 hover:bg-primary/5 hover:border-primary/50"
-                onClick={() => { setRefineHistory([]); handleGenerateLetter(); }}
-                disabled={profile.status === "loading" || !jobDescription.trim()}
-              >
-                {profile.status === "loading" && profile.loadingType === "letter" ? (
-                  <Loader2 size={16} className="animate-spin" />
-                ) : (
-                  <Mail size={16} />
-                )}
-                {t("btn_letter")}
-              </Button>
-            </div>
-
-            {/* ── Discussion continue : modifier le document généré ── */}
-            {(profile.isAdapted || profile.coverLetterData) && (
-              <div className="flex flex-col gap-3 border border-primary/20 bg-primary/[0.03] rounded-xl p-4 animate-in fade-in slide-in-from-top-1 duration-200">
-                <div>
-                  <h2 className="flex items-center gap-2 text-sm font-semibold text-foreground mb-1">
-                    <Sparkles size={14} className="text-primary" />
-                    {t("refine_title")}
-                  </h2>
-                  <p className="text-xs text-muted-foreground leading-relaxed">{t("refine_subtitle")}</p>
-                </div>
-
-                {refineHistory.length > 0 && (
-                  <div className="flex flex-col gap-1.5">
-                    {refineHistory.map((instruction, i) => (
-                      <div key={i} className="flex items-start gap-2 text-xs text-muted-foreground bg-muted/40 rounded-lg px-2.5 py-1.5">
-                        <Check size={12} className="text-emerald-500 mt-0.5 shrink-0" />
-                        <span className="leading-snug">{instruction}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                <Textarea
-                  className="min-h-[72px] resize-y text-sm leading-relaxed"
-                  placeholder={t("refine_placeholder")}
-                  value={refineInstruction}
-                  onChange={(e) => setRefineInstruction(e.target.value)}
-                  disabled={profile.status === "loading"}
+              <PromptInputToolbar className="justify-between">
+                {/* Modèle IA en icône-seule, à gauche (menu compact, ouvert vers le bas). */}
+                <ModelSelect
+                  compact
+                  model={aiConfig.model}
+                  onModelChange={aiConfig.selectModel}
+                  disabled={isLoading}
                 />
-
-                <div className="grid grid-cols-2 gap-2">
-                  <Button
-                    size="sm"
-                    className="gap-1.5"
-                    onClick={() => submitRefine("cv")}
-                    disabled={profile.status === "loading" || !refineInstruction.trim() || !profile.isAdapted}
-                  >
-                    <FileText size={14} />
-                    {t("btn_refine_cv")}
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="gap-1.5 text-primary border-primary/20 hover:bg-primary/5"
-                    onClick={() => submitRefine("letter")}
-                    disabled={profile.status === "loading" || !refineInstruction.trim() || !profile.coverLetterData}
-                  >
-                    <Mail size={14} />
-                    {t("btn_refine_letter")}
-                  </Button>
+                <div className="flex items-center gap-1.5">
+                  {isLoading ? (
+                    /* Pendant le travail de l'IA : un seul bouton pour ANNULER. */
+                    <PromptInputAction
+                      variant="outline"
+                      label={t("btn_cancel")}
+                      icon={<X className="size-4" />}
+                      onClick={aiCancel}
+                    />
+                  ) : (
+                    <>
+                      <PromptInputAction
+                        variant="outline"
+                        label={mode === "new" ? t("btn_letter") : t("btn_refine_letter")}
+                        icon={<Mail className="size-4" />}
+                        onClick={() => {
+                          if (mode === "new") { setRefineHistory([]); handleGenerateLetter(); }
+                          else submitRefine("letter");
+                        }}
+                        disabled={!composerValue.trim() || (mode === "continue" && !profile.coverLetterData)}
+                      />
+                      <PromptInputAction
+                        variant="default"
+                        label={mode === "new" ? t("btn_adapt") : t("btn_refine_cv")}
+                        icon={mode === "new" ? <Sparkles className="size-4" /> : <FileText className="size-4" />}
+                        onClick={() => {
+                          if (mode === "new") { setRefineHistory([]); handleAdaptCV(); }
+                          else submitRefine("cv");
+                        }}
+                        disabled={!composerValue.trim() || (mode === "continue" && !profile.isAdapted)}
+                      />
+                    </>
+                  )}
                 </div>
-              </div>
+              </PromptInputToolbar>
+            </PromptInput>
+
+            {/* Choix du mode : NOUVELLE version depuis l'offre · ou CONTINUER sur ce CV.
+                "Continuer" (modif en place) n'est dispo qu'une fois qu'un document
+                existe (CV adapté / lettre) — sinon désactivé, on reste en "nouvelle". */}
+            <div className="-mt-3 flex items-center gap-1 rounded-lg border border-border/40 bg-muted/40 p-0.5">
+              <button
+                type="button"
+                onClick={() => setComposerMode("new")}
+                className={cn(
+                  "flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-[11px] font-semibold transition-all",
+                  mode === "new" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                <Sparkles size={13} />
+                {t("mode_new")}
+              </button>
+              <button
+                type="button"
+                onClick={() => canContinue && setComposerMode("continue")}
+                disabled={!canContinue}
+                title={canContinue ? undefined : t("mode_continue_hint")}
+                className={cn(
+                  "flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-[11px] font-semibold transition-all",
+                  mode === "continue" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
+                  !canContinue && "cursor-not-allowed opacity-40 hover:text-muted-foreground",
+                )}
+              >
+                <FileText size={13} />
+                {t("mode_continue")}
+              </button>
+            </div>
+
+            {/* Alerte clé API manquante pour le provider du modèle choisi. */}
+            {!apiKeys.keys[aiConfig.provider] && (
+              <span className="text-[11px] text-amber-600 dark:text-amber-400 leading-tight -mt-3 pl-0.5">
+                {te("missing_key")}
+              </span>
             )}
 
-            {(profile.isAdapted || profile.coverLetterData) && profile.status !== "loading" && (
-              <Button
-                variant="ghost"
-                onClick={() => {
-                  profile.handleReset();
-                  setRefineHistory([]);
-                  setRefineInstruction("");
-                }}
-                className="text-muted-foreground gap-1.5"
-                size="sm"
-              >
-                <RotateCcw size={14} />
-                {t("btn_reset")}
-              </Button>
+            {/* Historique des modifications déjà appliquées (mode "continuer"). */}
+            {mode === "continue" && refineHistory.length > 0 && (
+              <div className="flex flex-col gap-1.5">
+                {refineHistory.map((instruction, i) => (
+                  <div key={i} className="flex items-start gap-2 text-xs text-muted-foreground bg-muted/40 rounded-lg px-2.5 py-1.5">
+                    <Check size={12} className="text-emerald-500 mt-0.5 shrink-0" />
+                    <span className="leading-snug">{instruction}</span>
+                  </div>
+                ))}
+              </div>
             )}
 
             <StatusBanner status={profile.status} message={profile.statusMessage} details={profile.statusDetails} />
           </div>
         );
+      }
       case "cv-builder":
         return (
           <div className="p-6">

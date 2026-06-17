@@ -140,7 +140,9 @@ export default function CVInteractiveCanvas({ data, onChange: onChangeProp, temp
   const { activePageIndex, setActivePageIndex, addPage, removePage } = usePageManagement({ layout, data, onChange });
   const { spaceHeldRef, isSpaceHeld, isPanningActive, handlePanCapture } = useSpacePan({ scrollContainerRef });
 
-  const [canvasBg, setCanvasBg] = useState<CanvasBackground>("neutral");
+  // Quadrillage affiché PAR DÉFAUT ; le bouton de la barre d'outils le retire
+  // (cycle grid → neutral → dots → grid).
+  const [canvasBg, setCanvasBg] = useState<CanvasBackground>("grid");
 
   // Auto-réparation : un layout corrompu (section référencée 2× après un
   // déplacement) provoque des clés dupliquées et des blocs empilés. On dé-duplique.
@@ -229,10 +231,11 @@ export default function CVInteractiveCanvas({ data, onChange: onChangeProp, temp
   /** Résout la position d'un bloc : cas photo, position sauvegardée, ou
    *  placement d'un nouveau bloc sous ses voisins de section. */
   const resolvePos = (id: string): BlockPos => {
-    // La photo garde sa taille de cercle, pas la largeur mesurée du conteneur
+    // Photo : carrée (hauteur = largeur). La largeur vient de la position
+    // sauvegardée → on peut l'AGRANDIR en tirant sur les coins de sélection.
     if (id === "photo") {
-      const pos = absolutePositions[id] ?? { x: 50, y: 100 };
-      return { ...pos, w: photoSize, h: undefined };
+      const pos = absolutePositions[id] ?? { x: 50, y: 100, w: photoSize };
+      return { ...pos, w: pos.w ?? photoSize, h: undefined };
     }
     if (savedPositions[id]) return savedPositions[id];
 

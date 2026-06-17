@@ -9,14 +9,15 @@ export function isSectionBlock(blockId: string): boolean {
 
 /** Ids des blocs de l'en-tête (page 1).
  *  - Canadien : nom + titre + ligne de coordonnées, jamais de photo (ATS).
- *  - Moderne / Classique : photo (si définie ou imposée) + nom + titre + techLine. */
+ *  - Classique (« sans photo ») : nom + titre + techLine, jamais de photo.
+ *  - Moderne (« avec photo ») : photo + nom + titre + techLine. */
 export function getHeaderBlockIds(data: CVData, template: string): string[] {
   if (isCanadianTemplate(template)) {
     return ["name", "role", "contactLine"];
   }
   const isChaima = isModernTemplate(template);
   return [
-    ...(data.personalInfo.photo || isChaima ? ["photo"] : []),
+    ...(isChaima ? ["photo"] : []),
     "name",
     "role",
     "techLine",

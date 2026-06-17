@@ -265,7 +265,18 @@ export function useProfileManager(locale: string, t: (key: string, values?: Reco
    *  touchent pas au layout. */
   const changeTemplate = useCallback((template: string) => {
     setSelectedTemplate(template);
-    setCurrentCV((prev) => migrateLayoutForTemplate(prev, template));
+    setCurrentCV((prev) => {
+      const migrated = migrateLayoutForTemplate(prev, template);
+      // Réorganisation AUTOMATIQUE à la sélection d'un template : on efface les
+      // positions manuelles + la pagination figée pour que le canvas recalcule
+      // une mise en page propre adaptée au nouveau modèle — l'utilisateur n'a
+      // plus besoin de cliquer « réorganiser ».
+      if (!migrated.layout) return migrated;
+      return {
+        ...migrated,
+        layout: { ...migrated.layout, absolutePositions: undefined, autoPaginated: false },
+      };
+    });
   }, []);
 
   /** Crée un nouveau profil principal à partir d'un template VIDE, le
@@ -375,16 +386,6 @@ export function useProfileManager(locale: string, t: (key: string, values?: Reco
     },
     [currentCV, selectedProfile, selectedTemplate, locale, mainProfileId, fetchProfiles]
   );
-
-  const handleReset = useCallback(() => {
-    if (mainProfileId) {
-      selectVersion(mainProfileId);
-    } else {
-      loadFallback();
-    }
-    setCoverLetterData(null);
-    resetStatus();
-  }, [mainProfileId, selectVersion, loadFallback, selectedProfile, resetStatus]);
 
   const performSave = useCallback(
     async (cvData: CVData) => {
@@ -618,7 +619,6 @@ export function useProfileManager(locale: string, t: (key: string, values?: Reco
     renameProfile,
     deleteProfile,
     deleteVersion,
-    handleReset,
     profiles,
     profilesLoading,
     versions,

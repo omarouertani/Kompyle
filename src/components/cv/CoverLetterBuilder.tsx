@@ -3,6 +3,7 @@
 import React from "react";
 import { useTranslations } from "next-intl";
 import type { CoverLetterData, PersonalInfo } from "@/types/cv";
+import { stripHtml } from "@/utils/strip-html";
 import { Building, FileText, Plus, X, User } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -56,12 +57,12 @@ export default function CoverLetterBuilder({ data, onChange, personalInfo }: Cov
           <SectionHeading icon={User}>{t("sender_section")}</SectionHeading>
           <div className="border border-border/60 rounded-lg p-3.5 bg-muted/20 flex flex-col gap-0.5">
             <span className="text-sm font-semibold text-foreground">
-              {personalInfo.name || t("sender_no_name")}
+              {stripHtml(personalInfo.name) || t("sender_no_name")}
             </span>
-            {personalInfo.role && <span className="text-xs text-muted-foreground">{personalInfo.role}</span>}
+            {personalInfo.role && <span className="text-xs text-muted-foreground">{stripHtml(personalInfo.role)}</span>}
             {(personalInfo.email || personalInfo.phone) && (
               <span className="text-xs text-muted-foreground">
-                {[personalInfo.email, personalInfo.phone].filter(Boolean).join(" • ")}
+                {[stripHtml(personalInfo.email), stripHtml(personalInfo.phone)].filter(Boolean).join(" • ")}
               </span>
             )}
             <p className="text-[10px] text-muted-foreground/70 mt-1.5">

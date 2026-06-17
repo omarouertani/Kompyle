@@ -43,7 +43,7 @@ export function CanvasBlock({
 }: CanvasBlockProps) {
   // Resize diagonal : le texte du bloc suit l'échelle sauvegardée
   const fs = pos.fontScale ?? 1;
-  const themeForBlock: BlockTheme =
+  let themeForBlock: BlockTheme =
     fs === 1
       ? blockTheme
       : {
@@ -51,6 +51,10 @@ export function CanvasBlock({
           baseFontSize: blockTheme.baseFontSize * fs,
           headingFontSize: blockTheme.headingFontSize * fs,
         };
+  // Photo : sa taille suit la largeur du bloc → redimensionnable aux coins.
+  if (id === "photo" && pos.w) {
+    themeForBlock = { ...themeForBlock, photoSize: pos.w };
+  }
   return (
     <AbsoluteBlock
       id={id}

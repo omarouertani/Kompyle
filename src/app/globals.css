@@ -10,82 +10,83 @@
 	--radius: 0.5rem;
 	--font-body: "IBM Plex Sans Variable", sans-serif;
 
-	--accent-foreground: oklch(0.31 0.09 277);
-	--accent: oklch(0.955 0.018 277);
-	--background: oklch(0.988 0.002 277);
-	--border: oklch(0.915 0.006 277);
-	--card-foreground: oklch(0.16 0.012 277);
-	--card: oklch(1 0 0);
-	--chart-1: oklch(0.87 0 0);
-	--chart-2: oklch(0.556 0 0);
-	--chart-3: oklch(0.439 0 0);
-	--chart-4: oklch(0.371 0 0);
-	--chart-5: oklch(0.269 0 0);
-	--destructive: oklch(0.577 0.245 27.325);
-	--foreground: oklch(0.16 0.012 277);
-	--input: oklch(0.915 0.006 277);
-	--muted-foreground: oklch(0.54 0.015 277);
-	--muted: oklch(0.962 0.005 277);
-	--popover-foreground: oklch(0.16 0.012 277);
-	--popover: oklch(1 0 0);
-	--primary-foreground: oklch(0.985 0 0);
-	--primary: oklch(0.5 0.21 277);
-	--ring: oklch(0.5 0.21 277);
-	--secondary-foreground: oklch(0.25 0.02 277);
-	--secondary: oklch(0.955 0.01 277);
-	--sidebar-accent-foreground: oklch(0.31 0.09 277);
-	--sidebar-accent: oklch(0.955 0.018 277);
-	--sidebar-border: oklch(0.915 0.006 277);
-	--sidebar-foreground: oklch(0.16 0.012 277);
-	--sidebar-primary-foreground: oklch(0.985 0 0);
-	--sidebar-primary: oklch(0.5 0.21 277);
-	--sidebar-ring: oklch(0.5 0.21 277);
-	--sidebar: oklch(0.978 0.003 277);
+	/* ── Claude Theme · Light ── (terracotta orange chaud) */
+	--background: oklch(0.98 0.01 95.10);
+	--foreground: oklch(0.34 0.03 95.72);
+	--card: oklch(0.98 0.01 95.10);
+	--card-foreground: oklch(0.19 0.00 106.59);
+	--popover: oklch(1.00 0 0);
+	--popover-foreground: oklch(0.27 0.02 98.94);
+	--primary: oklch(0.62 0.14 39.04);
+	--primary-foreground: oklch(1.00 0 0);
+	--secondary: oklch(0.92 0.01 92.99);
+	--secondary-foreground: oklch(0.43 0.02 98.60);
+	--muted: oklch(0.93 0.02 90.24);
+	--muted-foreground: oklch(0.61 0.01 97.42);
+	--accent: oklch(0.92 0.01 92.99);
+	--accent-foreground: oklch(0.27 0.02 98.94);
+	--destructive: oklch(0.19 0.00 106.59);
+	--border: oklch(0.88 0.01 97.36);
+	--input: oklch(0.76 0.02 98.35);
+	--ring: oklch(0.59 0.17 253.06);
+	--chart-1: oklch(0.56 0.13 43.00);
+	--chart-2: oklch(0.69 0.16 290.41);
+	--chart-3: oklch(0.88 0.03 93.13);
+	--chart-4: oklch(0.88 0.04 298.18);
+	--chart-5: oklch(0.56 0.13 42.06);
+	--sidebar: oklch(0.97 0.01 98.88);
+	--sidebar-foreground: oklch(0.36 0.01 106.65);
+	--sidebar-primary: oklch(0.62 0.14 39.04);
+	--sidebar-primary-foreground: oklch(0.99 0 0);
+	--sidebar-accent: oklch(0.92 0.01 92.99);
+	--sidebar-accent-foreground: oklch(0.33 0 0);
+	--sidebar-border: oklch(0.94 0 0);
+	--sidebar-ring: oklch(0.77 0 0);
 
-	/* Échelle de scoring ATS — dérivée du primaire (violet) et du destructive (rouge)
-	 * pour rester cohérente avec le thème de l'app (pas de vert/orange criards). */
+	/* Échelle de scoring ATS — dérivée du thème courant. */
 	--ats-excellent: var(--primary);
 	--ats-good: color-mix(in oklab, var(--primary) 55%, var(--accent-foreground) 45%);
-	--ats-warning: color-mix(in oklab, var(--destructive) 55%, var(--muted-foreground) 45%);
-	--ats-poor: var(--destructive);
+	--ats-warning: color-mix(in oklab, var(--chart-1) 70%, var(--destructive) 30%);
+	--ats-poor: oklch(0.58 0.22 27.33);
 }
 
 .dark {
-	--accent-foreground: oklch(0.93 0.03 277);
-	--accent: oklch(0.31 0.05 277);
-	--background: oklch(0.155 0.012 277);
-	--border: oklch(1 0 0 / 10%);
-	--card-foreground: oklch(0.97 0.005 277);
-	--card: oklch(0.205 0.014 277);
-	--chart-1: oklch(0.87 0 0);
-	--chart-2: oklch(0.556 0 0);
-	--chart-3: oklch(0.439 0 0);
-	--chart-4: oklch(0.371 0 0);
-	--chart-5: oklch(0.269 0 0);
-	--destructive: oklch(0.704 0.191 22.216);
-	--foreground: oklch(0.97 0.005 277);
-	--input: oklch(1 0 0 / 15%);
-	--muted-foreground: oklch(0.72 0.015 277);
-	--muted: oklch(0.265 0.016 277);
-	--popover-foreground: oklch(0.97 0.005 277);
-	--popover: oklch(0.215 0.015 277);
-	--primary-foreground: oklch(0.13 0.03 277);
-	--primary: oklch(0.74 0.14 277);
-	--ring: oklch(0.74 0.14 277);
-	--secondary-foreground: oklch(0.97 0.005 277);
-	--secondary: oklch(0.28 0.02 277);
-	--sidebar-accent-foreground: oklch(0.93 0.03 277);
-	--sidebar-accent: oklch(0.31 0.05 277);
-	--sidebar-border: oklch(1 0 0 / 10%);
-	--sidebar-foreground: oklch(0.97 0.005 277);
-	--sidebar-primary-foreground: oklch(0.13 0.03 277);
-	--sidebar-primary: oklch(0.74 0.14 277);
-	--sidebar-ring: oklch(0.74 0.14 277);
-	--sidebar: oklch(0.19 0.013 277);
+	/* ── Claude Theme · Dark ── */
+	--background: oklch(0.27 0.00 106.64);
+	--foreground: oklch(0.81 0.01 93.01);
+	--card: oklch(0.27 0.00 106.64);
+	--card-foreground: oklch(0.98 0.01 95.10);
+	--popover: oklch(0.31 0.00 106.60);
+	--popover-foreground: oklch(0.92 0.00 106.48);
+	--primary: oklch(0.67 0.13 38.76);
+	--primary-foreground: oklch(1.00 0 0);
+	--secondary: oklch(0.98 0.01 95.10);
+	--secondary-foreground: oklch(0.31 0.00 106.60);
+	--muted: oklch(0.22 0.00 106.71);
+	--muted-foreground: oklch(0.77 0.02 99.07);
+	--accent: oklch(0.21 0.01 95.42);
+	--accent-foreground: oklch(0.97 0.01 98.88);
+	--destructive: oklch(0.64 0.21 25.33);
+	--border: oklch(0.36 0.01 106.89);
+	--input: oklch(0.43 0.01 100.22);
+	--ring: oklch(0.59 0.17 253.06);
+	--chart-1: oklch(0.56 0.13 43.00);
+	--chart-2: oklch(0.69 0.16 290.41);
+	--chart-3: oklch(0.21 0.01 95.42);
+	--chart-4: oklch(0.31 0.05 289.32);
+	--chart-5: oklch(0.56 0.13 42.06);
+	--sidebar: oklch(0.24 0.00 67.71);
+	--sidebar-foreground: oklch(0.81 0.01 93.01);
+	--sidebar-primary: oklch(0.33 0 0);
+	--sidebar-primary-foreground: oklch(0.99 0 0);
+	--sidebar-accent: oklch(0.17 0.00 106.62);
+	--sidebar-accent-foreground: oklch(0.81 0.01 93.01);
+	--sidebar-border: oklch(0.94 0 0);
+	--sidebar-ring: oklch(0.77 0 0);
 
 	--ats-excellent: var(--primary);
-	--ats-good: color-mix(in oklab, var(--primary) 60%, var(--accent-foreground) 40%);
-	--ats-warning: color-mix(in oklab, var(--destructive) 60%, var(--muted-foreground) 40%);
+	--ats-good: color-mix(in oklab, var(--primary) 55%, var(--accent-foreground) 45%);
+	--ats-warning: color-mix(in oklab, var(--chart-1) 70%, var(--destructive) 30%);
 	--ats-poor: var(--destructive);
 }
 
@@ -346,6 +347,24 @@
 	[data-slot="select-item"][data-highlighted] .marquee-track {
 		transform: translateX(var(--marquee-shift, 0px));
 	}
+}
+
+/* Bascule de thème : ondulation circulaire (View Transitions API).
+ * On neutralise le fondu enchaîné par défaut — l'ancien thème reste fixe en
+ * dessous tandis que le nouveau est révélé par un cercle qui s'étend depuis le
+ * bouton (clip-path animé en JS dans Header.tsx). */
+::view-transition-old(root),
+::view-transition-new(root) {
+	animation: none;
+	mix-blend-mode: normal;
+}
+
+::view-transition-old(root) {
+	z-index: 1;
+}
+
+::view-transition-new(root) {
+	z-index: 9999;
 }
 
 @media (prefers-reduced-motion: reduce) {

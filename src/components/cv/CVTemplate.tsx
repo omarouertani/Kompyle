@@ -4,14 +4,13 @@ import {
   Page,
   View,
   Text,
-  Image,
   Link,
   PdfThemeProvider,
   defaultPdfTheme,
 } from "@/components/pdf-primitives";
 import { registerPdfFont, ACTIVE_PDF_FONT, resolvePdfFontFamily } from "@/utils/pdf-fonts";
 import type { CVData } from "@/types/cv";
-import { defaultLayout, DEFAULT_SIDEBAR_WIDTH, getDefaultPositions, getDefaultPhotoPosition, dedupePages, getPageBlockIds } from "@/lib/cv-layout";
+import { defaultLayout, DEFAULT_SIDEBAR_WIDTH, getDefaultPositions, dedupePages, getPageBlockIds } from "@/lib/cv-layout";
 import { DiffText, RichText, formatUrl, displayUrl, hasInlineHtml } from "@/utils/pdf-text-utils";
 import { getStyles, type CVTemplateVariant } from "./template/classic-styles";
 import {
@@ -46,8 +45,8 @@ const CVTemplate: React.FC<CVTemplateProps> = ({ data, originalData, variant = "
   const layout = data.layout ?? defaultLayout();
   const sidebarWidth = layout.sidebarWidth ?? DEFAULT_SIDEBAR_WIDTH;
   const styles = getStyles(layout.theme, sidebarWidth, variant);
-  // Le CV canadien n'affiche jamais de photo (convention nord-américaine).
-  const showPhoto = !isCanadian && !!personalInfo.photo;
+  // Ce template (« Sans photo » + Canadien) n'affiche JAMAIS de photo.
+  // Seul le template Moderne (CVTemplateModern) gère la photo.
   // Police du thème (canvas) → famille PDF enregistrée, injectée via le
   // contexte du thème PDF (toutes les primitives en héritent).
   const pdfFontFamily = resolvePdfFontFamily(layout.theme?.fontFamily);
@@ -159,7 +158,6 @@ const CVTemplate: React.FC<CVTemplateProps> = ({ data, originalData, variant = "
     const rolePos = absolutePositions.role || { x: 24, y: 46, w: 450 };
     const techPos = absolutePositions.techLine || { x: 24, y: 64, w: 450 };
     const contactPos = absolutePositions.contactLine || { x: 24, y: 64, w: 547 };
-    const photoPos = absolutePositions.photo || getDefaultPhotoPosition("default", sidebarWidth);
 
     return (
       <>
@@ -185,15 +183,6 @@ const CVTemplate: React.FC<CVTemplateProps> = ({ data, originalData, variant = "
               newText={personalInfo.techLine}
               style={styles.techLine}
             />
-          </View>
-        )}
-
-        {/* Photo */}
-        {showPhoto && (
-          <View style={{ position: "absolute", left: photoPos.x, top: photoPos.y, width: photoPos.w ?? 60, alignItems: "center" }}>
-            <View style={{ width: photoPos.w ?? 60, height: photoPos.w ?? 60, borderRadius: (photoPos.w ?? 60) / 2, overflow: "hidden", borderWidth: 1, borderColor: "#c4c4c4" }}>
-              <Image src={personalInfo.photo} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-            </View>
           </View>
         )}
       </>
@@ -257,13 +246,6 @@ const CVTemplate: React.FC<CVTemplateProps> = ({ data, originalData, variant = "
             <View style={styles.body}>
               {hasSidebar && (
                 <View style={[styles.sidebar, { width: sidebarWidth }]}>
-                  {pageIndex === 0 && showPhoto && (
-                    <View style={{ alignItems: "center", marginBottom: 12 }}>
-                      <View style={{ width: 60, height: 60, borderRadius: 30, overflow: "hidden", borderWidth: 1, borderColor: "#c4c4c4" }}>
-                        <Image src={personalInfo.photo} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                      </View>
-                    </View>
-                  )}
                   {renderColumn(page.sidebar, data, styles, originalData)}
                 </View>
               )}
