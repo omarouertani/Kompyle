@@ -1,0 +1,30 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: kompyle-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: kompyle
+      POSTGRES_USER: kompyle
+      POSTGRES_PASSWORD: kompyle_dev
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./scripts/init.sql:/docker-entrypoint-initdb.d/init.sql
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: kompyle-app
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - DATABASE_URL=postgresql://kompyle:kompyle_dev@db:5432/kompyle
+    depends_on:
+      - db
+
+volumes:
+  pgdata:
