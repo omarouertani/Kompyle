@@ -43,9 +43,28 @@ const sourceSans = Source_Sans_3({ subsets: ["latin"], weight: ["400", "700"], s
 const merriweather = Merriweather({ subsets: ["latin"], weight: ["400", "700"], style: ["normal", "italic"], variable: "--font-merriweather", display: "swap" });
 const gelasio = Gelasio({ subsets: ["latin"], weight: ["400", "700"], style: ["normal", "italic"], variable: "--font-gelasio", display: "swap" });
 
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+const OG_DESCRIPTION =
+  "Privacy-first, open-source AI resume editor & ATS auditor with a Canva-style canvas and pixel-perfect PDF export.";
+
 export const metadata: Metadata = {
-  title: "Kompyle — Premium CV Adapter",
-  description: "Adapt your CV intelligently using AI.",
+  metadataBase: new URL(SITE_URL),
+  title: "Kompyle — AI Resume Editor & ATS Auditor",
+  description: OG_DESCRIPTION,
+  openGraph: {
+    title: "Kompyle — AI Resume Editor & ATS Auditor",
+    description: OG_DESCRIPTION,
+    url: SITE_URL,
+    siteName: "Kompyle",
+    images: [{ url: "/og-image.png", width: 1280, height: 640, alt: "Kompyle" }],
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Kompyle — AI Resume Editor & ATS Auditor",
+    description: OG_DESCRIPTION,
+    images: ["/og-image.png"],
+  },
 };
 
 export default async function LocaleLayout({
