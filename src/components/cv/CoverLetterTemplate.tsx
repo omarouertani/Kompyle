@@ -122,11 +122,13 @@ const CoverLetterTemplate: React.FC<CoverLetterTemplateProps> = ({ data, persona
   // le canvas). Ce template utilise le <Text> brut de react-pdf (pas la primitive
   // qui parse le HTML) : on nettoie donc ici, sinon la lettre afficherait des
   // balises littérales (<b>…</b>) pour le nom/rôle/contact.
-  const senderName = stripHtml(personalInfo.name);
-  const senderRole = stripHtml(personalInfo.role);
-  const senderEmail = stripHtml(personalInfo.email);
-  const senderPhone = stripHtml(personalInfo.phone);
-  const senderLocation = stripHtml(personalInfo.location);
+  const senderName = stripHtml(personalInfo.name).trim();
+  const senderRole = stripHtml(personalInfo.role).trim();
+  const senderEmail = stripHtml(personalInfo.email).trim();
+  const senderPhone = stripHtml(personalInfo.phone).trim();
+  const senderLocation = stripHtml(personalInfo.location).trim();
+  // Separator only between two present values (no orphan "•").
+  const senderContact = [senderEmail, senderPhone].filter(Boolean).join(" • ");
   return (
     <Document
       title={senderName ? `${labels.documentTitle} - ${senderName}` : labels.documentTitle}
@@ -137,9 +139,9 @@ const CoverLetterTemplate: React.FC<CoverLetterTemplateProps> = ({ data, persona
         {/* SENDER INFO (Top Left) */}
         <View style={styles.senderBlock}>
           <Text style={styles.senderName}>{senderName}</Text>
-          <Text style={styles.senderContact}>{senderRole}</Text>
-          <Text style={styles.senderContact}>{senderEmail} • {senderPhone}</Text>
-          <Text style={styles.senderContact}>{senderLocation}</Text>
+          {senderRole && <Text style={styles.senderContact}>{senderRole}</Text>}
+          {senderContact && <Text style={styles.senderContact}>{senderContact}</Text>}
+          {senderLocation && <Text style={styles.senderContact}>{senderLocation}</Text>}
         </View>
 
         {/* RECIPIENT & DATE */}
