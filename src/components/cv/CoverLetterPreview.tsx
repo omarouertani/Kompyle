@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useMemo, useCallback, useSyncExternalStore } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { AlertTriangle } from "lucide-react";
 import { PDFViewer, pdf } from "@react-pdf/renderer";
 import CoverLetterTemplate, { type CoverLetterLabels } from "./CoverLetterTemplate";
@@ -30,6 +30,7 @@ export default function CoverLetterPreview({
   theme,
 }: CoverLetterPreviewProps) {
   const t = useTranslations("LetterPreview");
+  const locale = useLocale();
   const tAdapt = useTranslations("AIAdapt");
   const [isDownloading, setIsDownloading] = useState(false);
   const [downloadError, setDownloadError] = useState(false);
@@ -39,8 +40,8 @@ export default function CoverLetterPreview({
   // Document mémoïsé : un élément stable évite que react-pdf régénère le PDF
   // à chaque render du parent (source de freezes).
   const labels = useMemo<CoverLetterLabels>(
-    () => ({ subjectPrefix: t("subject_prefix"), documentTitle: t("document_title") }),
-    [t]
+    () => ({ subjectPrefix: t("subject_prefix"), documentTitle: t("document_title"), locale }),
+    [t, locale]
   );
   // The on-screen preview re-renders the whole PDF: wait for a pause in
   // typing (600 ms) instead of regenerating on every keystroke. The download

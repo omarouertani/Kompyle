@@ -226,7 +226,14 @@ export interface CoverLetterData {
   salutation: string; // e.g., "Dear Hiring Manager,"
   paragraphs: string[];
   signOff: string; // e.g., "Sincerely,"
+  /** Image de signature (data URL PNG, transparente), ajoutée par l'utilisateur.
+   *  Jamais envoyée à l'IA. */
+  signature?: string;
+  /** Modèle visuel de la lettre (classique par défaut). */
+  template?: CoverLetterTemplateId;
 }
+
+export type CoverLetterTemplateId = "classic" | "modern";
 
 export interface GenerateCoverLetterRequest {
   jobDescription: string;

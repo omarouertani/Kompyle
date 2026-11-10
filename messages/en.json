@@ -402,7 +402,18 @@
     "new_paragraph": "New paragraph…",
     "remove_paragraph": "Remove this paragraph",
     "signoff": "Closing (Signature)",
-    "signoff_ph": "E.g. Yours sincerely…"
+    "signoff_ph": "E.g. Yours sincerely…",
+    "date_hint": "Leave empty to use today’s date.",
+    "style_section": "Style & signature",
+    "template": "Template",
+    "template_classic": "Classic",
+    "template_modern": "Modern",
+    "signature": "Signature",
+    "signature_add": "Add a signature",
+    "signature_change": "Change",
+    "signature_remove": "Remove",
+    "signature_hint": "PNG with a transparent background works best. It is never sent to the AI.",
+    "signature_error": "This image could not be read. Try a PNG or JPEG."
   },
   "LetterPreview": {
     "download": "Download PDF",

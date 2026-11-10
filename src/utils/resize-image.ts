@@ -32,7 +32,12 @@ async function decodeImage(file: File): Promise<{ source: CanvasImageSource; wid
  *  la renvoie en JPEG. Le fond est blanc : le JPEG n'a pas de transparence.
  *  Rejette si le fichier n'est pas une image, est trop lourd ou indécodable
  *  (ex. HEIC sur un navigateur qui ne le gère pas). */
-export async function resizeImageToDataUrl(file: File, maxSide = 600, quality = 0.85): Promise<string> {
+export async function resizeImageToDataUrl(
+  file: File,
+  maxSide = 600,
+  quality = 0.85,
+  format: "jpeg" | "png" = "jpeg",
+): Promise<string> {
   if (!file.type.startsWith("image/")) throw new Error("Not an image");
   if (file.size > MAX_INPUT_BYTES) throw new Error("Image too large");
 
@@ -47,11 +52,15 @@ export async function resizeImageToDataUrl(file: File, maxSide = 600, quality = 
     canvas.height = h;
     const ctx = canvas.getContext("2d");
     if (!ctx) throw new Error("Canvas 2D unavailable");
-    ctx.fillStyle = "#ffffff";
-    ctx.fillRect(0, 0, w, h);
+    // JPEG : fond blanc (pas de transparence). PNG : on garde la transparence
+    // (ex. une signature posée sur la page).
+    if (format === "jpeg") {
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, w, h);
+    }
     ctx.imageSmoothingQuality = "high";
     ctx.drawImage(source, 0, 0, w, h);
-    return canvas.toDataURL("image/jpeg", quality);
+    return format === "png" ? canvas.toDataURL("image/png") : canvas.toDataURL("image/jpeg", quality);
   } finally {
     release();
   }

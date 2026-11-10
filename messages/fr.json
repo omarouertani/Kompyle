@@ -402,7 +402,18 @@
     "new_paragraph": "Nouveau paragraphe…",
     "remove_paragraph": "Supprimer ce paragraphe",
     "signoff": "Formule de politesse (Signature)",
-    "signoff_ph": "Ex : Veuillez agréer, Madame, Monsieur…"
+    "signoff_ph": "Ex : Veuillez agréer, Madame, Monsieur…",
+    "date_hint": "Laissez vide pour utiliser la date du jour.",
+    "style_section": "Style et signature",
+    "template": "Modèle",
+    "template_classic": "Classique",
+    "template_modern": "Moderne",
+    "signature": "Signature",
+    "signature_add": "Ajouter une signature",
+    "signature_change": "Changer",
+    "signature_remove": "Retirer",
+    "signature_hint": "Un PNG sur fond transparent donne le meilleur rendu. Elle n’est jamais envoyée à l’IA.",
+    "signature_error": "Impossible de lire cette image. Essayez un PNG ou un JPEG."
   },
   "LetterPreview": {
     "download": "Télécharger le PDF",
