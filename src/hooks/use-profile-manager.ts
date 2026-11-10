@@ -347,9 +347,8 @@ export function useProfileManager(locale: string, t: (key: string, values?: Reco
 
   // Le tout premier chargement est terminé dès que `profilesLoading` retombe à
   // false une première fois ; ensuite, plus jamais de loader plein écran.
-  useEffect(() => {
-    if (!profilesLoading) setInitialLoading(false);
-  }, [profilesLoading]);
+  // (Mis à jour pendant le rendu, pas dans un effet : pas de rendu en trop.)
+  if (initialLoading && !profilesLoading) setInitialLoading(false);
 
   // Persiste le profil actif pour le restaurer au prochain démarrage (le flash du
   // CV d'exemple venait de l'absence totale de persistance de cette sélection).

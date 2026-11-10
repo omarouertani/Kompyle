@@ -34,9 +34,13 @@ export function useAIProviderConfig() {
 
   // Restaure le dernier modèle choisi (après hydratation, côté client). On ignore
   // une valeur stockée qui ne correspond plus à aucun modèle du catalogue.
+  // A lazy useState initialiser cannot be used: localStorage does not exist
+  // during SSR and the first client render must match the server HTML. The
+  // one-off restore after mount is the intended effect here.
   useEffect(() => {
     try {
       const stored = localStorage.getItem(MODEL_KEY);
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- one-off restore from localStorage after hydration
       if (stored && KNOWN_MODELS.has(stored)) setModel(stored);
     } catch {
       // stockage indisponible — on garde le modèle par défaut
