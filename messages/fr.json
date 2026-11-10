@@ -129,6 +129,7 @@
     "cv_adapted_visual": "CV Adapté (Édition Visuelle)",
     "cv_adapted_highlighted": "CV Adapté (Modifications surlignées)",
     "download_error": "Échec du téléchargement du PDF. Vérifiez votre connexion et réessayez.",
+    "pdf_too_large": "Le CV est trop lourd pour être exporté (photo trop grande ?). Réimportez une photo plus légère et réessayez.",
     "preview_error": "Impossible de générer l'aperçu PDF. Réessayez ou réduisez le contenu.",
     "delete_version_tooltip": "Supprimer ce CV adapté",
     "delete_version_title": "Supprimer ce CV adapté ?",

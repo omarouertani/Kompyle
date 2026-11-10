@@ -136,7 +136,7 @@ export default function CVPreview({
   const [mode, setMode] = useState<"canvas" | "pdf">("canvas");
   const [isDownloading, setIsDownloading] = useState(false);
   const [isOverflowing, setIsOverflowing] = useState(false);
-  const [downloadError, setDownloadError] = useState(false);
+  const [downloadError, setDownloadError] = useState<null | "generic" | "too_large">(null);
   const [confirmDeleteVersion, setConfirmDeleteVersion] = useState(false);
   const mounted = useSyncExternalStore(emptySubscribe, () => true, () => false);
 
@@ -171,13 +171,14 @@ export default function CVPreview({
   const handleDownload = useCallback(async () => {
     if (isOverflowing) return;
     setIsDownloading(true);
-    setDownloadError(false);
+    setDownloadError(null);
     try {
       const res = await fetch("/api/render-pdf", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ data, template }),
       });
+      if (res.status === 413) setDownloadError("too_large");
       if (!res.ok) throw new Error(`Server returned ${res.status}`);
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
@@ -188,7 +189,7 @@ export default function CVPreview({
       URL.revokeObjectURL(url);
     } catch (err) {
       console.error("PDF download failed:", err);
-      setDownloadError(true);
+      setDownloadError((prev) => prev ?? "generic");
     } finally {
       setIsDownloading(false);
     }
@@ -329,7 +330,7 @@ export default function CVPreview({
             {downloadError && !isOverflowing && (
               <div className="flex items-center gap-1.5 text-destructive text-xs font-medium">
                 <AlertTriangle size={13} />
-                {t("download_error")}
+                {downloadError === "too_large" ? t("pdf_too_large") : t("download_error")}
               </div>
             )}
           <Button

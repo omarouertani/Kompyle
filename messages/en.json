@@ -129,6 +129,7 @@
     "cv_adapted_visual": "Adapted CV (Visual Editing)",
     "cv_adapted_highlighted": "Adapted CV (Changes highlighted)",
     "download_error": "PDF download failed. Check your connection and try again.",
+    "pdf_too_large": "Your CV is too large to export (photo too big?). Re-upload a smaller photo and try again.",
     "preview_error": "Could not generate the PDF preview. Try again or reduce the content.",
     "delete_version_tooltip": "Delete this adapted CV",
     "delete_version_title": "Delete this adapted CV?",
