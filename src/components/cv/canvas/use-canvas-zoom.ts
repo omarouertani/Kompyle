@@ -8,11 +8,13 @@ interface UseCanvasZoomArgs {
   scrollContainerRef: React.RefObject<HTMLDivElement | null>;
   /** Reporte l'échelle finale à useCanvasInteractions (conversion px → pt). */
   onScaleChange: (scale: number) => void;
+  /** Largeur de la page en px (A4 par défaut, Letter possible). */
+  pageWidthPx?: number;
 }
 
 /** Zoom du canvas : Ctrl/Cmd + molette, « Ajuster à l'écran », et suivi de
  *  l'échelle finale (baseScale × zoom) rapportée par le wrapper de page. */
-export function useCanvasZoom({ scrollContainerRef, onScaleChange: reportScale }: UseCanvasZoomArgs) {
+export function useCanvasZoom({ scrollContainerRef, onScaleChange: reportScale, pageWidthPx = A4_WIDTH_PX }: UseCanvasZoomArgs) {
   const [zoom, setZoom] = useState(1);
 
   // Échelle finale (baseScale × zoom) rapportée par le wrapper — sert au
@@ -33,10 +35,10 @@ export function useCanvasZoom({ scrollContainerRef, onScaleChange: reportScale }
     setZoom((currentZoom) => {
       const baseScale = currentZoom > 0 ? finalScaleRef.current / currentZoom : 1;
       if (!baseScale) return 1;
-      const desired = (el.clientWidth - 48) / A4_WIDTH_PX;
+      const desired = (el.clientWidth - 48) / pageWidthPx;
       return Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, desired / baseScale));
     });
-  }, [scrollContainerRef]);
+  }, [scrollContainerRef, pageWidthPx]);
 
   useEffect(() => {
     const el = scrollContainerRef.current;
@@ -49,7 +51,7 @@ export function useCanvasZoom({ scrollContainerRef, onScaleChange: reportScale }
     };
     el.addEventListener("wheel", handler, { passive: false });
     return () => el.removeEventListener("wheel", handler);
-  }, [scrollContainerRef]);
+  }, [scrollContainerRef, pageWidthPx]);
 
   return { zoom, setZoom, fitToScreen, onScaleChange };
 }

@@ -26,7 +26,10 @@ import {
   renderCertifications,
   renderInterests,
 } from "./template/modern-renderers";
-import { blockTextAlign, isBlockOutOfPage } from "./template/shared";
+import { blockTextAlign, isBlockOutOfPage, pdfMetadata } from "./template/shared";
+import { getPageDims } from "@/lib/page-size";
+import { detectJobLanguage } from "@/lib/detect-language";
+import { stripHtml } from "@/utils/strip-html";
 
 registerPdfFont(ACTIVE_PDF_FONT);
 
@@ -43,14 +46,13 @@ const CVTemplateModern: React.FC<CVTemplateModernProps> = ({ data, originalData 
   // Police du thème (canvas) → famille PDF enregistrée, injectée via le
   // contexte du thème PDF (toutes les primitives en héritent).
   const pdfFontFamily = resolvePdfFontFamily(layout.theme?.fontFamily);
+  // Format de page (A4 / Letter) et langue du document (métadonnées PDF).
+  const pageDims = getPageDims(layout);
+  const cvLanguage = detectJobLanguage(stripHtml(`${data.personalInfo?.role ?? ""} ${data.personalInfo?.summary ?? ""}`));
 
   return (
     <PdfThemeProvider value={{ ...defaultPdfTheme, fontFamily: pdfFontFamily }}>
-    <Document
-      title={`${personalInfo.name} — ${personalInfo.role} (CV)`}
-      author={personalInfo.name}
-      subject={personalInfo.role}
-    >
+    <Document {...pdfMetadata(data, cvLanguage)}>
       {dedupePages(layout.pages).map((page, pageIndex) => {
         const hasSidebar = page.sidebar.some((id) => SECTION_RENDERERS[id]);
 
@@ -130,7 +132,7 @@ const CVTemplateModern: React.FC<CVTemplateModernProps> = ({ data, originalData 
             if (!pos) return null;
             // Position hors page A4 : on ignore le bloc plutôt que de casser le
             // rendu PDF (page blanche / boucle de pagination).
-            if (isBlockOutOfPage(pos)) return null;
+            if (isBlockOutOfPage(pos, pageDims)) return null;
 
             let rendered: React.ReactNode = null;
             // STEP: custom sections support
@@ -183,7 +185,7 @@ const CVTemplateModern: React.FC<CVTemplateModernProps> = ({ data, originalData 
           };
 
           return (
-            <Page key={pageIndex} size="A4" style={[styles.page, { padding: 0 }]}>
+            <Page key={pageIndex} size={pageDims.id} style={[styles.page, { padding: 0 }]}>
               {hasSidebarAbs && <View style={sidebarBgStyle} />}
               {renderAbsoluteHeaderAndPhoto(pageIndex)}
               {sidebarBlocks.map((id) => renderAbsoluteBlock(id, true))}
@@ -193,7 +195,7 @@ const CVTemplateModern: React.FC<CVTemplateModernProps> = ({ data, originalData 
         }
 
         return (
-          <Page key={pageIndex} size="A4" style={styles.page}>
+          <Page key={pageIndex} size={pageDims.id} style={styles.page}>
             <View style={styles.body}>
               {hasSidebar && (
                 <View style={styles.sidebar}>

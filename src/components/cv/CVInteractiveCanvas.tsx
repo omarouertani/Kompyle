@@ -16,7 +16,8 @@ import {
 } from "@/lib/cv-layout";
 import { Lock } from "lucide-react";
 import { stripHtml } from "@/utils/strip-html";
-import { SELECTION_COLOR } from "./cv-canvas-primitives";
+import { SELECTION_COLOR, PageDimsContext, PT_TO_PX } from "./cv-canvas-primitives";
+import { getPageDims } from "@/lib/page-size";
 import { type BlockTheme } from "./canvas/BlockContent";
 import { CanvasToolbar, type CanvasBackground } from "./canvas/CanvasToolbar";
 import { CanvasFormatProvider } from "./canvas/use-canvas-format";
@@ -74,6 +75,8 @@ export default function CVInteractiveCanvas({ data, onChange: onChangeProp, temp
 
   // ── Layout & thème dérivés ──────────────────────────────────────────────────
   const layout = data.layout ?? defaultLayout();
+  // Format de page actif (A4 / Letter) : partagé par la page, le zoom et la pagination.
+  const pageDims = getPageDims(layout);
   const theme = layout.theme ?? {};
   const isChaima = isModernTemplate(template);
 
@@ -162,7 +165,7 @@ export default function CVInteractiveCanvas({ data, onChange: onChangeProp, temp
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   // ── Zoom / Pan / Pages ──────────────────────────────────────────────────────
-  const { zoom, setZoom, fitToScreen, onScaleChange } = useCanvasZoom({ scrollContainerRef, onScaleChange: handleScaleChange });
+  const { zoom, setZoom, fitToScreen, onScaleChange } = useCanvasZoom({ scrollContainerRef, onScaleChange: handleScaleChange, pageWidthPx: pageDims.widthPt * PT_TO_PX });
   const { activePageIndex, setActivePageIndex, addPage, removePage } = usePageManagement({ layout, data, onChange });
   const { spaceHeldRef, isSpaceHeld, isPanningActive, handlePanCapture } = useSpacePan({ scrollContainerRef });
 
@@ -353,6 +356,7 @@ export default function CVInteractiveCanvas({ data, onChange: onChangeProp, temp
   };
 
   return (
+    <PageDimsContext.Provider value={pageDims}>
     <CanvasFormatProvider>
     <div
       ref={canvasContainerRef}
@@ -477,5 +481,6 @@ export default function CVInteractiveCanvas({ data, onChange: onChangeProp, temp
       {menu && <ContextMenu x={menu.x} y={menu.y} items={menuItems()} onClose={() => setMenu(null)} />}
     </div>
     </CanvasFormatProvider>
+    </PageDimsContext.Provider>
   );
 }

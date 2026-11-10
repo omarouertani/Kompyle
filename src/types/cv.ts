@@ -2,6 +2,8 @@
 // Matches the exact structure of cv_data.json and the HTML CV layout.
 // Any change here must be reflected in cv_data.json and the system prompt.
 
+import type { PageSizeId } from "@/lib/page-size";
+
 export interface PersonalInfo {
   name: string;
   role: string;
@@ -120,6 +122,8 @@ export interface ElementPosition {
 export type BlockTextAlign = "left" | "center" | "right" | "justify";
 
 export interface CVLayout {
+  /** Format de page (A4 par défaut ; Letter pour l'Amérique du Nord). */
+  pageSize?: PageSizeId;
   sidebarWidth?: number; // largeur de la colonne latérale, en points (défaut 165)
   pages: LayoutPage[];
   theme?: CVTheme;       // Thème de couleurs personnalisé

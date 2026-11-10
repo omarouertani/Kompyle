@@ -3,7 +3,8 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import type { CVData } from "@/types/cv";
 import { PT_TO_PX, SELECTION_COLOR } from "../cv-canvas-primitives";
-import { findSnapGuides, A4_WIDTH_PT, type BlockPos, type SnapGuide, type SnapRect } from "./snap";
+import { getPageDims } from "@/lib/page-size";
+import { findSnapGuides, type BlockPos, type SnapGuide, type SnapRect } from "./snap";
 import {
   getParentSectionId,
   isCanadianTemplate,
@@ -305,7 +306,8 @@ export function useCanvasInteractions({ data, template, defaultPositions, onChan
             candidates
           );
 
-          const clampedX = Math.max(0, Math.min(A4_WIDTH_PT - dragW, snappedX));
+          const pageWidthPt = getPageDims(dataRef.current.layout).widthPt;
+          const clampedX = Math.max(0, Math.min(pageWidthPt - dragW, snappedX));
           const clampedY = Math.max(0, snappedY);
           pendingDx = clampedX - currentPos.x;
           pendingDy = clampedY - currentPos.y;

@@ -1,4 +1,5 @@
 import type { CVData, CVLayout, LayoutPage, SectionId } from "@/types/cv";
+import { getPageDims, PAGE_BOTTOM_MARGIN_PT } from "@/lib/page-size";
 
 /** Clés de template connues. "modern" remplace l'ancien "chaima" (conservé en
  *  alias pour les anciennes lignes en base). "canadian" = CV sobre nord-américain. */
@@ -608,7 +609,7 @@ export function computePaginatedFlow(
   const MIN_SECTION_GAP = 4;
   const FIRST_START = isChaima ? 100 : 95; // sous le header / la photo
   const NEXT_START = 24; // haut des pages suivantes
-  const PAGE_BOTTOM = A4_PAGE_HEIGHT_PT - 24; // marge basse
+  const PAGE_BOTTOM = getPageDims(layout).heightPt - PAGE_BOTTOM_MARGIN_PT; // marge basse (A4 ou Letter)
   // Tolérance de débordement : un dépassement inférieur à ce seuil ne déclenche
   // PAS de saut de page (évite d'exiler une section pour quelques points).
   const OVERFLOW_TOL = 16;

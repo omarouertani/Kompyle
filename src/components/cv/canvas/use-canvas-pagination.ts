@@ -10,7 +10,8 @@ import {
   getParentSectionId,
   isModernTemplate,
 } from "@/lib/cv-layout";
-import { PT_TO_PX, A4_HEIGHT_PX } from "../cv-canvas-primitives";
+import { PT_TO_PX } from "../cv-canvas-primitives";
+import { getPageDims, PAGE_BOTTOM_MARGIN_PT } from "@/lib/page-size";
 import type { BlockPos } from "./snap";
 
 // ─── Auto-ajustement « tenir sur une page » ──────────────────────────────────
@@ -25,9 +26,6 @@ const FIT_BLOCK_GAP = 3;      // interligne entre blocs d'une même section (pt)
 const BASE_FONT = 10;
 const BASE_HEADING = 12;
 const BASE_SECTION_GAP = 8;
-// Limites de page A4 (pt), identiques à `computePaginatedFlow`.
-const A4_PAGE_HEIGHT_PT = 842;
-const PAGE_BOTTOM_PT = A4_PAGE_HEIGHT_PT - 24;
 const OVERFLOW_TOL_PT = 16;
 
 interface UseCanvasPaginationArgs {
@@ -256,7 +254,8 @@ export function useCanvasPagination({
     if (contentHeight <= 0) return null;
 
     const firstStart = isModernTemplate(template) ? 100 : 95;
-    const capacity = PAGE_BOTTOM_PT - firstStart + OVERFLOW_TOL_PT;
+    const pageBottomPt = getPageDims(layout).heightPt - PAGE_BOTTOM_MARGIN_PT;
+    const capacity = pageBottomPt - firstStart + OVERFLOW_TOL_PT;
 
     // Tient déjà sur une page → aucune réduction (laisse le réalignement normal).
     if (contentHeight <= capacity) return null;
@@ -339,7 +338,8 @@ export function useCanvasPagination({
   // dépassement que la pagination juge acceptable ne doit PAS redéclencher un
   // reflow. Avant, la tolérance était de 0pt → jusqu'à 5 reflows destructifs
   // d'affilée pour un contenu que la pagination laissait pourtant tel quel.
-  const isOverflowing = maxContentBottomPt > (A4_HEIGHT_PX / PT_TO_PX) + OVERFLOW_TOL_PT;
+  const pageHeightPt = getPageDims(layout).heightPt;
+  const isOverflowing = maxContentBottomPt > pageHeightPt + OVERFLOW_TOL_PT;
 
   // Layout « manuel » : l'utilisateur a déplacé/redimensionné des blocs
   // (absolutePositions présent ET autoPaginated éteint). On ne le re-paginera
@@ -350,7 +350,7 @@ export function useCanvasPagination({
   // La page canva fait TOUJOURS exactement une page A4 (comme le PDF) — jamais
   // une page « étirée ». Le contenu qui déborde est reporté sur la page suivante
   // par la pagination automatique (effet ci-dessous), exactement comme le PDF.
-  const pageHeightPx = A4_HEIGHT_PX;
+  const pageHeightPx = pageHeightPt * PT_TO_PX;
 
   useEffect(() => {
     onOverflowChange?.(isOverflowing);

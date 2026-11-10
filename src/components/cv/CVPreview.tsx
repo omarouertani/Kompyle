@@ -11,6 +11,7 @@ import { Download, Loader2, LayoutPanelLeft, History, AlertTriangle, LayoutTempl
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { cn } from "@/lib/utils";
+import { DEFAULT_PAGE_SIZE, type PageSizeId } from "@/lib/page-size";
 import {
   Select,
   SelectContent,
@@ -318,6 +319,25 @@ export default function CVPreview({
                     {opt.label}
                   </SelectItem>
                 ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+
+          {/* Format de page : A4 (Europe) ou Letter (Amérique du Nord). */}
+          <Select
+            value={data.layout?.pageSize ?? DEFAULT_PAGE_SIZE}
+            onValueChange={(val) => {
+              if (!val || !data.layout || !onChange) return;
+              onChange({ ...data, layout: { ...data.layout, pageSize: val as PageSizeId } });
+            }}
+          >
+            <SelectTrigger className="h-9 w-[96px] rounded-lg border border-border/60 bg-muted/40 hover:bg-muted/60 transition-colors text-xs gap-1.5" title={t("label_page_size")}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent className="bg-popover border border-border shadow-md rounded-lg p-1">
+              <SelectGroup>
+                <SelectItem value="A4" className="cursor-pointer text-xs">A4</SelectItem>
+                <SelectItem value="LETTER" className="cursor-pointer text-xs">Letter</SelectItem>
               </SelectGroup>
             </SelectContent>
           </Select>

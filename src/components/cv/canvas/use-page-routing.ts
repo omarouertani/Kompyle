@@ -8,7 +8,8 @@ import {
   getParentSectionId,
   dedupePages,
 } from "@/lib/cv-layout";
-import { PT_TO_PX, A4_WIDTH_PX } from "../cv-canvas-primitives";
+import { PT_TO_PX } from "../cv-canvas-primitives";
+import { getPageDims } from "@/lib/page-size";
 import type { BlockPos } from "./snap";
 import type { GrabOffset, DropMember } from "./use-canvas-interactions";
 
@@ -115,7 +116,7 @@ export function usePageRouting({
       const contentEl = pageEl.querySelector("[data-cv-page-content]") as HTMLElement | null;
       if (!contentEl) return false;
       const contentRect = contentEl.getBoundingClientRect();
-      const scale = contentRect.width / A4_WIDTH_PX;
+      const scale = contentRect.width / (getPageDims(layout).widthPt * PT_TO_PX);
       if (!scale) return false;
 
       // Pivot curseur : coin supérieur gauche du bloc pivot reposé sous le

@@ -117,6 +117,7 @@
     "mode_canvas": "Visual Editor (Canvas)",
     "mode_pdf": "PDF Preview",
     "label_template": "Template",
+    "label_page_size": "Page size",
     "template_default": "Without photo",
     "template_modern": "With photo",
     "template_canadian": "Canadian",
