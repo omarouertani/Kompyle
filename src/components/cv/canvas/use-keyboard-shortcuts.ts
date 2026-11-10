@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import type { CVData, CVLayout } from "@/types/cv";
 import type { BlockPos } from "./snap";
 import { isSectionBlock } from "./block-helpers";
@@ -15,6 +15,11 @@ interface UseKeyboardShortcutsArgs {
   clearSelection: () => void;
   canDuplicate: (blockId: string) => boolean;
   duplicateItem: (blockId: string) => void;
+  /** Colle (duplique, décalé) les éléments copiés ; renvoie les ids des copies. */
+  pasteItems: (blockIds: string[]) => string[];
+  /** Ids des blocs de la page active (Ctrl+A). */
+  getActivePageBlockIds: () => string[];
+  setSelectedIds: (ids: string[]) => void;
   /** Un bloc représente-t-il un ÉLÉMENT supprimable individuellement ? */
   canDeleteBlock: (blockId: string) => boolean;
   /** Supprime UNIQUEMENT l'élément (jamais la section entière). */
@@ -28,7 +33,8 @@ interface UseKeyboardShortcutsArgs {
 
 /** Raccourcis clavier : Ctrl+Z/Y (undo/redo), Ctrl+0 (ajuster), Ctrl+G /
  *  Ctrl+Shift+G (grouper/dégrouper), Échap, Suppr (masquer), Ctrl+D (dupliquer),
- *  flèches (déplacer la sélection). */
+ *  flèches (déplacer la sélection), Ctrl+A (tout sélectionner sur la page),
+ *  Ctrl+C / Ctrl+V (copier / coller des éléments, décalés de 12 pt). */
 export function useKeyboardShortcuts({
   selectedIds,
   layout,
@@ -39,6 +45,9 @@ export function useKeyboardShortcuts({
   clearSelection,
   canDuplicate,
   duplicateItem,
+  pasteItems,
+  getActivePageBlockIds,
+  setSelectedIds,
   canDeleteBlock,
   deleteBlock,
   undo,
@@ -47,6 +56,9 @@ export function useKeyboardShortcuts({
   groupSelected,
   ungroupSelected,
 }: UseKeyboardShortcutsArgs) {
+  // Presse-papiers interne : ids des éléments copiés (Ctrl+C).
+  const copiedRef = useRef<string[]>([]);
+
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement;
@@ -74,6 +86,27 @@ export function useKeyboardShortcuts({
         e.preventDefault();
         fitToScreen();
         return;
+      }
+
+      // Ctrl/Cmd + A / C / V : dans un champ texte, on laisse le natif.
+      if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !isEditingText) {
+        const k = e.key.toLowerCase();
+        if (k === "a") {
+          e.preventDefault();
+          setSelectedIds(getActivePageBlockIds());
+          return;
+        }
+        if (k === "c" && selectedIds.length > 0) {
+          // Pas de preventDefault : une sélection de texte native reste copiable.
+          copiedRef.current = selectedIds.filter(canDuplicate);
+          return;
+        }
+        if (k === "v" && copiedRef.current.length > 0) {
+          e.preventDefault();
+          const pasted = pasteItems(copiedRef.current);
+          if (pasted.length > 0) setSelectedIds(pasted);
+          return;
+        }
       }
 
       if (selectedIds.length === 0) return;
@@ -147,5 +180,5 @@ export function useKeyboardShortcuts({
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [selectedIds, layout, data, defaultPositions, onChange, hideSectionOf, clearSelection, canDuplicate, duplicateItem, canDeleteBlock, deleteBlock, undo, redo, fitToScreen, groupSelected, ungroupSelected]);
+  }, [selectedIds, layout, data, defaultPositions, onChange, hideSectionOf, clearSelection, canDuplicate, duplicateItem, pasteItems, getActivePageBlockIds, setSelectedIds, canDeleteBlock, deleteBlock, undo, redo, fitToScreen, groupSelected, ungroupSelected]);
 }

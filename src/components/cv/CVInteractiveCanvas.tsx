@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useEffect, useMemo } from "react";
+import React, { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { useTranslations } from "next-intl";
 import type { CVData } from "@/types/cv";
 import {
@@ -8,6 +8,7 @@ import {
   getDefaultPositions,
   getDefaultPhotoPosition,
   getParentSectionId,
+  getPageBlockIds,
   dedupePages,
   hasDuplicateSections,
   getSectionLabel,
@@ -116,7 +117,7 @@ export default function CVInteractiveCanvas({ data, onChange: onChangeProp, temp
     startSidebarResize,
   } = useCanvasInteractions({ data, template, defaultPositions, onChange, resolveDropRef });
 
-  const { autoHeight, resetPosition, canDuplicate, duplicateItem, canDeleteBlock, deleteBlock, hideSectionOf } =
+  const { autoHeight, resetPosition, canDuplicate, duplicateItem, pasteItems, canDeleteBlock, deleteBlock, hideSectionOf } =
     useBlockActions({ data, defaultPositions, onChange });
 
   // Formatage au niveau bloc (sur la donnée, un seul onChange) : sélectionner un
@@ -185,6 +186,13 @@ export default function CVInteractiveCanvas({ data, onChange: onChangeProp, temp
   });
 
   // ── Raccourcis clavier ──────────────────────────────────────────────────────
+  // Ctrl+A : tous les blocs de la page active (en-tête compris sur la page 1),
+  // même liste que celle rendue par CanvasPage.
+  const getActivePageBlockIds = useCallback(() => {
+    const { sidebar, main } = getPageBlockIds(layout, data, activePageIndex);
+    return [...(activePageIndex === 0 ? getHeaderBlockIds(data, template) : []), ...sidebar, ...main];
+  }, [layout, data, activePageIndex, template]);
+
   useKeyboardShortcuts({
     selectedIds,
     layout,
@@ -195,6 +203,9 @@ export default function CVInteractiveCanvas({ data, onChange: onChangeProp, temp
     clearSelection,
     canDuplicate,
     duplicateItem,
+    pasteItems,
+    getActivePageBlockIds,
+    setSelectedIds,
     canDeleteBlock,
     deleteBlock,
     undo,
