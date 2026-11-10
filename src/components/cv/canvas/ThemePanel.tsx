@@ -46,6 +46,31 @@ export const FONT_FAMILIES: Record<CVFontFamily, { label: string; stack: string 
   georgia: { label: "Georgia", stack: "var(--font-gelasio), Georgia, serif" },
 };
 
+/** Noms de famille reconnus dans une pile CSS calculée → clé de police. Ordre :
+ *  du plus spécifique au plus générique (aucun repli générique « sans/serif »). */
+const FONT_KEY_MATCHERS: Array<[RegExp, CVFontFamily]> = [
+  [/montserrat/, "montserrat"],
+  [/poppins/, "poppins"],
+  [/open ?sans/, "opensans"],
+  [/source ?sans/, "sourcesans"],
+  [/merriweather/, "merriweather"],
+  [/playfair/, "playfair"],
+  [/gelasio|georgia/, "georgia"],
+  [/lato/, "lato"],
+  [/carlito|calibri/, "sans"],
+  [/times/, "serif"],
+  [/(^|[^a-z])inter([^a-z]|$)/, "modern"], // aussi « __Inter_abc123 » (next/font)
+  [/courier/, "mono"],
+];
+
+/** Clé de police (FONT_FAMILIES) correspondant à une pile CSS `font-family`
+ *  (valeur calculée ou inline), ou null si aucune n'est reconnue. */
+export function fontKeyFromStack(css: string): CVFontFamily | null {
+  const s = css.toLowerCase();
+  for (const [re, key] of FONT_KEY_MATCHERS) if (re.test(s)) return key;
+  return null;
+}
+
 /** Mode d'affichage des compétences — chaque mode a sa propre vignette visuelle. */
 const SKILL_MODES: Array<{ value: SkillMode; label: string; icon: React.ElementType }> = [
   { value: "text", label: "Texte", icon: AlignLeft },

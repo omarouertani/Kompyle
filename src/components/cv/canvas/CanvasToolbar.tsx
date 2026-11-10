@@ -24,7 +24,7 @@ import {
   ChevronDown,
 } from "lucide-react";
 import type { BlockTextAlign, CVTheme, CVFontFamily } from "@/types/cv";
-import { FONT_FAMILIES, ThemePanel } from "./ThemePanel";
+import { FONT_FAMILIES, ThemePanel, fontKeyFromStack } from "./ThemePanel";
 import { ColorDrawer } from "./ColorDrawer";
 import { useCanvasFormat } from "./use-canvas-format";
 
@@ -109,7 +109,9 @@ export function CanvasToolbar({
     onCanvasBgChange(order[(order.indexOf(canvasBg) + 1) % order.length]);
   };
 
-  const activeFont: CVFontFamily = theme.fontFamily ?? "sans";
+  // Police / taille affichées = celles du texte au curseur (sinon le thème).
+  const activeFont: CVFontFamily =
+    (fmt.state.fontFamily && fontKeyFromStack(fmt.state.fontFamily)) || theme.fontFamily || "sans";
   const baseFontSize = theme.fontSize ?? 10;
   // Local UI state for the size stepper so each click bumps the displayed
   // number AND wraps the selection — but doesn't push to the global theme.
@@ -217,7 +219,7 @@ export function CanvasToolbar({
               }}
             />
             <FontSizeStepper
-              size={pendingSize}
+              size={fmt.state.fontSize ?? pendingSize}
               onChange={(v) => {
                 setPendingSize(v);
                 // Un changement de taille modifie la hauteur du bloc → re-stack.

@@ -12,6 +12,10 @@ export interface FormatState {
   strike: boolean;
   align: "left" | "center" | "right" | "justify" | null;
   textColor: string | null;
+  /** Computed CSS font-family of the text at the caret (raw stack). */
+  fontFamily: string | null;
+  /** Computed font size at the caret, in pt (rounded to 0.5). */
+  fontSize: number | null;
   hasSelection: boolean;
   hasActiveEditor: boolean;
 }
@@ -23,6 +27,8 @@ const DEFAULT_STATE: FormatState = {
   strike: false,
   align: null,
   textColor: null,
+  fontFamily: null,
+  fontSize: null,
   hasSelection: false,
   hasActiveEditor: false,
 };
@@ -89,6 +95,11 @@ export function CanvasFormatProvider({ children }: { children: React.ReactNode }
           : safeQueryState("justifyFull")
             ? "justify"
             : "left";
+      // Font at the caret: computed style of the anchor's element. The canvas
+      // is scaled with a CSS transform, so computed sizes are unzoomed px.
+      const anchorEl = anchor.nodeType === Node.TEXT_NODE ? anchor.parentElement : (anchor as Element);
+      const cs = anchorEl ? window.getComputedStyle(anchorEl) : null;
+      const px = cs ? parseFloat(cs.fontSize) : NaN;
       return {
         bold: safeQueryState("bold"),
         italic: safeQueryState("italic"),
@@ -96,6 +107,8 @@ export function CanvasFormatProvider({ children }: { children: React.ReactNode }
         strike: safeQueryState("strikeThrough"),
         align,
         textColor: safeQueryValue("foreColor") || null,
+        fontFamily: cs?.fontFamily || null,
+        fontSize: Number.isFinite(px) ? Math.round(px * 0.75 * 2) / 2 : null,
         hasSelection: !sel.isCollapsed,
         hasActiveEditor: true,
       };
