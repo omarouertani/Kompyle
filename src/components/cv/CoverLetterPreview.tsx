@@ -11,6 +11,7 @@ import { Download, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { safeFileName } from "@/utils/strip-html";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
 
 const emptySubscribe = () => () => {};
 
@@ -38,9 +39,14 @@ export default function CoverLetterPreview({
     () => ({ subjectPrefix: t("subject_prefix"), documentTitle: t("document_title") }),
     [t]
   );
+  // The on-screen preview re-renders the whole PDF: wait for a pause in
+  // typing (600 ms) instead of regenerating on every keystroke. The download
+  // below uses the live values.
+  const previewData = useDebouncedValue(data);
+  const previewInfo = useDebouncedValue(personalInfo);
   const letterDoc = useMemo(
-    () => <CoverLetterTemplate data={data} personalInfo={personalInfo} labels={labels} />,
-    [data, personalInfo, labels]
+    () => <CoverLetterTemplate data={previewData} personalInfo={previewInfo} labels={labels} />,
+    [previewData, previewInfo, labels]
   );
 
   // Génération à la demande (au clic) au lieu d'un PDFDownloadLink qui
