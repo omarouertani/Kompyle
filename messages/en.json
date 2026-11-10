@@ -248,6 +248,8 @@
     "format_text_color_open": "Open color palette",
     "format_heading_1": "Heading 1",
     "format_heading_2": "Heading 2",
+    "undo": "Undo (Ctrl+Z)",
+    "redo": "Redo (Ctrl+Y)",
     "format_bold": "Bold (Ctrl+B)",
     "format_italic": "Italic (Ctrl+I)",
     "format_underline": "Underline (Ctrl+U)",

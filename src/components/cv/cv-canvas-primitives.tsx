@@ -4,6 +4,7 @@ import React, { useState, useRef, useEffect, useCallback } from "react";
 import { cn } from "@/lib/utils";
 import { useCanvasFormat } from "./canvas/use-canvas-format";
 import { sanitizeRichHtml } from "@/utils/sanitize-html";
+import { TYPING_COMMIT_IDLE_MS } from "./canvas/constants";
 
 // Conversion EXACTE des points PDF (72 dpi) en pixels CSS (96 dpi) : 96/72.
 // Le rendu PDF (react-pdf) place les blocs en points ; le canvas applique ce
@@ -192,7 +193,21 @@ export function EditableText({
     if (next !== value) onChange(next);
   }, [onChange, value]);
 
+  // Regroupement de frappe : un commit après TYPING_COMMIT_IDLE_MS d'inactivité
+  // → chaque rafale devient UN pas de l'historique unifié (Ctrl+Z du canvas).
+  const commitRef = useRef(commit);
+  useEffect(() => {
+    commitRef.current = commit;
+  }, [commit]);
+  const idleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const clearIdle = () => {
+    if (idleTimer.current) clearTimeout(idleTimer.current);
+    idleTimer.current = null;
+  };
+  useEffect(() => clearIdle, []);
+
   const handleBlur = () => {
+    clearIdle();
     setIsFocused(false);
     format.registerActiveEditor(null);
     commit();
@@ -220,6 +235,8 @@ export function EditableText({
         // Re-evaluate the toolbar's format state on every typed character so
         // active B/I/U highlights stay in sync as the caret moves.
         format.refresh();
+        clearIdle();
+        idleTimer.current = setTimeout(() => commitRef.current(), TYPING_COMMIT_IDLE_MS);
       }}
       onKeyDown={handleKeyDown}
       data-placeholder={placeholder}

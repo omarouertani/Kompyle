@@ -64,17 +64,20 @@ export function useKeyboardShortcuts({
       const target = e.target as HTMLElement;
       const isEditingText = target.isContentEditable || target.tagName === "INPUT" || target.tagName === "TEXTAREA";
 
-      // Undo / Redo — actifs même sans sélection ; on laisse l'undo natif
-      // dans les champs texte en cours d'édition.
+      // Undo / Redo — actifs même sans sélection, et AUSSI dans un éditeur du
+      // canvas (contentEditable) : une seule pile pour le texte et les blocs.
+      // `undo`/`redo` commitent d'abord l'éditeur actif. Les <input>/<textarea>
+      // (champs de la barre d'outils, formulaires) gardent leur undo natif.
+      const isNativeField = target.tagName === "INPUT" || target.tagName === "TEXTAREA";
       if ((e.ctrlKey || e.metaKey) && (e.key === "z" || e.key === "Z")) {
-        if (isEditingText) return;
+        if (isNativeField) return;
         e.preventDefault();
         if (e.shiftKey) redo();
         else undo();
         return;
       }
       if ((e.ctrlKey || e.metaKey) && (e.key === "y" || e.key === "Y")) {
-        if (isEditingText) return;
+        if (isNativeField) return;
         e.preventDefault();
         redo();
         return;
@@ -178,7 +181,24 @@ export function useKeyboardShortcuts({
         layout: { ...layout, autoPaginated: false, absolutePositions: { ...positions, ...updates } },
       }, "move");
     };
+    // Annuler/Rétablir venus du menu du navigateur (clic droit, menu Édition)
+    // dans un éditeur : on remplace l'historique natif par le nôtre.
+    const onBeforeInput = (e: InputEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.isContentEditable) return;
+      if (e.inputType === "historyUndo") {
+        e.preventDefault();
+        undo();
+      } else if (e.inputType === "historyRedo") {
+        e.preventDefault();
+        redo();
+      }
+    };
     window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
+    window.addEventListener("beforeinput", onBeforeInput);
+    return () => {
+      window.removeEventListener("keydown", handler);
+      window.removeEventListener("beforeinput", onBeforeInput);
+    };
   }, [selectedIds, layout, data, defaultPositions, onChange, hideSectionOf, clearSelection, canDuplicate, duplicateItem, pasteItems, getActivePageBlockIds, setSelectedIds, canDeleteBlock, deleteBlock, undo, redo, fitToScreen, groupSelected, ungroupSelected]);
 }

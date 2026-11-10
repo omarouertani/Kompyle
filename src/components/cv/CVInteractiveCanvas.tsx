@@ -54,7 +54,22 @@ export default function CVInteractiveCanvas({ data, onChange: onChangeProp, temp
   const t = useTranslations("Canvas");
 
   // ── Undo / Redo ───────────────────────────────────────────────────────────
-  const { onChange, undo, redo } = useUndoRedo(data, onChangeProp);
+  const { onChange, undo: undoData, redo: redoData, canUndo, canRedo } = useUndoRedo(data, onChangeProp);
+  // Historique unifié texte + blocs : avant d'annuler, on commite l'éditeur de
+  // texte actif (blur → onChange) pour que la frappe en cours soit un pas
+  // d'historique comme les autres, puis on annule.
+  const flushActiveEditor = () => {
+    const el = document.activeElement as HTMLElement | null;
+    if (el?.isContentEditable) el.blur();
+  };
+  const undo = useCallback(() => {
+    flushActiveEditor();
+    undoData();
+  }, [undoData]);
+  const redo = useCallback(() => {
+    flushActiveEditor();
+    redoData();
+  }, [redoData]);
 
   // ── Layout & thème dérivés ──────────────────────────────────────────────────
   const layout = data.layout ?? defaultLayout();
@@ -321,6 +336,10 @@ export default function CVInteractiveCanvas({ data, onChange: onChangeProp, temp
     >
       <CanvasToolbar
         pageCount={layout.pages.length}
+        canUndo={canUndo}
+        canRedo={canRedo}
+        onUndo={undo}
+        onRedo={redo}
         activePageIndex={activePageIndex}
         zoom={zoom}
         theme={theme}

@@ -22,6 +22,8 @@ import {
   Heading1,
   Heading2,
   ChevronDown,
+  Undo2,
+  Redo2,
 } from "lucide-react";
 import type { BlockTextAlign, CVTheme, CVFontFamily } from "@/types/cv";
 import { FONT_FAMILIES, ThemePanel, fontKeyFromStack } from "./ThemePanel";
@@ -32,6 +34,11 @@ export type CanvasBackground = "neutral" | "dots" | "grid";
 
 interface CanvasToolbarProps {
   pageCount: number;
+  /** Historique unifié (texte + blocs). */
+  canUndo?: boolean;
+  canRedo?: boolean;
+  onUndo?: () => void;
+  onRedo?: () => void;
   activePageIndex: number;
   zoom: number;
   theme: CVTheme;
@@ -73,6 +80,10 @@ export const ZOOM_MAX = 2.5;
  *  sliders — everything frequent enough to be one click away is exposed here. */
 export function CanvasToolbar({
   pageCount,
+  canUndo = false,
+  canRedo = false,
+  onUndo,
+  onRedo,
   activePageIndex,
   zoom,
   theme,
@@ -205,6 +216,15 @@ export function CanvasToolbar({
         <div className="px-3 py-2 flex items-center gap-2 flex-wrap">
           {/* Thème & dimensions (palettes, couleurs, sidebar, compétences,
               tailles). Compact : police/taille restent inline ci-dessous. */}
+          <ToolGroup>
+            <ToolButton title={t("undo")} disabled={!canUndo} onClick={() => onUndo?.()}>
+              <Undo2 size={13} strokeWidth={2.25} />
+            </ToolButton>
+            <ToolButton title={t("redo")} disabled={!canRedo} onClick={() => onRedo?.()}>
+              <Redo2 size={13} strokeWidth={2.25} />
+            </ToolButton>
+          </ToolGroup>
+
           <ThemePanel theme={theme} onThemeChange={onThemeChange} compact />
 
           {/* ── Format group : font · size · A · B I U S · align · lists · H1 H2 ── */}
@@ -426,15 +446,17 @@ interface ToolButtonProps {
   onClick?: () => void;
   active?: boolean;
   destructive?: boolean;
+  disabled?: boolean;
   title?: string;
   className?: string;
 }
 
-function ToolButton({ children, onClick, active, destructive, title, className }: ToolButtonProps) {
+function ToolButton({ children, onClick, active, destructive, disabled, title, className }: ToolButtonProps) {
   return (
     <button
       type="button"
       onClick={onClick}
+      disabled={disabled}
       // CRITICAL: mousedown must not steal focus from the contentEditable
       // EditableText — otherwise the browser focuses this button and the
       // user's selection collapses, leaving execCommand nothing to act on.
@@ -442,6 +464,7 @@ function ToolButton({ children, onClick, active, destructive, title, className }
       title={title}
       className={cn(
         "h-7 min-w-[28px] px-1.5 flex items-center justify-center rounded-md transition-colors text-[10px] font-medium",
+        "disabled:opacity-35 disabled:pointer-events-none",
         active
           ? "bg-card text-primary shadow-sm ring-1 ring-primary/20"
           : destructive

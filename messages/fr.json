@@ -248,6 +248,8 @@
     "format_text_color_open": "Ouvrir la palette de couleurs",
     "format_heading_1": "Titre 1",
     "format_heading_2": "Titre 2",
+    "undo": "Annuler (Ctrl+Z)",
+    "redo": "Rétablir (Ctrl+Y)",
     "format_bold": "Gras (Ctrl+B)",
     "format_italic": "Italique (Ctrl+I)",
     "format_underline": "Souligné (Ctrl+U)",
