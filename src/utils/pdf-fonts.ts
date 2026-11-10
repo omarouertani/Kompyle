@@ -17,7 +17,7 @@ import type { CVFontFamily } from "@/types/cv";
  */
 
 export interface PdfFontVariant {
-  /** URL .ttf (gstatic…) OU chemin local sous /public (ex: "/fonts/calibri.ttf"). */
+  /** URL .ttf (gstatic…) OU chemin local sous /public (ex: "/fonts/carlito/Carlito-Regular.ttf"). */
   src: string;
   fontWeight?: number | "normal" | "bold";
   fontStyle?: "normal" | "italic";
@@ -31,25 +31,18 @@ export interface PdfFontDefinition {
 /**
  * Registre des polices disponibles.
  *
- *  • Calibri  → fichiers locaux (/public/fonts) : 100 % fiable, hors-ligne.
  *  • Inter / Roboto / Carlito → .ttf Google Fonts (gstatic), fetchés async par
  *    react-pdf au rendu (gstatic renvoie `access-control-allow-origin: *`, donc
  *    OK côté navigateur). Pour une fiabilité maximale hors-ligne, télécharge ces
  *    .ttf dans /public/fonts et remplace l'URL par le chemin local.
  *  • Carlito  → clone MÉTRIQUE-compatible de Calibri (substitut utilisé par RR) :
- *    rendu quasi identique à ton Calibri, mais servi par une URL stable.
+ *    rendu quasi identique à Calibri (police Microsoft non redistribuable,
+ *    donc absente du repo) ; les CV en « Calibri » sont rendus en Carlito.
  *
  * On n'enregistre que 400 (regular) et 700 (bold) — les seuls poids utilisés par
  * le template. PDF plus léger, rendu plus rapide (philosophie RR).
  */
 export const PDF_FONTS = {
-  Calibri: {
-    family: "Calibri",
-    fonts: [
-      { src: "/fonts/calibri.ttf", fontWeight: 400 },
-      { src: "/fonts/calibrib.ttf", fontWeight: 700 },
-    ],
-  },
   Inter: {
     family: "Inter",
     fonts: [

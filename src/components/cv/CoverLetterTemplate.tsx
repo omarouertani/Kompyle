@@ -11,8 +11,8 @@ import { registerPdfFont, ACTIVE_PDF_FONT } from "@/utils/pdf-fonts";
 import { stripHtml } from "@/utils/strip-html";
 
 // Enregistre la police active (idempotent) et l'utilise pour toute la lettre.
-// (Avant, ce template comptait sur l'enregistrement Calibri de CVTemplate —
-// retiré en Étape 2 — d'où l'erreur « Font not registered: Calibri ».)
+// (Avant, ce template comptait sur une police enregistrée par CVTemplate,
+// d'où une erreur « Font not registered » quand elle manquait.)
 const FONT_FAMILY = registerPdfFont(ACTIVE_PDF_FONT);
 
 const styles = StyleSheet.create({
