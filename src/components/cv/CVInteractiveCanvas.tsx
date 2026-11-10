@@ -138,13 +138,22 @@ export default function CVInteractiveCanvas({ data, onChange: onChangeProp, temp
 
   // Formatage au niveau bloc (sur la donnée, un seul onChange) : sélectionner un
   // bloc = styliser tout son texte. SET pour couleur/police, bascule pour gras…
-  const { applyStyles, toggleCommand } = useSelectionFormat({ data, onChange });
+  const { applyStyles, toggleCommand, clearFormat } = useSelectionFormat({ data, onChange });
   const canFormatSelection = selectedIds.some((id) => id !== "photo");
-  // Pont vers les barres d'outils : foreColor = SET couleur ; le reste = bascule.
-  const runBlockCommand = (command: string, value?: string) =>
-    command === "foreColor"
-      ? applyStyles(selectedIds, { color: value ?? "#000000" })
-      : toggleCommand(selectedIds, command);
+  // Pont vers les barres d'outils : foreColor / hiliteColor = SET couleur ;
+  // removeFormat = tout effacer ; le reste = bascule.
+  const runBlockCommand = (command: string, value?: string) => {
+    if (command === "foreColor") return applyStyles(selectedIds, { color: value ?? "#000000" });
+    if (command === "hiliteColor") {
+      return value && value !== "transparent"
+        ? applyStyles(selectedIds, { "background-color": value })
+        : clearBackground();
+    }
+    if (command === "removeFormat") return clearFormat(selectedIds);
+    return toggleCommand(selectedIds, command);
+  };
+  // Retirer le surlignage d'un bloc = retirer la déclaration background-color.
+  const clearBackground = () => applyStyles(selectedIds, { "background-color": "transparent" });
 
   const { marqueeRect, startMarquee } = useMarquee(setSelectedIds);
 

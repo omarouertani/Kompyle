@@ -28,7 +28,7 @@ const DROP_WITH_CONTENT = new Set([
 const ALLOWED_STYLE_PROPS = new Set([
   "color", "background-color", "font-family", "font-size", "font-weight",
   "font-style", "text-decoration", "text-decoration-line", "letter-spacing",
-  "text-align",
+  "text-align", "line-height",
 ]);
 
 /** Rejects a CSS value that could smuggle a URL, JS, or markup. */

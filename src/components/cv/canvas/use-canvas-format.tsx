@@ -38,7 +38,7 @@ interface FormatApi {
   /** Called by EditableText on focus to register itself as the active editor. */
   registerActiveEditor: (el: HTMLElement | null) => void;
   /** Apply a format command. Returns true if applied to an active editor. */
-  exec: (command: "bold" | "italic" | "underline" | "strikeThrough" | "foreColor" | "justifyLeft" | "justifyCenter" | "justifyRight" | "justifyFull" | "removeFormat" | "insertUnorderedList" | "insertOrderedList", value?: string) => boolean;
+  exec: (command: "bold" | "italic" | "underline" | "strikeThrough" | "foreColor" | "hiliteColor" | "createLink" | "unlink" | "justifyLeft" | "justifyCenter" | "justifyRight" | "justifyFull" | "removeFormat" | "insertUnorderedList" | "insertOrderedList", value?: string) => boolean;
   /** Wrap the current selection in a `<span style="prop: value">` so font /
    *  size / family changes apply ONLY to the selected substring, not to the
    *  whole block. If the selection is collapsed, expands to the entire editor

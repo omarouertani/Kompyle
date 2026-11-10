@@ -20,6 +20,9 @@ export interface InlineStyle {
    *  on a run: react-pdf only honours it on the parent <Text> — see
    *  `detectRichAlign`. */
   textAlign?: RichTextAlign;
+  /** Paragraph line height as a multiplier (from `line-height`). Like
+   *  `textAlign`, only honoured on the parent <Text> — see `detectRichLineHeight`. */
+  lineHeight?: number;
   color?: string;
   fontFamily?: string;
   letterSpacing?: number;
@@ -199,6 +202,9 @@ export function parseInlineHtml(html: string): RichTextRun[] {
           } else if (prop === "text-align") {
             const align = parseTextAlign(val);
             if (align) style.textAlign = align;
+          } else if (prop === "line-height") {
+            const lh = parseLineHeight(val);
+            if (lh !== undefined) style.lineHeight = lh;
           }
         }
       }
@@ -222,6 +228,33 @@ export function detectRichAlign(html: string): RichTextAlign | undefined {
   if (!html || !/<(div|p)\b/i.test(html)) return undefined;
   for (const run of parseInlineHtml(html)) {
     if (run.style?.textAlign) return run.style.textAlign;
+  }
+  return undefined;
+}
+
+/** `line-height` → multiplier. Accepts unitless numbers (`1.5`) and
+ *  percentages (`150%`); absolute lengths are ignored (they depend on the
+ *  font size and would clip descenders under `overflow: hidden`). Clamped to a
+ *  readable range. */
+function parseLineHeight(raw: string): number | undefined {
+  const m = /^\s*([\d.]+)\s*(%)?\s*$/.exec(raw);
+  if (!m) return undefined;
+  let n = parseFloat(m[1]);
+  if (Number.isNaN(n)) return undefined;
+  if (m[2]) n /= 100;
+  if (n < 0.8 || n > 3) return undefined;
+  return Math.round(n * 100) / 100;
+}
+
+/**
+ * Line height carried by inline HTML (the toolbar wraps the text in
+ * `<span style="line-height: 1.5">`). Same rule as `detectRichAlign`: react-pdf
+ * applies it on the parent <Text>, so the first value found wins for the field.
+ */
+export function detectRichLineHeight(html: string): number | undefined {
+  if (!html || !/line-height/i.test(html)) return undefined;
+  for (const run of parseInlineHtml(html)) {
+    if (run.style?.lineHeight !== undefined) return run.style.lineHeight;
   }
   return undefined;
 }

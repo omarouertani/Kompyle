@@ -29,6 +29,7 @@ import type { BlockTextAlign, CVTheme, CVFontFamily } from "@/types/cv";
 import { FONT_FAMILIES, ThemePanel, fontKeyFromStack } from "./ThemePanel";
 import { ColorDrawer } from "./ColorDrawer";
 import { useCanvasFormat } from "./use-canvas-format";
+import { TextExtrasGroup } from "./TextExtrasGroup";
 
 export type CanvasBackground = "neutral" | "dots" | "grid";
 
@@ -331,6 +332,14 @@ export function CanvasToolbar({
             >
               <List size={13} />
             </ToolButton>
+            <TextExtrasGroup
+              fmt={fmt}
+              applyFmt={applyFmt}
+              onBlockCommand={onBlockCommand}
+              onBlockStyles={onBlockStyles}
+              onReflow={onReflow}
+              ToolButton={ToolButton}
+            />
           </ToolGroup>
 
           <ToolGroup>

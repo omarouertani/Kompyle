@@ -20,6 +20,7 @@ import {
   toPdfRunStyle,
   inheritableTextStyle,
   detectRichAlign,
+  detectRichLineHeight,
 } from "@/utils/inline-html";
 
 /**
@@ -67,7 +68,12 @@ function renderRichChildren(children: ReactNode, composedStyle: unknown, insideL
 function richAlignStyle(children: ReactNode): StyleInput {
   if (typeof children !== "string" || !hasInlineHtml(children)) return undefined;
   const align = detectRichAlign(children);
-  return align ? { textAlign: align } : undefined;
+  const lineHeight = detectRichLineHeight(children);
+  if (!align && lineHeight === undefined) return undefined;
+  return {
+    ...(align ? { textAlign: align } : {}),
+    ...(lineHeight !== undefined ? { lineHeight } : {}),
+  };
 }
 
 /**
