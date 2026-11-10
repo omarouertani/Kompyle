@@ -118,6 +118,7 @@
     "mode_pdf": "PDF Preview",
     "label_template": "Template",
     "label_page_size": "Page size",
+    "download_txt_tooltip": "Download as plain text (one column, read reliably by ATS)",
     "template_default": "Without photo",
     "template_modern": "With photo",
     "template_canadian": "Canadian",

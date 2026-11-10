@@ -7,11 +7,12 @@ import AIProgressOverlay from "./AIProgressOverlay";
 import type { CVData } from "@/types/cv";
 import { normalizeTemplate } from "@/lib/cv-layout";
 import { safeFileName, stripHtml } from "@/utils/strip-html";
-import { Download, Loader2, LayoutPanelLeft, History, AlertTriangle, LayoutTemplate, Trash2, ShieldCheck } from "lucide-react";
+import { Download, Loader2, LayoutPanelLeft, History, AlertTriangle, LayoutTemplate, Trash2, ShieldCheck, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { cn } from "@/lib/utils";
 import { DEFAULT_PAGE_SIZE, type PageSizeId } from "@/lib/page-size";
+import { cvToPlainText } from "@/lib/cv-text";
 import {
   Select,
   SelectContent,
@@ -200,6 +201,17 @@ export default function CVPreview({
     }
   }, [data, template]);
 
+  const handleDownloadText = useCallback(() => {
+    // BOM UTF-8 : les accents s'affichent correctement dans le Bloc-notes Windows.
+    const blob = new Blob(["﻿", cvToPlainText(data)], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${safeFileName(["CV", data.personalInfo.name, data.personalInfo.role])}.txt`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }, [data]);
+
   return (
     <div className="flex flex-col flex-1 h-full w-full gap-3">
       {/* Confirmation de suppression d'un CV adapté (thème de l'app) */}
@@ -374,6 +386,17 @@ export default function CVPreview({
                 {isOverflowing ? t("download_anyway") : t("download")}
               </>
             )}
+          </Button>
+          {/* Texte brut (une colonne, sans mise en forme) : le format le plus sûr
+              pour les ATS et pour les formulaires de candidature. */}
+          <Button
+            variant="outline"
+            onClick={handleDownloadText}
+            title={t("download_txt_tooltip")}
+            className="h-9 px-3 text-xs gap-1.5"
+          >
+            <FileText size={14} />
+            TXT
           </Button>
           </div>
         )}

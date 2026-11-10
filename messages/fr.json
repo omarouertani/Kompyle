@@ -118,6 +118,7 @@
     "mode_pdf": "Aperçu PDF",
     "label_template": "Modèle",
     "label_page_size": "Format de page",
+    "download_txt_tooltip": "Télécharger en texte brut (une colonne, lu sans erreur par les ATS)",
     "template_default": "Sans photo",
     "template_modern": "Avec photo",
     "template_canadian": "Canadien",
