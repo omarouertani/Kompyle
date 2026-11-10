@@ -4,7 +4,7 @@ import React, { useState, useMemo, useCallback, useSyncExternalStore } from "rea
 import { useTranslations } from "next-intl";
 import { AlertTriangle } from "lucide-react";
 import { PDFViewer, pdf } from "@react-pdf/renderer";
-import CoverLetterTemplate from "./CoverLetterTemplate";
+import CoverLetterTemplate, { type CoverLetterLabels } from "./CoverLetterTemplate";
 import AIProgressOverlay from "./AIProgressOverlay";
 import type { CoverLetterData, PersonalInfo } from "@/types/cv";
 import { Download, Loader2 } from "lucide-react";
@@ -33,9 +33,13 @@ export default function CoverLetterPreview({
 
   // Document mémoïsé : un élément stable évite que react-pdf régénère le PDF
   // à chaque render du parent (source de freezes).
+  const labels = useMemo<CoverLetterLabels>(
+    () => ({ subjectPrefix: t("subject_prefix"), documentTitle: t("document_title") }),
+    [t]
+  );
   const letterDoc = useMemo(
-    () => <CoverLetterTemplate data={data} personalInfo={personalInfo} />,
-    [data, personalInfo]
+    () => <CoverLetterTemplate data={data} personalInfo={personalInfo} labels={labels} />,
+    [data, personalInfo, labels]
   );
 
   // Génération à la demande (au clic) au lieu d'un PDFDownloadLink qui
@@ -44,11 +48,11 @@ export default function CoverLetterPreview({
     setIsDownloading(true);
     setDownloadError(false);
     try {
-      const blob = await pdf(<CoverLetterTemplate data={data} personalInfo={personalInfo} />).toBlob();
+      const blob = await pdf(<CoverLetterTemplate data={data} personalInfo={personalInfo} labels={labels} />).toBlob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `Lettre_de_motivation_${personalInfo.role.replace(/\s+/g, "_")}.pdf`;
+      a.download = `${t("file_prefix")}_${personalInfo.role.replace(/\s+/g, "_")}.pdf`;
       a.click();
       URL.revokeObjectURL(url);
     } catch (err) {
@@ -57,7 +61,7 @@ export default function CoverLetterPreview({
     } finally {
       setIsDownloading(false);
     }
-  }, [data, personalInfo]);
+  }, [data, personalInfo, labels, t]);
 
   return (
     <div className="flex flex-col flex-1 h-full w-full gap-3">

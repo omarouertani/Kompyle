@@ -97,9 +97,19 @@ const styles = StyleSheet.create({
   },
 });
 
+/** Translated strings (react-pdf templates cannot call hooks, so the preview
+ *  resolves them and passes them in). */
+export interface CoverLetterLabels {
+  /** "Objet :" / "Subject:" */
+  subjectPrefix: string;
+  /** PDF document title prefix: "Lettre de motivation" / "Cover letter" */
+  documentTitle: string;
+}
+
 interface CoverLetterTemplateProps {
   data: CoverLetterData;
   personalInfo: PersonalInfo;
+  labels: CoverLetterLabels;
 }
 
 /** Remplace les placeholders de nom laissés par l'IA ("[Votre nom]",
@@ -107,7 +117,7 @@ interface CoverLetterTemplateProps {
 const fillNamePlaceholders = (text: string, name: string): string =>
   name ? text.replace(/\[\s*(votre\s+nom|your\s+name|nom\s+pr[ée]nom|pr[ée]nom\s+nom|name|nom)\s*\]/gi, name) : text;
 
-const CoverLetterTemplate: React.FC<CoverLetterTemplateProps> = ({ data, personalInfo }) => {
+const CoverLetterTemplate: React.FC<CoverLetterTemplateProps> = ({ data, personalInfo, labels }) => {
   // Les champs du CV peuvent porter du HTML inline (mise en forme appliquée sur
   // le canvas). Ce template utilise le <Text> brut de react-pdf (pas la primitive
   // qui parse le HTML) : on nettoie donc ici, sinon la lettre afficherait des
@@ -119,7 +129,7 @@ const CoverLetterTemplate: React.FC<CoverLetterTemplateProps> = ({ data, persona
   const senderLocation = stripHtml(personalInfo.location);
   return (
     <Document
-      title={`Lettre de Motivation - ${senderName}`}
+      title={senderName ? `${labels.documentTitle} - ${senderName}` : labels.documentTitle}
       author={senderName}
     >
       <Page size="A4" style={styles.page}>
@@ -156,7 +166,7 @@ const CoverLetterTemplate: React.FC<CoverLetterTemplateProps> = ({ data, persona
 
         {/* SUBJECT */}
         <View style={styles.subjectBlock}>
-          <Text style={styles.subjectText}>Objet : {data.subject}</Text>
+          <Text style={styles.subjectText}>{labels.subjectPrefix} {data.subject}</Text>
         </View>
 
         {/* SALUTATION */}

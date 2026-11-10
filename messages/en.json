@@ -388,6 +388,9 @@
   "LetterPreview": {
     "download": "Download PDF",
     "downloading": "Generating…",
-    "download_error": "Cover letter download failed. Please try again."
+    "download_error": "Cover letter download failed. Please try again.",
+    "subject_prefix": "Subject:",
+    "document_title": "Cover letter",
+    "file_prefix": "Cover_letter"
   }
 }

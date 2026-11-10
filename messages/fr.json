@@ -388,6 +388,9 @@
   "LetterPreview": {
     "download": "Télécharger le PDF",
     "downloading": "Génération…",
-    "download_error": "Échec du téléchargement de la lettre. Réessayez."
+    "download_error": "Échec du téléchargement de la lettre. Réessayez.",
+    "subject_prefix": "Objet :",
+    "document_title": "Lettre de motivation",
+    "file_prefix": "Lettre_de_motivation"
   }
 }
