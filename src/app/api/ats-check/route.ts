@@ -8,7 +8,7 @@ import { callWithFallback, AllProvidersFailedError, providerForModel } from "@/l
 import { checkRateLimit } from "@/lib/rate-limiter";
 import { describeExperienceForPrompt } from "@/lib/cv-analysis";
 import { cvForAiPrompt, buildAtsKeywordSurface } from "@/lib/cv-payload";
-import { reconcileAtsKeywords } from "@/lib/ats-keyword-verifier";
+import { reconcileAtsKeywords, reconcileAtsScores } from "@/lib/ats-keyword-verifier";
 
 // Température très basse : l'ATS doit extraire des faits (présence/absence de
 // mots-clés) de façon déterministe, jamais "créer". 0 = sortie reproductible.
@@ -224,12 +224,19 @@ ${JSON.stringify(cvForAi, null, 2)}
       );
     }
 
-    const response: ATSCheckResponse = {
-      report: {
+    // Les scores sont réalignés sur les mots-clés réconciliés : sans cela, le
+    // sous-score « keywords » (et le global) pouvaient contredire la liste affichée.
+    const reconciledReport = reconcileAtsScores(
+      {
         ...validation.data,
         matchedKeywords: reconciled.matchedKeywords,
         missingKeywords: reconciled.missingKeywords,
       },
+      reconciled,
+    );
+
+    const response: ATSCheckResponse = {
+      report: reconciledReport,
       provider,
       model: usedModel,
     };

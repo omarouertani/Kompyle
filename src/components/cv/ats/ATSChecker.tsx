@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
-import { Sparkles, RotateCcw, ShieldCheck } from "lucide-react";
+import { Sparkles, RotateCcw, ShieldCheck, X } from "lucide-react";
 import type { CVData } from "@/types/cv";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -64,12 +64,25 @@ export function ATSChecker({
     errorFailures,
     lastJobDescription,
     run,
+    cancel,
     reset,
   } = useATSCheck();
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const lastTriggerRef = useRef(triggerKey);
   const notifiedReportRef = useRef<typeof report>(null);
+  const lastVersionRef = useRef(cvVersionId);
+
+  // Changement de profil/version : un audit affiché ne concerne plus le CV
+  // courant. On annule un audit en vol et on réinitialise l'affichage pour
+  // éviter d'attribuer par erreur un rapport à un autre CV.
+  useEffect(() => {
+    if (lastVersionRef.current !== cvVersionId) {
+      lastVersionRef.current = cvVersionId;
+      cancel();
+      reset();
+    }
+  }, [cvVersionId, cancel, reset]);
 
   // Ouvre le dialog quand le parent incrémente la clé (bouton ATS de la toolbar).
   useEffect(() => {
@@ -146,7 +159,22 @@ export function ATSChecker({
       <div className="flex-1 min-h-0 overflow-y-auto pr-1">
         {status === "idle" && <ATSEmptyState onStart={openDialog} />}
 
-        {status === "loading" && <ATSSkeleton providerHint={t("loading_hint")} />}
+        {status === "loading" && (
+          <div className="flex flex-col gap-3">
+            <div className="flex justify-end">
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 px-3 text-xs gap-1.5"
+                onClick={cancel}
+              >
+                <X size={13} />
+                {t("adapt_cancel")}
+              </Button>
+            </div>
+            <ATSSkeleton providerHint={t("loading_hint")} />
+          </div>
+        )}
 
         {status === "error" && (
           <ATSAIError
@@ -165,6 +193,7 @@ export function ATSChecker({
               cvData={cvData}
               jobDescription={lastJobDescription || jobDescription}
               report={report}
+              versionId={cvVersionId}
               onApplied={onApplyRefinedCV}
               onAdaptingChange={setAdapting}
             />

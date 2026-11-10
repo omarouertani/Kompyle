@@ -240,6 +240,25 @@ export default function CVBuilder({ data, onChange }: CVBuilderProps) {
   const updatePersonalInfo = (field: string, value: string) =>
     onChange({ ...data, personalInfo: { ...data.personalInfo, [field]: value } });
 
+  /**
+   * Champs pouvant porter du HTML inline (mise en forme appliquée sur le canvas).
+   * L'éditeur structuré affiche le texte NETTOYÉ (jamais de balises brutes) et ne
+   * réécrit la donnée QUE si le texte VISIBLE a réellement changé — ouvrir le
+   * formulaire, réordonner, dupliquer ou un simple focus ne détruisent plus la
+   * mise en forme. Une vraie édition remplace par du texte brut (comportement
+   * attendu d'un champ de formulaire), de façon COHÉRENTE entre tous les champs
+   * (avant : les infos perso nettoyaient, mais les listes montraient les balises).
+   */
+  const rich = (stored: string | undefined, apply: (v: string) => void) => {
+    const plain = stripHtml(stored ?? "");
+    return {
+      value: plain,
+      onChange: (v: string) => {
+        if (v !== plain) apply(v);
+      },
+    };
+  };
+
   const updateLanguage = (index: number, value: string) => {
     const next = [...data.spokenLanguages];
     next[index] = value;
@@ -255,17 +274,18 @@ export default function CVBuilder({ data, onChange }: CVBuilderProps) {
       <section>
         <SectionHeading icon={User}>{t("section_personal")}</SectionHeading>
         <div className="grid grid-cols-2 gap-5">
-          {/* Éditeur structuré = texte brut. On retire le HTML inline qu'un style
-              appliqué sur le canvas aurait pu injecter dans ces champs. */}
-          <Field label={t("field_name")} value={stripHtml(data.personalInfo.name)} onChange={(v) => updatePersonalInfo("name", v)} />
-          <Field label={t("field_role")} value={stripHtml(data.personalInfo.role)} onChange={(v) => updatePersonalInfo("role", v)} />
-          <Field label={t("field_techline")} value={stripHtml(data.personalInfo.techLine)} onChange={(v) => updatePersonalInfo("techLine", v)} className="col-span-2" />
-          <Field label={t("field_summary")} value={stripHtml(data.personalInfo.summary)} onChange={(v) => updatePersonalInfo("summary", v)} multiline rows={4} className="col-span-2" />
-          <Field label={t("field_email")} value={stripHtml(data.personalInfo.email)} onChange={(v) => updatePersonalInfo("email", v)} />
-          <Field label={t("field_phone")} value={stripHtml(data.personalInfo.phone)} onChange={(v) => updatePersonalInfo("phone", v)} />
-          <Field label={t("field_location")} value={stripHtml(data.personalInfo.location)} onChange={(v) => updatePersonalInfo("location", v)} />
-          <Field label={t("field_linkedin")} value={stripHtml(data.personalInfo.linkedin)} onChange={(v) => updatePersonalInfo("linkedin", v)} />
-          <Field label={t("field_portfolio")} value={stripHtml(data.personalInfo.portfolio ?? "")} onChange={(v) => updatePersonalInfo("portfolio", v)} className="col-span-2" />
+          {/* Éditeur structuré = texte brut. `rich` retire le HTML inline pour
+              l'affichage ET préserve la mise en forme tant que le texte visible
+              est inchangé (voir le helper). */}
+          <Field label={t("field_name")} {...rich(data.personalInfo.name, (v) => updatePersonalInfo("name", v))} />
+          <Field label={t("field_role")} {...rich(data.personalInfo.role, (v) => updatePersonalInfo("role", v))} />
+          <Field label={t("field_techline")} {...rich(data.personalInfo.techLine, (v) => updatePersonalInfo("techLine", v))} className="col-span-2" />
+          <Field label={t("field_summary")} {...rich(data.personalInfo.summary, (v) => updatePersonalInfo("summary", v))} multiline rows={4} className="col-span-2" />
+          <Field label={t("field_email")} {...rich(data.personalInfo.email, (v) => updatePersonalInfo("email", v))} />
+          <Field label={t("field_phone")} {...rich(data.personalInfo.phone, (v) => updatePersonalInfo("phone", v))} />
+          <Field label={t("field_location")} {...rich(data.personalInfo.location, (v) => updatePersonalInfo("location", v))} />
+          <Field label={t("field_linkedin")} {...rich(data.personalInfo.linkedin, (v) => updatePersonalInfo("linkedin", v))} />
+          <Field label={t("field_portfolio")} {...rich(data.personalInfo.portfolio, (v) => updatePersonalInfo("portfolio", v))} className="col-span-2" />
 
           {/* Uploader de photo de profil */}
           <div className="flex flex-col gap-2 col-span-2 border border-border/60 rounded-lg p-3 bg-muted/10 mt-1">
@@ -318,8 +338,8 @@ export default function CVBuilder({ data, onChange }: CVBuilderProps) {
           </div>
 
           <Field label={t("field_birthdate")} value={data.personalInfo.birthDate ?? ""} onChange={(v) => updatePersonalInfo("birthDate", v)} placeholder={t("field_birthdate_ph")} />
-          <Field label={t("field_certifications")} value={data.personalInfo.certifications ?? ""} onChange={(v) => updatePersonalInfo("certifications", v)} placeholder={t("field_certifications_ph")} className="col-span-2" />
-          <Field label={t("field_interests")} value={data.personalInfo.interests ?? ""} onChange={(v) => updatePersonalInfo("interests", v)} placeholder={t("field_interests_ph")} className="col-span-2" />
+          <Field label={t("field_certifications")} {...rich(data.personalInfo.certifications, (v) => updatePersonalInfo("certifications", v))} placeholder={t("field_certifications_ph")} className="col-span-2" />
+          <Field label={t("field_interests")} {...rich(data.personalInfo.interests, (v) => updatePersonalInfo("interests", v))} placeholder={t("field_interests_ph")} className="col-span-2" />
         </div>
       </section>
 
@@ -336,8 +356,8 @@ export default function CVBuilder({ data, onChange }: CVBuilderProps) {
         onDuplicate={duplicateItem("skills")}
         renderFields={(group) => (
           <>
-            <Field label={t("field_category")} value={group.category} onChange={(v) => updateItem("skills", group.id!, { category: v })} />
-            <Field label={t("field_skill_items")} value={group.items} onChange={(v) => updateItem("skills", group.id!, { items: v })} multiline rows={2} />
+            <Field label={t("field_category")} {...rich(group.category, (v) => updateItem("skills", group.id!, { category: v }))} />
+            <Field label={t("field_skill_items")} {...rich(group.items, (v) => updateItem("skills", group.id!, { items: v }))} multiline rows={2} />
           </>
         )}
       />
@@ -388,8 +408,8 @@ export default function CVBuilder({ data, onChange }: CVBuilderProps) {
         onDuplicate={duplicateItem("experiences")}
         renderFields={(exp) => (
           <>
-            <Field label={t("field_exp_title")} value={exp.title} onChange={(v) => updateItem("experiences", exp.id!, { title: v })} />
-            <Field label={t("field_exp_org")} value={exp.org} onChange={(v) => updateItem("experiences", exp.id!, { org: v })} />
+            <Field label={t("field_exp_title")} {...rich(exp.title, (v) => updateItem("experiences", exp.id!, { title: v }))} />
+            <Field label={t("field_exp_org")} {...rich(exp.org, (v) => updateItem("experiences", exp.id!, { org: v }))} />
             <div className="flex flex-col gap-2">
               <Label>{t("field_exp_date")}</Label>
               <ExperienceDatePicker
@@ -401,8 +421,7 @@ export default function CVBuilder({ data, onChange }: CVBuilderProps) {
             </div>
             <Field
               label={t("field_exp_bullets")}
-              value={exp.bullets.join("\n")}
-              onChange={(v) => updateItem("experiences", exp.id!, { bullets: v.split("\n").filter((b) => b.trim() !== "") })}
+              {...rich(exp.bullets.join("\n"), (v) => updateItem("experiences", exp.id!, { bullets: v.split("\n").filter((b) => b.trim() !== "") }))}
               multiline
               rows={6}
             />
@@ -423,9 +442,9 @@ export default function CVBuilder({ data, onChange }: CVBuilderProps) {
         onDuplicate={duplicateItem("projects")}
         renderFields={(proj) => (
           <>
-            <Field label={t("field_proj_title")} value={proj.title} onChange={(v) => updateItem("projects", proj.id!, { title: v })} />
-            <Field label={t("field_proj_desc")} value={proj.description} onChange={(v) => updateItem("projects", proj.id!, { description: v })} multiline rows={4} />
-            <Field label={t("field_proj_stack")} value={proj.stack || ""} onChange={(v) => updateItem("projects", proj.id!, { stack: v })} />
+            <Field label={t("field_proj_title")} {...rich(proj.title, (v) => updateItem("projects", proj.id!, { title: v }))} />
+            <Field label={t("field_proj_desc")} {...rich(proj.description, (v) => updateItem("projects", proj.id!, { description: v }))} multiline rows={4} />
+            <Field label={t("field_proj_stack")} {...rich(proj.stack, (v) => updateItem("projects", proj.id!, { stack: v }))} />
           </>
         )}
       />
@@ -443,9 +462,9 @@ export default function CVBuilder({ data, onChange }: CVBuilderProps) {
         onDuplicate={duplicateItem("education")}
         renderFields={(edu) => (
           <>
-            <Field label={t("field_edu_degree")} value={edu.degree} onChange={(v) => updateItem("education", edu.id!, { degree: v })} />
-            <Field label={t("field_edu_institution")} value={edu.institution} onChange={(v) => updateItem("education", edu.id!, { institution: v })} />
-            <Field label={t("field_edu_date")} value={edu.date ?? ""} onChange={(v) => updateItem("education", edu.id!, { date: v })} />
+            <Field label={t("field_edu_degree")} {...rich(edu.degree, (v) => updateItem("education", edu.id!, { degree: v }))} />
+            <Field label={t("field_edu_institution")} {...rich(edu.institution, (v) => updateItem("education", edu.id!, { institution: v }))} />
+            <Field label={t("field_edu_date")} {...rich(edu.date, (v) => updateItem("education", edu.id!, { date: v }))} />
           </>
         )}
       />

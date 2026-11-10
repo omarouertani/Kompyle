@@ -50,8 +50,20 @@ export default function LayoutManager({
       }))
     );
 
-  const show = (id: string) =>
-    commitPages([{ ...pages[0], main: [...pages[0].main, id] }, ...pages.slice(1)]);
+  // Sections qui vivent naturellement dans la barre latérale (mise en page à deux
+  // colonnes). Réafficher l'une d'elles la remet dans la SIDEBAR plutôt qu'en
+  // colonne principale — avant, tout revenait toujours en colonne principale,
+  // même une section qui était en barre latérale.
+  const SIDEBAR_SECTIONS = new Set(["contact", "skills", "languages", "education", "certifications", "interests"]);
+  const hasSidebar = pages.some((p) => p.sidebar.length > 0);
+
+  const show = (id: string) => {
+    const toSidebar = hasSidebar && SIDEBAR_SECTIONS.has(id);
+    const first = toSidebar
+      ? { ...pages[0], sidebar: [...pages[0].sidebar, id] }
+      : { ...pages[0], main: [...pages[0].main, id] };
+    commitPages([first, ...pages.slice(1)]);
+  };
 
   // Sections affichées dans le panneau : built-in + customs, visibles d'abord
   const customIds = (data.customSections ?? []).map((c) => `custom_${c.id}`);

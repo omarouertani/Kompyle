@@ -33,6 +33,34 @@ export interface CVProfile {
 export type Status = "idle" | "loading" | "success" | "error";
 export type SaveStatus = "idle" | "saving" | "saved" | "error";
 
+/** Clé localStorage : slug du profil actif, pour le RESTAURER au rechargement.
+ *  Avant, le profil actif était figé sur "omar" et jamais persisté → au reload,
+ *  le CV de l'utilisateur disparaissait au profit du CV d'exemple. */
+const ACTIVE_PROFILE_KEY = "kompyle_active_profile";
+
+function readStoredProfile(): string {
+  try {
+    return localStorage.getItem(ACTIVE_PROFILE_KEY) || "";
+  } catch {
+    return "";
+  }
+}
+
+/** Slug URL-safe à partir d'un nom libre (accents retirés). Vide → identifiant
+ *  horodaté de repli. Partagé par la création de profil et la persistance du
+ *  CV d'exemple (premier enregistrement d'un fallback). */
+function slugify(name: string): string {
+  return (
+    name
+      .trim()
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[̀-ͯ]/g, "")
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/(^-|-$)/g, "") || `profil-${Date.now()}`
+  );
+}
+
 /** Les profils vivent en base. À défaut (BD indisponible, ou tout premier
  *  démarrage sans aucun profil), on démarre sur un CV d'EXEMPLE (mock) plutôt
  *  que vierge : chaque nouvel utilisateur voit des templates remplis, qu'il
@@ -55,10 +83,17 @@ function adaptationName(cv: CVData, locale: string): string {
 }
 
 export function useProfileManager(locale: string, t: (key: string, values?: Record<string, string>) => string) {
-  const [selectedProfile, setSelectedProfile] = useState<string>("omar");
+  // Vide au départ (même rendu SSR/hydratation) : le slug réel est résolu au
+  // montage (localStorage → 1er profil en base → CV d'exemple si BD vide).
+  const [selectedProfile, setSelectedProfile] = useState<string>("");
   const [selectedTemplate, setSelectedTemplate] = useState<string>("default");
   const [allRows, setAllRows] = useState<CVProfile[]>([]);
   const [profilesLoading, setProfilesLoading] = useState(true);
+  // Vrai UNIQUEMENT tant que le tout premier chargement n'est pas résolu. Sert à
+  // n'afficher le loader (et masquer le CV d'exemple) qu'au démarrage : les
+  // changements de profil ultérieurs mettent à jour l'aperçu sur place, sans
+  // flash de loader.
+  const [initialLoading, setInitialLoading] = useState(true);
   /** Ligne DB du profil principal (jamais une adaptation). */
   const [mainProfileId, setMainProfileId] = useState<string | null>(null);
   /** Ligne DB actuellement éditée (profil principal OU adaptation). */
@@ -78,6 +113,12 @@ export function useProfileManager(locale: string, t: (key: string, values?: Reco
   const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastSavedRef = useRef<string>("");
   const isInitialLoad = useRef(true);
+  // Slug dont le PROCHAIN re-run de l'effet doit être ignoré (une seule fois) :
+  // évite un rechargement redondant — et un double flash du loader — quand une
+  // resynchronisation interne de `selectedProfile` (slug résolu, CV adapté en
+  // attente) redéclenche l'effet. Consommé au 1er passage, donc une re-sélection
+  // ultérieure du même profil par l'utilisateur recharge bien normalement.
+  const resyncSkipRef = useRef<string | null>(null);
 
   // La lettre de motivation appartient au profil : on la persiste indépendamment
   // du CV (une édition de lettre seule doit aussi déclencher une sauvegarde).
@@ -163,21 +204,33 @@ export function useProfileManager(locale: string, t: (key: string, values?: Reco
     setStatusDetails(null);
   }, []);
 
-  /** Charge le profil principal `slug` depuis l'API (fallback statique sinon). */
+  /** Charge le profil principal `slug` depuis l'API. Robuste :
+   *   1. le profil `slug` dans la langue courante ; 2. `slug` dans une autre
+   *   langue ; 3. À DÉFAUT (slug vide/supprimé au tout premier démarrage), le
+   *   PREMIER profil réel — jamais le CV d'exemple tant qu'il existe un profil.
+   *   Le CV d'exemple (fallback) ne sort que si la base est réellement vide.
+   *   Synchronise `selectedProfile` (donc localStorage) quand on retombe sur un
+   *   autre slug. `isCancelled` : ne rien appliquer si un chargement plus récent
+   *   l'a supplanté (course lors d'un changement rapide de profil/langue). */
   const loadMainProfile = useCallback(
-    async (slug: string) => {
+    async (slug: string, isCancelled?: () => boolean): Promise<string> => {
       const rows = await fetchProfiles();
-      // Profil principal de la langue courante en priorité, sinon n'importe lequel.
+      if (isCancelled?.()) return slug;
+      const mains = rows.filter((r) => !r.is_adaptation);
       const main =
-        rows.find((r) => r.slug === slug && !r.is_adaptation && r.locale === locale) ??
-        rows.find((r) => r.slug === slug && !r.is_adaptation);
+        (slug ? mains.find((r) => r.slug === slug && r.locale === locale) : undefined) ??
+        (slug ? mains.find((r) => r.slug === slug) : undefined) ??
+        mains.find((r) => r.locale === locale) ??
+        mains[0];
       if (main) {
         setMainProfileId(main.id);
         loadRow(main);
-      } else {
-        loadFallback();
+        resetStatus();
+        return main.slug; // slug réellement chargé (l'appelant resynchronise la sélection)
       }
+      loadFallback();
       resetStatus();
+      return ""; // base vide → CV d'exemple
     },
     [fetchProfiles, loadRow, loadFallback, resetStatus, locale]
   );
@@ -185,6 +238,7 @@ export function useProfileManager(locale: string, t: (key: string, values?: Reco
   // Chargement initial (+ CV adapté en attente après bascule de langue)
   useEffect(() => {
     let cancelled = false;
+    const isCancelled = () => cancelled;
     (async () => {
       // sort du corps synchrone de l'effet (évite les renders en cascade)
       await Promise.resolve();
@@ -192,12 +246,17 @@ export function useProfileManager(locale: string, t: (key: string, values?: Reco
 
       const pending = sessionStorage.getItem("pending_adapted_cv");
       if (pending) {
+        // La sélection est appliquée EN DERNIER (après la persistance DB) : la
+        // changer ici déclencherait un re-run de l'effet dont le nettoyage
+        // (cancelled=true) interromprait la sauvegarde en cours. On mémorise donc
+        // le slug et on ne bascule la sélection qu'une fois le travail terminé.
+        let pendingProfile: string | null = null;
         try {
           const { adaptedCV, originalCV: origCV, profile, template: pendingTemplate, model: pendingModel } = JSON.parse(pending);
+          pendingProfile = profile;
           setCurrentCV(adaptedCV);
           setOriginalCV(origCV);
           setIsAdapted(true);
-          setSelectedProfile(profile);
           const template = normalizeTemplate(pendingTemplate);
           setSelectedTemplate(template);
           setStatus("success");
@@ -209,29 +268,30 @@ export function useProfileManager(locale: string, t: (key: string, values?: Reco
           // et serait perdue au prochain rechargement / autre navigateur).
           try {
             const rows = await fetchProfiles();
-            if (cancelled) return;
-            const main =
-              rows.find((r) => r.slug === profile && !r.is_adaptation && r.locale === locale) ??
-              rows.find((r) => r.slug === profile && !r.is_adaptation);
-            if (main) setMainProfileId(main.id);
-            const res = await fetch("/api/cv-profiles", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                slug: `${profile}-adapt-${Date.now()}`,
-                name: adaptationName(adaptedCV, locale),
-                locale,
-                template,
-                cv_data: adaptedCV,
-                original_cv: origCV,
-                is_adaptation: true,
-                parent_id: main?.id ?? null,
-              }),
-            });
-            if (res.ok && !cancelled) {
-              const saved = await res.json();
-              setCurrentProfileId(saved.id);
-              await fetchProfiles();
+            if (!cancelled) {
+              const main =
+                rows.find((r) => r.slug === profile && !r.is_adaptation && r.locale === locale) ??
+                rows.find((r) => r.slug === profile && !r.is_adaptation);
+              if (main) setMainProfileId(main.id);
+              const res = await fetch("/api/cv-profiles", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  slug: `${profile}-adapt-${Date.now()}`,
+                  name: adaptationName(adaptedCV, locale),
+                  locale,
+                  template,
+                  cv_data: adaptedCV,
+                  original_cv: origCV,
+                  is_adaptation: true,
+                  parent_id: main?.id ?? null,
+                }),
+              });
+              if (res.ok && !cancelled) {
+                const saved = await res.json();
+                setCurrentProfileId(saved.id);
+                await fetchProfiles();
+              }
             }
           } catch {
             // DB indisponible : l'adaptation reste éditable en mémoire
@@ -241,19 +301,66 @@ export function useProfileManager(locale: string, t: (key: string, values?: Reco
         } finally {
           sessionStorage.removeItem("pending_adapted_cv");
         }
-        setProfilesLoading(false);
+        if (!cancelled) {
+          setProfilesLoading(false);
+          // Sélection en dernier : le re-run qui en découle est neutralisé par
+          // resyncSkipRef, donc le profil principal n'écrase pas le CV adapté.
+          if (pendingProfile) {
+            resyncSkipRef.current = `${pendingProfile}::${locale}`;
+            setSelectedProfile(pendingProfile);
+          }
+        }
         return;
       }
 
+      // Slug à ouvrir : la sélection courante, sinon le dernier profil actif
+      // persisté (localStorage). `loadMainProfile` retombe sur le 1er profil réel
+      // si ce slug n'existe pas, et ne sort le CV d'exemple que si la BD est vide.
+      const slug = selectedProfile || readStoredProfile();
+      // Re-run provoqué par une resynchronisation interne (slug+locale déjà
+      // chargés) → on ne recharge pas (évite le double flash du loader). La
+      // locale fait partie du jeton pour ne pas court-circuiter un vrai
+      // changement de langue. Consommé une seule fois.
+      if (resyncSkipRef.current !== null && resyncSkipRef.current === `${slug}::${locale}`) {
+        resyncSkipRef.current = null;
+        setProfilesLoading(false);
+        return;
+      }
       setProfilesLoading(true);
-      await loadMainProfile(selectedProfile);
-      if (!cancelled) setProfilesLoading(false);
+      const resolved = await loadMainProfile(slug, isCancelled);
+      if (cancelled) return;
+      setProfilesLoading(false);
+      // Aligne la sélection (et donc localStorage) sur le profil réellement
+      // chargé — nécessaire quand le slug venait de localStorage (selectedProfile
+      // encore vide) ou qu'on a dû retomber sur un autre profil. Le re-run que
+      // cela déclenche est neutralisé par resyncSkipRef (pas de rechargement).
+      if (resolved && resolved !== selectedProfile) {
+        resyncSkipRef.current = `${resolved}::${locale}`;
+        setSelectedProfile(resolved);
+      }
     })();
     return () => {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedProfile, locale]);
+
+  // Le tout premier chargement est terminé dès que `profilesLoading` retombe à
+  // false une première fois ; ensuite, plus jamais de loader plein écran.
+  useEffect(() => {
+    if (!profilesLoading) setInitialLoading(false);
+  }, [profilesLoading]);
+
+  // Persiste le profil actif pour le restaurer au prochain démarrage (le flash du
+  // CV d'exemple venait de l'absence totale de persistance de cette sélection).
+  useEffect(() => {
+    if (!selectedProfile) return;
+    try {
+      localStorage.setItem(ACTIVE_PROFILE_KEY, selectedProfile);
+    } catch {
+      // stockage indisponible (navigation privée) — on continue sans persistance
+    }
+  }, [selectedProfile]);
 
   const handleProfileChange = useCallback((profile: string) => {
     setSelectedProfile(profile);
@@ -289,9 +396,7 @@ export function useProfileManager(locale: string, t: (key: string, values?: Reco
     async (name: string, template = "default"): Promise<boolean> => {
       const trimmed = name.trim();
       if (!trimmed) return false;
-      const slug =
-        trimmed.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "")
-          .replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || `profil-${Date.now()}`;
+      const slug = slugify(trimmed);
 
       // Nouveau profil : pré-rempli avec des données d'EXEMPLE (mock) pour que
       // les templates ne s'affichent jamais vides. L'utilisateur remplace chaque
@@ -406,13 +511,20 @@ export function useProfileManager(locale: string, t: (key: string, values?: Reco
       try {
         if (!currentProfileId) {
           // Profil fallback (aucune ligne DB) : on la crée au premier save pour
-          // que l'état visuel (canvas, layout…) persiste entre navigateurs.
+          // que l'état visuel (canvas, layout…) persiste entre navigateurs. Le
+          // slug/nom se dérivent du CV (ou de la sélection) — `selectedProfile`
+          // peut désormais être vide (BD initialement vide), d'où ce repli.
+          const displayName =
+            (cvData.personalInfo?.name || "").replace(/<[^>]*>/g, "").trim() ||
+            selectedProfile ||
+            "Mon CV";
+          const slug = selectedProfile || slugify(displayName);
           const res = await fetch("/api/cv-profiles", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              slug: selectedProfile,
-              name: selectedProfile.charAt(0).toUpperCase() + selectedProfile.slice(1),
+              slug,
+              name: displayName,
               locale,
               template: selectedTemplate,
               cv_data: cvData,
@@ -425,6 +537,7 @@ export function useProfileManager(locale: string, t: (key: string, values?: Reco
           const saved = await res.json();
           setMainProfileId(saved.id);
           setCurrentProfileId(saved.id);
+          setSelectedProfile(saved.slug);
           await fetchProfiles();
         } else {
           const res = await fetch(`/api/cv-profiles/${currentProfileId}`, {
@@ -540,8 +653,15 @@ export function useProfileManager(locale: string, t: (key: string, values?: Reco
         if (others.length > 0) {
           setSelectedProfile(others[0].slug);
         } else {
+          // Plus aucun profil : CV d'exemple, sélection remise à zéro (plus de
+          // slug "omar" en dur qui pointait vers un profil inexistant).
           loadFallback();
-          setSelectedProfile("omar");
+          setSelectedProfile("");
+          try {
+            localStorage.removeItem(ACTIVE_PROFILE_KEY);
+          } catch {
+            // stockage indisponible — sans effet sur la logique
+          }
         }
         return true;
       } catch {
@@ -628,6 +748,7 @@ export function useProfileManager(locale: string, t: (key: string, values?: Reco
     deleteVersion,
     profiles,
     profilesLoading,
+    initialLoading,
     versions,
     mainProfileId,
     currentProfileId,

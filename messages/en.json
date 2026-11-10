@@ -69,7 +69,8 @@
     "network": "Network error reaching the AI provider. Check your connection.",
     "server": "The AI provider is overloaded or temporarily down. Try again shortly.",
     "empty": "The model returned an empty response. Please try again.",
-    "unknown": "The AI request failed. Please try again."
+    "unknown": "The AI request failed. Please try again.",
+    "stale_profile": "You switched profiles while the AI was working, so that result was discarded."
   },
   "AIAdapt": {
     "adapting_cv": "AI is working on your CV…",
@@ -87,7 +88,8 @@
     "start": "Start",
     "end": "End",
     "current": "I currently work here",
-    "present_short": "Present"
+    "present_short": "Present",
+    "invalid_range": "The end date is before the start date."
   },
   "Profiles": {
     "active_label": "Active profile:",

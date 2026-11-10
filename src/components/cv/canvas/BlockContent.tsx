@@ -24,12 +24,15 @@ interface BlockContentProps {
   data: CVData;
   theme: BlockTheme;
   onChange: (newData: CVData) => void;
+  /** Réaligne le canvas en préservant le placement manuel — appelé après un
+   *  changement de taille de titre par section (qui modifie la hauteur). */
+  onThemeReflow?: () => void;
 }
 
 /** Contenu éditable d'un bloc du canvas, identifié par son blockId
  *  (title_*, content_*, skill_N, experience_N, project_N, education_N,
  *  name, role, techLine, photo). Retourne null si l'id est inconnu. */
-export function BlockContent({ blockId, data, theme, onChange }: BlockContentProps) {
+export function BlockContent({ blockId, data, theme, onChange, onThemeReflow }: BlockContentProps) {
   const { isChaima, primaryColor, baseFontSize, headingFontSize, lineHeight: lh, photoSize, skillMode } = theme;
   const { personalInfo } = data;
   const toPx = ptsToPx;
@@ -164,7 +167,7 @@ export function BlockContent({ blockId, data, theme, onChange }: BlockContentPro
         blockId={blockId}
         headingFontSize={headingFontSize}
         primaryColor={primaryColor}
-        onFontSizeChange={(s) => updateTheme({ headingSize: s })}
+        onFontSizeChange={(s) => { updateTheme({ headingSize: s }); onThemeReflow?.(); }}
         onTitleChange={(title) => onChange(renameSection(data, sectionId, title))}
       />
     );

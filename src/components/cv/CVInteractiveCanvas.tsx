@@ -195,6 +195,8 @@ export default function CVInteractiveCanvas({ data, onChange: onChangeProp, temp
     clearSelection,
     canDuplicate,
     duplicateItem,
+    canDeleteBlock,
+    deleteBlock,
     undo,
     redo,
     fitToScreen,
@@ -285,6 +287,7 @@ export default function CVInteractiveCanvas({ data, onChange: onChangeProp, temp
       onResizeStart={startResize}
       autoHeight={autoHeight}
       onContextMenu={openBlockMenu}
+      onThemeReflow={realignPreservingAfterRender}
     />
   );
 

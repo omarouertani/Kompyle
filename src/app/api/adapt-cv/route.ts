@@ -8,6 +8,7 @@ import { checkRateLimit } from "@/lib/rate-limiter";
 import { SECTION_LABELS_EN } from "@/lib/cv-layout";
 import { describeExperienceForPrompt } from "@/lib/cv-analysis";
 import { cvForAiPrompt } from "@/lib/cv-payload";
+import { detectJobLanguage } from "@/lib/detect-language";
 
 // ─── System Prompt ──────────────────────────────────────────────────────────
 
@@ -98,26 +99,37 @@ ${issues.map((issue) => `- ${issue}`).join("\n")}
 Return ONLY a corrected raw JSON object that fixes these errors and fully respects the schema and all rules above. No markdown, no commentary.`;
 }
 
-// Détecte si une offre est rédigée en anglais ou en français, par fréquence de
-// mots-outils distinctifs. Sert à aligner les TITRES de section sur la langue de
-// l'offre : un ATS anglophone qui lit "Éducation" ne reconnaît pas la section
-// "Education" et la déclare manquante. Heuristique volontairement simple et
-// déterministe (pas d'appel réseau) ; défaut "fr" si indécis (public FR de l'app).
-function detectJobLanguage(text: string): "en" | "fr" {
-  const FR = ["le", "la", "les", "des", "une", "un", "vous", "nous", "pour", "avec", "dans", "votre", "notre", "compétences", "expérience", "poste", "entreprise", "équipe", "missions", "profil", "et", "ou", "au", "aux", "du"];
-  const EN = ["the", "and", "or", "for", "with", "you", "we", "your", "our", "skills", "experience", "role", "team", "company", "requirements", "responsibilities", "must", "ability", "will", "of", "to", "in"];
-  const words = text.toLowerCase().match(/[a-zàâäéèêëïîôöùûüç]+/g) ?? [];
-  const set = (list: string[]) => new Set(list);
-  const frSet = set(FR);
-  const enSet = set(EN);
-  let fr = 0;
-  let en = 0;
-  for (const w of words) {
-    if (frSet.has(w)) fr++;
-    if (enSet.has(w)) en++;
+/**
+ * ANTI-CORRUPTION : détecte tout écart de LONGUEUR de tableau entre le CV adapté
+ * et l'original. Les champs immuables (titre / organisation / dates / catégorie)
+ * sont ré-imposés PAR INDEX ; si l'IA a supprimé (ou ajouté) un élément malgré la
+ * consigne, l'index d'un poste se retrouverait collé aux puces réécrites d'un
+ * AUTRE poste → un CV qui MENT. On refuse plutôt que de corrompre silencieusement.
+ * Le prompt interdit explicitement d'ajouter/supprimer : ce garde-fou n'attrape
+ * que les dérives du modèle.
+ */
+function arrayLengthIssues(adapted: CVData, original: CVData): string[] {
+  const issues: string[] = [];
+  const check = (label: string, got: number, expected: number) => {
+    if (got !== expected) issues.push(`${label}: expected ${expected} item(s), got ${got} — never add or remove items.`);
+  };
+  check("experiences", adapted.experiences.length, original.experiences.length);
+  check("skills", adapted.skills.length, original.skills.length);
+  check("projects", adapted.projects.length, original.projects.length);
+  check("education", adapted.education.length, original.education.length);
+  // Nombre de puces par expérience (l'appariement se fait aussi par index).
+  const n = Math.min(adapted.experiences.length, original.experiences.length);
+  for (let i = 0; i < n; i++) {
+    const a = adapted.experiences[i]?.bullets?.length ?? 0;
+    const o = original.experiences[i]?.bullets?.length ?? 0;
+    if (a !== o) issues.push(`experiences[${i}].bullets: expected ${o}, got ${a} — keep the same number of bullets.`);
   }
-  return en > fr ? "en" : "fr";
+  return issues;
 }
+
+// La détection FR/EN de la langue de l'offre (alignement des titres de section
+// sur la langue du poste) vit désormais dans `@/lib/detect-language`, PARTAGÉE
+// avec le client (redirection de locale) pour que les deux décisions concordent.
 
 // ─── Route Handler ──────────────────────────────────────────────────────────
 
@@ -206,15 +218,20 @@ ${JSON.stringify(cvForAi, null, 2)}
 
     const { text: rawResponse, model: usedModel } = result;
 
-    // Extract + repair + validate the AI output with self-healing retry
+    // Extract + repair + validate the AI output with self-healing retry. On top
+    // of schema validation, we enforce array-LENGTH integrity (anti-corruption):
+    // a dropped/added item would misalign the index-based re-imposition below.
     let validation = extractAndValidate(rawResponse, resumeSchema);
+    let lengthIssues = validation.success ? arrayLengthIssues(validation.data, cvData) : [];
 
-    if (!validation.success) {
-      console.warn("Adapted CV failed validation, retrying with self-correction...", validation.issues);
+    if (!validation.success || lengthIssues.length > 0) {
+      const issues = validation.success ? lengthIssues : validation.issues;
+      console.warn("Adapted CV failed validation, retrying with self-correction...", issues);
       try {
-        const correctionPrompt = buildCorrectionPrompt(userPrompt, validation.issues);
+        const correctionPrompt = buildCorrectionPrompt(userPrompt, issues);
         const retryResult = await callWithFallback(SYSTEM_PROMPT, correctionPrompt, { provider, model: usedModel, apiKey });
         validation = extractAndValidate(retryResult.text, resumeSchema);
+        lengthIssues = validation.success ? arrayLengthIssues(validation.data, cvData) : [];
       } catch (retryError) {
         console.error("Self-correction retry failed:", retryError);
       }
@@ -225,6 +242,20 @@ ${JSON.stringify(cvForAi, null, 2)}
         {
           error: "The adapted CV structure is invalid.",
           details: validation.issues,
+        },
+        { status: 502 }
+      );
+    }
+
+    // Refus si les longueurs divergent encore après le retry : appliquer les
+    // champs immuables par index collerait les métadonnées d'un poste aux puces
+    // d'un autre. Mieux vaut échouer proprement que produire un CV mensonger.
+    if (lengthIssues.length > 0) {
+      console.error("Adapted CV changed array lengths — rejecting to avoid field misalignment.", lengthIssues);
+      return Response.json(
+        {
+          error: "The AI altered the CV structure (added or removed items). Please try again.",
+          details: lengthIssues,
         },
         { status: 502 }
       );

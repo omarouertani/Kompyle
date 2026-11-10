@@ -37,7 +37,7 @@ interface UseCanvasInteractionsArgs {
    *  à recalculer les positions lors d'un changement de colonne. */
   template: string;
   defaultPositions: Record<string, BlockPos>;
-  onChange: (newData: CVData) => void;
+  onChange: (newData: CVData, coalesceKey?: string) => void;
   /** Résout un drop inter-pages : renvoie true si le(s) bloc(s) ont changé de
    *  page (la position est alors gérée par l'appelant, pas par commitPositions).
    *  Le repositionnement utilise le CURSEUR comme pivot (grab + offsets relatifs)
@@ -139,20 +139,33 @@ export function useCanvasInteractions({ data, template, defaultPositions, onChan
                   }
                 : p
             );
-            // Recale les blocs de la section déplacée dans leur NOUVELLE colonne
-            // (sinon ils resteraient aux coordonnées de l'ancienne) → canvas == PDF.
+            // Section déplacée de colonne : ses blocs adoptent la LARGEUR et le X
+            // de la nouvelle colonne, mais on PRÉSERVE l'ordre vertical manuel des
+            // AUTRES blocs (avant : tous étaient réinitialisés à leur position par
+            // défaut, effaçant le placement manuel). Le bloc saisi garde la
+            // position du drop.
             const nextData: CVData = { ...current, layout: { ...layout, pages } };
             const recomputed = getDefaultPositions(template, nextData);
             for (const bId of getSectionBlockIds(sectionId, nextData)) {
-              if (recomputed[bId]) {
-                nextPositions[bId] = curPageIdx > 0 ? { ...recomputed[bId], page: curPageIdx } : { ...recomputed[bId] };
-              }
+              const col = recomputed[bId];
+              if (!col) continue;
+              if (bId === primaryId) continue; // le bloc saisi garde sa position de drop
+              const prev = nextPositions[bId];
+              nextPositions[bId] = {
+                ...(prev ?? col),
+                x: col.x,
+                w: col.w,
+                ...(curPageIdx > 0 ? { page: curPageIdx } : { page: 0 }),
+              };
             }
           }
         }
       }
 
-      onChange({ ...current, layout: { ...layout, pages, absolutePositions: nextPositions } });
+      // autoPaginated:false → l'utilisateur a pris la main sur le placement : la
+      // re-pagination automatique ne réécrasera plus son travail (cf. use-canvas-pagination).
+      // Clé de coalescence "drag" → geste distinct dans l'historique undo/redo.
+      onChange({ ...current, layout: { ...layout, pages, autoPaginated: false, absolutePositions: nextPositions } }, "drag");
     },
     [onChange, template]
   );

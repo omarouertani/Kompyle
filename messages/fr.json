@@ -69,7 +69,8 @@
     "network": "Erreur réseau vers le fournisseur IA. Vérifiez votre connexion.",
     "server": "Le fournisseur IA est surchargé ou temporairement indisponible. Réessayez sous peu.",
     "empty": "Le modèle a renvoyé une réponse vide. Réessayez.",
-    "unknown": "La requête IA a échoué. Réessayez."
+    "unknown": "La requête IA a échoué. Réessayez.",
+    "stale_profile": "Vous avez changé de profil pendant le travail de l'IA : ce résultat a été ignoré."
   },
   "AIAdapt": {
     "adapting_cv": "L'IA travaille sur votre CV…",
@@ -87,7 +88,8 @@
     "start": "Début",
     "end": "Fin",
     "current": "J'occupe toujours ce poste",
-    "present_short": "En cours"
+    "present_short": "En cours",
+    "invalid_range": "La date de fin est antérieure à la date de début."
   },
   "Profiles": {
     "active_label": "Profil actif :",

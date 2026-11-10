@@ -22,6 +22,8 @@ interface CanvasBlockProps {
   onResizeStart: (e: React.MouseEvent, id: string, pos: BlockPos, edge: ResizeEdge) => void;
   autoHeight: (ids: string[]) => void;
   onContextMenu: (e: React.MouseEvent, id: string) => void;
+  /** Réaligne en préservant le placement manuel (taille de titre par section). */
+  onThemeReflow?: () => void;
 }
 
 /** Un bloc unique du canvas : conteneur déplaçable / redimensionnable
@@ -40,6 +42,7 @@ export function CanvasBlock({
   onResizeStart,
   autoHeight,
   onContextMenu,
+  onThemeReflow,
 }: CanvasBlockProps) {
   // Resize diagonal : le texte du bloc suit l'échelle sauvegardée
   const fs = pos.fontScale ?? 1;
@@ -67,7 +70,7 @@ export function CanvasBlock({
       onResetHeight={(blockId) => autoHeight([blockId])}
       onContextMenu={onContextMenu}
     >
-      <BlockContent blockId={id} data={data} theme={themeForBlock} onChange={onChange} />
+      <BlockContent blockId={id} data={data} theme={themeForBlock} onChange={onChange} onThemeReflow={onThemeReflow} />
     </AbsoluteBlock>
   );
 }

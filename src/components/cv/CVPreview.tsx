@@ -302,9 +302,8 @@ export default function CVPreview({
 
           {/* Sélecteur de Template (dropdown, comme le choix de modèle IA) */}
           <Select value={tpl} onValueChange={(val) => val && onTemplateChange(val)}>
-            <SelectTrigger className="h-9 w-[160px] rounded-lg border border-border/60 bg-muted/40 hover:bg-muted/60 transition-colors text-xs gap-1.5">
+            <SelectTrigger className="h-9 w-[150px] rounded-lg border border-border/60 bg-muted/40 hover:bg-muted/60 transition-colors text-xs gap-1.5" title={t("label_template")}>
               <LayoutTemplate size={13} className="text-primary shrink-0" />
-              <span className="text-[10px] text-muted-foreground">{t("label_template")}</span>
               <SelectValue />
             </SelectTrigger>
             <SelectContent className="bg-popover border border-border shadow-md rounded-lg p-1">

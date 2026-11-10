@@ -3,6 +3,7 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { cn } from "@/lib/utils";
 import { useCanvasFormat } from "./canvas/use-canvas-format";
+import { sanitizeRichHtml } from "@/utils/sanitize-html";
 
 // Conversion EXACTE des points PDF (72 dpi) en pixels CSS (96 dpi) : 96/72.
 // Le rendu PDF (react-pdf) place les blocs en points ; le canvas applique ce
@@ -165,7 +166,11 @@ export function EditableText({
     const current = ref.current.innerHTML;
     const next = value || "";
     if (isRichTextValue(next)) {
-      if (current !== next) ref.current.innerHTML = next;
+      // SECURITY: values may originate from AI output derived from an untrusted
+      // job posting. Sanitize before innerHTML injection (strict allowlist) so
+      // no executable markup (script, event handlers, <img onerror>…) survives.
+      const safe = sanitizeRichHtml(next);
+      if (current !== safe) ref.current.innerHTML = safe;
     } else {
       // Use textContent for safety; only set if it differs from the rendered
       // text (compare via innerText so existing inline tags don't trigger a
@@ -181,7 +186,9 @@ export function EditableText({
     const html = ref.current.innerHTML;
     // If the rendered content has no inline formatting tags, save the plain
     // text. Keeps the data file readable when the user never used B/I/U.
-    const next = isRichTextValue(html) ? trimRich(html) : (ref.current.innerText ?? "").trim();
+    // Sanitize rich content on commit too, so anything pasted into the field is
+    // cleaned before it reaches storage (defense in depth alongside injection).
+    const next = isRichTextValue(html) ? trimRich(sanitizeRichHtml(html)) : (ref.current.innerText ?? "").trim();
     if (next !== value) onChange(next);
   }, [onChange, value]);
 

@@ -1,8 +1,17 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import type { AIProvider } from "@/types/cv";
 import { MODELS_BY_PROVIDER, DEFAULT_MODEL, getModelName, providerForModel } from "@/lib/ai-models";
+
+/** Clé localStorage : dernier modèle IA choisi, restauré au rechargement
+ *  (avant, le choix retombait toujours sur le modèle par défaut). */
+const MODEL_KEY = "kompyle_ai_model";
+
+/** Ensemble des IDs de modèles connus — pour ignorer une valeur stockée obsolète. */
+const KNOWN_MODELS = new Set(
+  Object.values(MODELS_BY_PROVIDER).flatMap((list) => list.map((m) => m.model)),
+);
 
 export { getModelName, DEFAULT_MODEL, providerForModel };
 
@@ -23,9 +32,25 @@ export function useAIProviderConfig() {
   const [model, setModel] = useState<string>(DEFAULT_MODEL);
   const provider = providerForModel(model);
 
-  /** Sélectionne un modèle (le provider en découle). */
+  // Restaure le dernier modèle choisi (après hydratation, côté client). On ignore
+  // une valeur stockée qui ne correspond plus à aucun modèle du catalogue.
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(MODEL_KEY);
+      if (stored && KNOWN_MODELS.has(stored)) setModel(stored);
+    } catch {
+      // stockage indisponible — on garde le modèle par défaut
+    }
+  }, []);
+
+  /** Sélectionne un modèle (le provider en découle) et persiste le choix. */
   const selectModel = useCallback((modelId: string) => {
     setModel(modelId);
+    try {
+      localStorage.setItem(MODEL_KEY, modelId);
+    } catch {
+      // stockage indisponible — sélection en mémoire uniquement
+    }
   }, []);
 
   const getProviderName = useCallback((p: AIProvider) => PROVIDER_META[p].label, []);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { Sparkles, Wand2, CheckCircle2, X } from "lucide-react";
@@ -17,6 +17,10 @@ interface ATSAdaptPanelProps {
   cvData: CVData;
   jobDescription: string;
   report: ATSReport;
+  /** Identité de la version de CV auditée (ligne DB active). Sert à détecter un
+   *  changement de profil/version pendant l'adaptation en vol : on n'applique
+   *  jamais le résultat à un CV qui n'est plus celui d'origine. */
+  versionId: string | null;
   /** Appelé avec le CV raffiné — le parent doit le poser dans le state (auto-save). */
   onApplied: (refinedCV: CVData) => void;
   /** Remonte l'état « adaptation en cours » pour piloter l'overlay de progression. */
@@ -41,7 +45,7 @@ interface RefineErrorBody {
  * du profile-manager déclenche l'auto-save sur la même ligne DB (pas de nouvelle
  * version créée).
  */
-export function ATSAdaptPanel({ cvData, jobDescription, report, onApplied, onAdaptingChange }: ATSAdaptPanelProps) {
+export function ATSAdaptPanel({ cvData, jobDescription, report, versionId, onApplied, onAdaptingChange }: ATSAdaptPanelProps) {
   const t = useTranslations("ATS");
   const tAdapt = useTranslations("AIAdapt");
   const tErr = useTranslations("AIErrors");
@@ -55,6 +59,11 @@ export function ATSAdaptPanel({ cvData, jobDescription, report, onApplied, onAda
   // Annulation de l'adaptation ATS en cours.
   const abortRef = useRef<AbortController | null>(null);
   const cancel = useCallback(() => abortRef.current?.abort(), []);
+  // Version active, tenue à jour via une ref pour être lisible à la RÉSOLUTION.
+  const versionRef = useRef(versionId);
+  useEffect(() => {
+    versionRef.current = versionId;
+  }, [versionId]);
 
   const buildInstruction = useCallback((userExtra: string) => {
     const recos = report.recommendations.length
@@ -89,6 +98,7 @@ Preserve every existing experience, project and skill item (no deletions); refra
     setStatus("loading");
     onAdaptingChange?.(true);
     setError({ msg: null, details: null, failures: null });
+    const startVersion = versionRef.current;
     const controller = new AbortController();
     abortRef.current = controller;
     try {
@@ -113,6 +123,14 @@ Preserve every existing experience, project and skill item (no deletions); refra
         return;
       }
       const data = (await res.json()) as { refinedCV: CVData };
+      // Profil/version changé pendant l'adaptation → on n'applique pas au CV
+      // désormais actif (anti-corruption inter-profils).
+      if (versionRef.current !== startVersion) {
+        setStatus("idle");
+        onAdaptingChange?.(false);
+        toast.info(tErr("stale_profile"));
+        return;
+      }
       setStatus("success");
       setExtra("");
       onAdaptingChange?.(false);

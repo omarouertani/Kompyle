@@ -319,6 +319,9 @@ export const renderExperience: SectionRenderer = (data, styles, originalData, pa
 
 export const renderProjects: SectionRenderer = (data, styles, originalData, part, itemIndex) => {
   const { projects } = data;
+  // Section vide → rien (cohérent avec le template Moderne). Sans cette garde, le
+  // template Classique/Canadien affichait un titre « Projets » orphelin, sans contenu.
+  if (!projects || projects.length === 0) return null;
   if (part === "title") {
     return <RichText style={styles.h2} value={sectionTitle(data, "projects", "Projects")} />;
   }

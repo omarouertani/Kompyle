@@ -8,6 +8,7 @@ import {
 } from "@react-pdf/renderer";
 import type { CoverLetterData, PersonalInfo } from "@/types/cv";
 import { registerPdfFont, ACTIVE_PDF_FONT } from "@/utils/pdf-fonts";
+import { stripHtml } from "@/utils/strip-html";
 
 // Enregistre la police active (idempotent) et l'utilise pour toute la lettre.
 // (Avant, ce template comptait sur l'enregistrement Calibri de CVTemplate —
@@ -107,19 +108,28 @@ const fillNamePlaceholders = (text: string, name: string): string =>
   name ? text.replace(/\[\s*(votre\s+nom|your\s+name|nom\s+pr[ée]nom|pr[ée]nom\s+nom|name|nom)\s*\]/gi, name) : text;
 
 const CoverLetterTemplate: React.FC<CoverLetterTemplateProps> = ({ data, personalInfo }) => {
+  // Les champs du CV peuvent porter du HTML inline (mise en forme appliquée sur
+  // le canvas). Ce template utilise le <Text> brut de react-pdf (pas la primitive
+  // qui parse le HTML) : on nettoie donc ici, sinon la lettre afficherait des
+  // balises littérales (<b>…</b>) pour le nom/rôle/contact.
+  const senderName = stripHtml(personalInfo.name);
+  const senderRole = stripHtml(personalInfo.role);
+  const senderEmail = stripHtml(personalInfo.email);
+  const senderPhone = stripHtml(personalInfo.phone);
+  const senderLocation = stripHtml(personalInfo.location);
   return (
     <Document
-      title={`Lettre de Motivation - ${personalInfo.name}`}
-      author={personalInfo.name}
+      title={`Lettre de Motivation - ${senderName}`}
+      author={senderName}
     >
       <Page size="A4" style={styles.page}>
-        
+
         {/* SENDER INFO (Top Left) */}
         <View style={styles.senderBlock}>
-          <Text style={styles.senderName}>{personalInfo.name}</Text>
-          <Text style={styles.senderContact}>{personalInfo.role}</Text>
-          <Text style={styles.senderContact}>{personalInfo.email} • {personalInfo.phone}</Text>
-          <Text style={styles.senderContact}>{personalInfo.location}</Text>
+          <Text style={styles.senderName}>{senderName}</Text>
+          <Text style={styles.senderContact}>{senderRole}</Text>
+          <Text style={styles.senderContact}>{senderEmail} • {senderPhone}</Text>
+          <Text style={styles.senderContact}>{senderLocation}</Text>
         </View>
 
         {/* RECIPIENT & DATE */}
@@ -155,14 +165,14 @@ const CoverLetterTemplate: React.FC<CoverLetterTemplateProps> = ({ data, persona
         {/* BODY PARAGRAPHS */}
         {data.paragraphs.map((para, i) => (
           <Text key={i} style={styles.paragraph}>
-            {fillNamePlaceholders(para, personalInfo.name)}
+            {fillNamePlaceholders(para, senderName)}
           </Text>
         ))}
 
         {/* SIGN OFF */}
         <View style={styles.signOffBlock}>
-          <Text style={styles.signOff}>{fillNamePlaceholders(data.signOff, personalInfo.name)}</Text>
-          <Text style={styles.signatureName}>{personalInfo.name}</Text>
+          <Text style={styles.signOff}>{fillNamePlaceholders(data.signOff, senderName)}</Text>
+          <Text style={styles.signatureName}>{senderName}</Text>
         </View>
 
       </Page>

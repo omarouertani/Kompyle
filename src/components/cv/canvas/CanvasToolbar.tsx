@@ -129,7 +129,10 @@ export function CanvasToolbar({
       return true;
     }
     if (selectedIds.length >= 1 && blockRun()) {
-      onReflow?.();
+      // On ne réaligne QUE si l'opération peut changer la hauteur (police/taille/
+      // titre → reflow=true). Le gras/italique/souligné (reflow=false) ne
+      // déclenche plus un reflow complet inutile à chaque clic (source de lag).
+      if (reflow) onReflow?.();
       return true;
     }
     // Repli : caret actif dans un éditeur (sans sélection) → l'éditeur étend au

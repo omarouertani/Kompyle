@@ -1,41 +1,16 @@
 "use client";
 
-import { useCallback, useRef } from "react";
+import { useCallback, useRef, useEffect } from "react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import type { CVData, AIProvider, CoverLetterData } from "@/types/cv";
 import { getModelName } from "@/lib/ai-models";
 import type { ProviderFailure } from "@/lib/ai-orchestrator";
+import { detectJobLanguage } from "@/lib/detect-language";
 import type { Status } from "./use-profile-manager";
 
 /** Corps d'erreur renvoyé par les routes IA. */
 type AIErrorBody = { error?: string; message?: string; details?: string | string[]; failures?: ProviderFailure[] };
-
-function detectLanguage(text: string): "fr" | "en" {
-  const frenchWords = [" de ", " la ", " le ", " et ", " pour ", " dans ", " en ", " une ", " des ", " est ", " avec ", " plus ", " sur ", " par "];
-  const englishWords = [" of ", " the ", " and ", " for ", " in ", " a ", " with ", " is ", " to ", " on ", " at ", " more ", " by "];
-
-  let frCount = 0;
-  let enCount = 0;
-
-  const lowerText = text.toLowerCase();
-  for (const word of frenchWords) {
-    let pos = 0;
-    while ((pos = lowerText.indexOf(word, pos)) !== -1) {
-      frCount++;
-      pos += word.length;
-    }
-  }
-  for (const word of englishWords) {
-    let pos = 0;
-    while ((pos = lowerText.indexOf(word, pos)) !== -1) {
-      enCount++;
-      pos += word.length;
-    }
-  }
-
-  return frCount >= enCount ? "fr" : "en";
-}
 
 interface UseAISubmissionDeps {
   jobDescription: string;
@@ -47,6 +22,10 @@ interface UseAISubmissionDeps {
   coverLetterData: CoverLetterData | null;
   locale: string;
   selectedProfile: string;
+  /** Ligne DB actuellement active (CV principal OU adaptation). Sert à détecter
+   *  un changement de profil/version PENDANT une requête IA en vol : on n'applique
+   *  jamais une réponse tardive à un CV qui n'est plus celui d'origine. */
+  currentProfileId: string | null;
   selectedTemplate: string;
   /** Enregistre l'adaptation comme copie liée au profil (l'original reste intact). */
   applyAdaptation: (cv: CVData) => Promise<void>;
@@ -65,7 +44,7 @@ interface UseAISubmissionDeps {
 
 export function useAISubmission(deps: UseAISubmissionDeps) {
   const {
-    jobDescription, provider, model, apiKey, currentCV, coverLetterData, locale, selectedProfile, selectedTemplate,
+    jobDescription, provider, model, apiKey, currentCV, coverLetterData, locale, selectedProfile, currentProfileId, selectedTemplate,
     applyAdaptation, setCurrentCV, setCoverLetterData,
     setActiveRightTab, setStatus, setStatusMessage, setStatusDetails, setLoadingType, t, tAdapt,
   } = deps;
@@ -75,6 +54,26 @@ export function useAISubmission(deps: UseAISubmissionDeps) {
   // Contrôleur d'annulation de la requête IA en cours. `cancel()` l'avorte ;
   // chaque handler en crée un neuf et le pose ici avant son fetch.
   const abortRef = useRef<AbortController | null>(null);
+
+  // Identité de la version active (profil + ligne DB), tenue à jour via une ref
+  // pour être lisible à la RÉSOLUTION d'une requête (pas la valeur figée dans la
+  // closure au lancement). Si l'utilisateur change de profil/version pendant
+  // qu'une requête IA est en vol, on refuse d'appliquer la réponse tardive :
+  // sinon elle écraserait le mauvais CV et repointerait l'auto-save.
+  const identityRef = useRef<string>(`${selectedProfile}::${currentProfileId ?? "fallback"}`);
+  useEffect(() => {
+    identityRef.current = `${selectedProfile}::${currentProfileId ?? "fallback"}`;
+  }, [selectedProfile, currentProfileId]);
+
+  /** Vrai si la version active a changé depuis `startId` (réponse périmée). */
+  const isStale = useCallback((startId: string): boolean => {
+    if (identityRef.current === startId) return false;
+    setStatus("idle");
+    setStatusMessage("");
+    setStatusDetails(null);
+    toast.info(tErr("stale_profile"));
+    return true;
+  }, [setStatus, setStatusMessage, setStatusDetails, tErr]);
 
   /** Annule l'opération IA en cours (adaptation, lettre, modification). */
   const cancel = useCallback(() => {
@@ -115,13 +114,14 @@ export function useAISubmission(deps: UseAISubmissionDeps) {
     setStatusMessage(t("status_loading_cv"));
     setStatusDetails(null);
 
-    const jobLang = detectLanguage(jobDescription);
+    const jobLang = detectJobLanguage(jobDescription);
     const hasLangMismatch = jobLang !== locale;
 
     // Le CV source est toujours celui chargé (depuis la BD) ; plus de variante
     // codée en dur. En cas d'écart de langue, on bascule l'UI après adaptation.
     const sourceCV = currentCV;
     const originalSourceCV = currentCV;
+    const startId = identityRef.current;
 
     const controller = new AbortController();
     abortRef.current = controller;
@@ -138,6 +138,9 @@ export function useAISubmission(deps: UseAISubmissionDeps) {
         throw errData;
       }
       const data = await res.json();
+
+      // Profil/version changé pendant la requête → on n'applique pas (anti-corruption).
+      if (isStale(startId)) return;
 
       if (hasLangMismatch) {
         sessionStorage.setItem("pending_adapted_cv", JSON.stringify({
@@ -172,7 +175,7 @@ export function useAISubmission(deps: UseAISubmissionDeps) {
       abortRef.current = null;
       setLoadingType(null);
     }
-  }, [jobDescription, provider, model, apiKey, currentCV, locale, selectedProfile, selectedTemplate, t, tAdapt, setActiveRightTab, applyAdaptation, setStatus, setStatusMessage, setStatusDetails, setLoadingType, ensureKey, showErrorToast]);
+  }, [jobDescription, provider, model, apiKey, currentCV, locale, selectedProfile, selectedTemplate, t, tAdapt, setActiveRightTab, applyAdaptation, setStatus, setStatusMessage, setStatusDetails, setLoadingType, ensureKey, showErrorToast, isStale]);
 
   const handleGenerateLetter = useCallback(async () => {
     if (!jobDescription.trim() || jobDescription.trim().length < 20) {
@@ -187,6 +190,7 @@ export function useAISubmission(deps: UseAISubmissionDeps) {
     setActiveRightTab("letter");
     setStatusMessage(t("status_loading_letter"));
     setStatusDetails(null);
+    const startId = identityRef.current;
     const controller = new AbortController();
     abortRef.current = controller;
     try {
@@ -201,6 +205,7 @@ export function useAISubmission(deps: UseAISubmissionDeps) {
         throw errData;
       }
       const data = await res.json();
+      if (isStale(startId)) return;
       setCoverLetterData(data.coverLetter);
       setActiveRightTab("letter");
       setStatus("success");
@@ -222,7 +227,7 @@ export function useAISubmission(deps: UseAISubmissionDeps) {
       abortRef.current = null;
       setLoadingType(null);
     }
-  }, [jobDescription, provider, model, apiKey, currentCV, t, tAdapt, setActiveRightTab, setCoverLetterData, setStatus, setStatusMessage, setStatusDetails, setLoadingType, ensureKey, showErrorToast]);
+  }, [jobDescription, provider, model, apiKey, currentCV, t, tAdapt, setActiveRightTab, setCoverLetterData, setStatus, setStatusMessage, setStatusDetails, setLoadingType, ensureKey, showErrorToast, isStale]);
 
   /** Modification ciblée du CV courant (même version — pas une nouvelle copie). */
   const handleRefineCV = useCallback(async (instruction: string): Promise<boolean> => {
@@ -238,6 +243,7 @@ export function useAISubmission(deps: UseAISubmissionDeps) {
     setActiveRightTab("cv");
     setStatusMessage(t("status_loading_refine_cv"));
     setStatusDetails(null);
+    const startId = identityRef.current;
     const controller = new AbortController();
     abortRef.current = controller;
     try {
@@ -259,6 +265,8 @@ export function useAISubmission(deps: UseAISubmissionDeps) {
         throw errData;
       }
       const data = await res.json();
+      // Version changée pendant la requête → ne pas écraser le mauvais CV.
+      if (isStale(startId)) return false;
       // Même version : l'auto-save persiste sur la même ligne DB (pas de nouvelle copie)
       setCurrentCV(data.refinedCV);
       setStatus("success");
@@ -282,7 +290,7 @@ export function useAISubmission(deps: UseAISubmissionDeps) {
       abortRef.current = null;
       setLoadingType(null);
     }
-  }, [jobDescription, provider, model, apiKey, currentCV, t, tAdapt, setActiveRightTab, setCurrentCV, setStatus, setStatusMessage, setStatusDetails, setLoadingType, ensureKey, showErrorToast]);
+  }, [jobDescription, provider, model, apiKey, currentCV, t, tAdapt, setActiveRightTab, setCurrentCV, setStatus, setStatusMessage, setStatusDetails, setLoadingType, ensureKey, showErrorToast, isStale]);
 
   /** Modification ciblée de la lettre courante. */
   const handleRefineLetter = useCallback(async (instruction: string): Promise<boolean> => {
@@ -299,6 +307,7 @@ export function useAISubmission(deps: UseAISubmissionDeps) {
     setActiveRightTab("letter");
     setStatusMessage(t("status_loading_refine_letter"));
     setStatusDetails(null);
+    const startId = identityRef.current;
     const controller = new AbortController();
     abortRef.current = controller;
     try {
@@ -320,6 +329,7 @@ export function useAISubmission(deps: UseAISubmissionDeps) {
         throw errData;
       }
       const data = await res.json();
+      if (isStale(startId)) return false;
       setCoverLetterData(data.coverLetter);
       setStatus("success");
       setStatusMessage(t("status_success_refine", { provider: getModelName(data.model) }));
@@ -342,7 +352,7 @@ export function useAISubmission(deps: UseAISubmissionDeps) {
       abortRef.current = null;
       setLoadingType(null);
     }
-  }, [jobDescription, provider, model, apiKey, coverLetterData, t, tAdapt, setActiveRightTab, setCoverLetterData, setStatus, setStatusMessage, setStatusDetails, setLoadingType, ensureKey, showErrorToast]);
+  }, [jobDescription, provider, model, apiKey, coverLetterData, t, tAdapt, setActiveRightTab, setCoverLetterData, setStatus, setStatusMessage, setStatusDetails, setLoadingType, ensureKey, showErrorToast, isStale]);
 
   return { handleAdaptCV, handleGenerateLetter, handleRefineCV, handleRefineLetter, cancel };
 }

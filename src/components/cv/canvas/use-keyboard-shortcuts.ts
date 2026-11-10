@@ -10,11 +10,15 @@ interface UseKeyboardShortcutsArgs {
   layout: CVLayout;
   data: CVData;
   defaultPositions: Record<string, BlockPos>;
-  onChange: (newData: CVData) => void;
+  onChange: (newData: CVData, coalesceKey?: string) => void;
   hideSectionOf: (blockId: string) => void;
   clearSelection: () => void;
   canDuplicate: (blockId: string) => boolean;
   duplicateItem: (blockId: string) => void;
+  /** Un bloc représente-t-il un ÉLÉMENT supprimable individuellement ? */
+  canDeleteBlock: (blockId: string) => boolean;
+  /** Supprime UNIQUEMENT l'élément (jamais la section entière). */
+  deleteBlock: (blockId: string) => void;
   undo: () => void;
   redo: () => void;
   fitToScreen: () => void;
@@ -35,6 +39,8 @@ export function useKeyboardShortcuts({
   clearSelection,
   canDuplicate,
   duplicateItem,
+  canDeleteBlock,
+  deleteBlock,
   undo,
   redo,
   fitToScreen,
@@ -87,9 +93,20 @@ export function useKeyboardShortcuts({
       }
 
       if (e.key === "Delete" || e.key === "Backspace") {
-        const sectionBlocks = selectedIds.filter(isSectionBlock);
-        // une seule section par appel (chaque appel commit un nouveau data)
-        if (sectionBlocks.length > 0) hideSectionOf(sectionBlocks[0]);
+        // Priorité à la suppression d'un ÉLÉMENT individuel (une expérience, une
+        // compétence, une formation, un contenu optionnel…) — jamais la section
+        // entière. Avant, tout élément sélectionné masquait toute sa section car
+        // `isSectionBlock` est vrai pour un item comme pour un titre.
+        const deletable = selectedIds.find(canDeleteBlock);
+        if (deletable) {
+          deleteBlock(deletable);
+          clearSelection();
+          return;
+        }
+        // Sinon (un TITRE de section sélectionné, un contenu non-supprimable) :
+        // masquer la section parente. Une seule par appel (chaque appel commit).
+        const section = selectedIds.find(isSectionBlock);
+        if (section) hideSectionOf(section);
         clearSelection();
         return;
       }
@@ -110,7 +127,11 @@ export function useKeyboardShortcuts({
       if (dx === 0 && dy === 0) return;
 
       e.preventDefault();
-      const positions: Record<string, BlockPos> = layout.absolutePositions ?? defaultPositions;
+      // Fusion défauts + sauvegardées : un bloc SANS position sauvegardée (ex.
+      // section libre fraîchement ajoutée) doit rester déplaçable même si
+      // d'autres blocs en ont une. Avant, `?? defaultPositions` ignorait les
+      // défauts dès qu'UNE position était sauvegardée → flèches inopérantes.
+      const positions: Record<string, BlockPos> = { ...defaultPositions, ...(layout.absolutePositions ?? {}) };
       const updates: Record<string, BlockPos> = {};
       for (const id of selectedIds) {
         const pos = positions[id];
@@ -119,10 +140,12 @@ export function useKeyboardShortcuts({
       if (Object.keys(updates).length === 0) return;
       onChange({
         ...data,
-        layout: { ...layout, absolutePositions: { ...positions, ...updates } },
-      });
+        // autoPaginated:false → l'utilisateur a pris la main : la re-pagination
+        // automatique ne réécrasera plus son placement (cf. use-canvas-pagination).
+        layout: { ...layout, autoPaginated: false, absolutePositions: { ...positions, ...updates } },
+      }, "move");
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [selectedIds, layout, data, defaultPositions, onChange, hideSectionOf, clearSelection, canDuplicate, duplicateItem, undo, redo, fitToScreen, groupSelected, ungroupSelected]);
+  }, [selectedIds, layout, data, defaultPositions, onChange, hideSectionOf, clearSelection, canDuplicate, duplicateItem, canDeleteBlock, deleteBlock, undo, redo, fitToScreen, groupSelected, ungroupSelected]);
 }

@@ -17,7 +17,7 @@ interface UsePageRoutingArgs {
   layout: CVLayout;
   template: string;
   defaultPositions: Record<string, BlockPos>;
-  onChange: (newData: CVData) => void;
+  onChange: (newData: CVData, coalesceKey?: string) => void;
   setActivePageIndex: (index: number) => void;
   resolveDropRef: React.MutableRefObject<
     ((primaryId: string, clientX: number, clientY: number, grab: GrabOffset, members: DropMember[]) => boolean) | null
@@ -66,10 +66,12 @@ export function usePageRouting({
         if (base) nextPositions[bId] = { ...base, page: targetPage };
       }
 
+      // autoPaginated:false → déplacement manuel de section entre pages : la
+      // re-pagination automatique ne le défera pas.
       onChange({
         ...nextData,
-        layout: { ...nextData.layout!, absolutePositions: nextPositions },
-      });
+        layout: { ...nextData.layout!, autoPaginated: false, absolutePositions: nextPositions },
+      }, "move");
       setActivePageIndex(targetPage);
     },
     [data, layout, template, onChange, setActivePageIndex]
@@ -142,7 +144,9 @@ export function usePageRouting({
       }
       if (!changed) return false;
 
-      onChange({ ...data, layout: { ...layout, absolutePositions: positions } });
+      // autoPaginated:false → le bloc déposé sur une autre page reste où
+      // l'utilisateur l'a mis (la re-pagination auto ne le rapatrie plus).
+      onChange({ ...data, layout: { ...layout, autoPaginated: false, absolutePositions: positions } }, "drag");
       setActivePageIndex(targetPage);
       return true;
     },

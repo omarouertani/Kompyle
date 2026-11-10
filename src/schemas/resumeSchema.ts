@@ -61,6 +61,10 @@ export const educationSchema = z.object({
   customMarginBottom: z.number().optional(),
   degree: z.string().describe("Diplôme (immuable)."),
   institution: z.string().describe("Établissement (immuable)."),
+  // `date` DOIT figurer dans le schéma : Zod supprime silencieusement les clés
+  // inconnues, donc l'omettre faisait DISPARAÎTRE la date de formation à chaque
+  // passage par /api/refine-cv (qui ne restaure que l'id, pas la date).
+  date: z.string().optional().describe("Période de la formation (immuable, optionnel)."),
 });
 
 export const layoutPageSchema = z.object({

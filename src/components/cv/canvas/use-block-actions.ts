@@ -15,6 +15,39 @@ const SECTION_KEYS = {
   education: "education",
 } as const;
 
+/**
+ * Réindexe les positions manuelles d'une famille indexée (`skill_`, `experience_`…)
+ * après insertion ou suppression d'un élément, en PRÉSERVANT le placement des
+ * autres éléments. Avant, on purgeait toute la famille → tous les frères
+ * revenaient à leur position par défaut. Les blocs sont indexés par position
+ * (`experience_2`) : au retrait de l'index i, les suivants décalent de -1 ; à
+ * l'insertion en i, les >= i décalent de +1 (le nouvel emplacement reste libre →
+ * le bloc inséré prend sa position par défaut, sous ses frères).
+ */
+function reindexFamily(
+  saved: Record<string, BlockPos>,
+  prefix: string,
+  op: { type: "delete"; index: number } | { type: "insert"; index: number },
+): Record<string, BlockPos> {
+  const next: Record<string, BlockPos> = {};
+  const re = new RegExp(`^${prefix}_(\\d+)$`);
+  for (const [k, v] of Object.entries(saved)) {
+    const m = k.match(re);
+    if (!m) {
+      next[k] = v;
+      continue;
+    }
+    const i = parseInt(m[1], 10);
+    if (op.type === "delete") {
+      if (i === op.index) continue; // l'élément supprimé
+      next[`${prefix}_${i > op.index ? i - 1 : i}`] = v;
+    } else {
+      next[`${prefix}_${i >= op.index ? i + 1 : i}`] = v;
+    }
+  }
+  return next;
+}
+
 interface UseBlockActionsArgs {
   data: CVData;
   defaultPositions: Record<string, BlockPos>;
@@ -77,14 +110,12 @@ export function useBlockActions({ data, defaultPositions, onChange }: UseBlockAc
       const item = list[idx];
       if (!item) return;
       const copy = { ...item, id: uuidv4() };
-      // Insère la copie juste après l'original. Comme pour la suppression, les
-      // positions sont indexées : on purge celles de la famille pour que la
-      // section (original + copie) se re-cale proprement, au lieu que la copie
-      // hérite de l'ancienne position d'un voisin (effet « bloc déplacé »).
-      const nextSaved = { ...saved };
-      for (const k of Object.keys(nextSaved)) {
-        if (k.startsWith(`${m[1]}_`)) delete nextSaved[k];
-      }
+      // Insère la copie juste après l'original (index idx+1). On RÉINDEXE les
+      // positions manuelles de la famille (décalage +1 pour les suivants) au lieu
+      // de toutes les purger → les autres éléments gardent leur placement manuel.
+      // La copie n'a pas de position sauvegardée → elle prend sa position par
+      // défaut, sous ses frères.
+      const nextSaved = reindexFamily(saved, m[1], { type: "insert", index: idx + 1 });
       onChange({
         ...data,
         [key]: [...list.slice(0, idx + 1), copy, ...list.slice(idx + 1)],
@@ -120,14 +151,10 @@ export function useBlockActions({ data, defaultPositions, onChange }: UseBlockAc
         const list = data[key] as { id?: string }[];
         if (!list || idx < 0 || idx >= list.length) return;
         const nextList = list.filter((_, i) => i !== idx);
-        // Les positions sont indexées par id (`experience_2`…) : après le retrait,
-        // les items suivants changent d'index. On purge les positions sauvegardées
-        // de TOUTE la famille → ses items se re-calent proprement sur les défauts
-        // (pas de saut sur l'ancienne position d'un voisin).
-        const nextSaved = { ...saved };
-        for (const k of Object.keys(nextSaved)) {
-          if (k.startsWith(`${m[1]}_`)) delete nextSaved[k];
-        }
+        // Les positions sont indexées par position (`experience_2`…) : au retrait
+        // de l'index idx, on RÉINDEXE (décalage -1 des suivants) au lieu de purger
+        // toute la famille → les autres éléments gardent leur placement manuel.
+        const nextSaved = reindexFamily(saved, m[1], { type: "delete", index: idx });
         onChange({ ...data, [key]: nextList, layout: { ...layout, absolutePositions: nextSaved } });
         return;
       }

@@ -8,7 +8,10 @@ const buttonVariants = cva(
 	{
 		variants: {
 			variant: {
-				default: "bg-primary text-primary-foreground [a]:hover:bg-primary/80",
+				// Le hover s'appliquait UNIQUEMENT aux ancres (`[a]:`) : les vrais
+				// <button> primaires n'avaient aucun retour visuel au survol. On
+				// ajoute un hover (léger assombrissement) valable pour les deux.
+				default: "bg-primary text-primary-foreground hover:bg-primary/90 [a]:hover:bg-primary/90 shadow-sm shadow-primary/20",
 				outline:
 					"border-input bg-transparent hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground",
 				secondary:

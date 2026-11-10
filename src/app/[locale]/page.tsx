@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import dynamic from "next/dynamic";
 import type { CoverLetterData } from "@/types/cv";
 import CVBuilder from "@/components/cv/CVBuilder";
@@ -109,6 +109,13 @@ export default function AdaptPage() {
 
   const profile = useProfileManager(locale, t);
 
+  // L'historique des raffinages appartient à UN CV/version précis. On le vide dès
+  // qu'on change de profil ou de version — sinon l'historique d'un autre CV
+  // resterait affiché comme s'il s'appliquait au CV courant.
+  useEffect(() => {
+    setRefineHistory([]);
+  }, [profile.selectedProfile, profile.currentProfileId]);
+
   /** Change d'onglet de droite ; en arrivant sur l'ATS, referme le sidebar s'il
    *  est ouvert (l'utilisateur reste libre de le rouvrir — on ne le bloque pas). */
   const goToRightTab = (tab: RightTab) => {
@@ -181,6 +188,7 @@ export default function AdaptPage() {
     coverLetterData: profile.coverLetterData,
     locale,
     selectedProfile: profile.selectedProfile,
+    currentProfileId: profile.currentProfileId,
     selectedTemplate: profile.selectedTemplate,
     applyAdaptation: profile.applyAdaptation,
     setCurrentCV: profile.setCurrentCV,
@@ -217,12 +225,15 @@ export default function AdaptPage() {
         const onComposerChange = mode === "new" ? setJobDescription : setRefineInstruction;
         const isLoading = profile.status === "loading";
         return (
-          <div className="flex flex-col gap-6 p-6">
+          <div className="flex flex-col gap-5 p-6">
             <div>
               <h1 className="text-2xl font-semibold tracking-tight text-foreground mb-1.5">{mode === "new" ? t("title") : t("refine_title")}</h1>
               <p className="text-sm text-muted-foreground leading-relaxed">{mode === "new" ? t("subtitle") : t("refine_subtitle")}</p>
             </div>
 
+            {/* Groupe composeur : saisie + choix du mode + alerte clé, espacés
+                serré ensemble (plus de marges négatives « -mt-3 » bricolées). */}
+            <div className="flex flex-col gap-2.5">
             {/* ── Saisie du poste : PromptInput réutilisable, actions intégrées ── */}
             <PromptInput>
               <PromptInputTextarea
@@ -281,13 +292,13 @@ export default function AdaptPage() {
             {/* Choix du mode : NOUVELLE version depuis l'offre · ou CONTINUER sur ce CV.
                 "Continuer" (modif en place) n'est dispo qu'une fois qu'un document
                 existe (CV adapté / lettre) — sinon désactivé, on reste en "nouvelle". */}
-            <div className="-mt-3 flex items-center gap-1 rounded-lg border border-border/40 bg-muted/40 p-0.5">
+            <div className="flex items-center gap-1 rounded-lg border border-border/50 bg-muted/50 p-1">
               <button
                 type="button"
                 onClick={() => setComposerMode("new")}
                 className={cn(
-                  "flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-[11px] font-semibold transition-all",
-                  mode === "new" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
+                  "flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition-all",
+                  mode === "new" ? "bg-card text-primary shadow-sm ring-1 ring-primary/15" : "text-muted-foreground hover:text-foreground",
                 )}
               >
                 <Sparkles size={13} />
@@ -299,8 +310,8 @@ export default function AdaptPage() {
                 disabled={!canContinue}
                 title={canContinue ? undefined : t("mode_continue_hint")}
                 className={cn(
-                  "flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-[11px] font-semibold transition-all",
-                  mode === "continue" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
+                  "flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition-all",
+                  mode === "continue" ? "bg-card text-primary shadow-sm ring-1 ring-primary/15" : "text-muted-foreground hover:text-foreground",
                   !canContinue && "cursor-not-allowed opacity-40 hover:text-muted-foreground",
                 )}
               >
@@ -311,10 +322,11 @@ export default function AdaptPage() {
 
             {/* Alerte clé API manquante pour le provider du modèle choisi. */}
             {!apiKeys.keys[aiConfig.provider] && (
-              <span className="text-[11px] text-amber-600 dark:text-amber-400 leading-tight -mt-3 pl-0.5">
+              <span className="flex items-center gap-1.5 text-[11px] font-medium text-amber-600 dark:text-amber-400 leading-tight pl-0.5">
                 {te("missing_key")}
               </span>
             )}
+            </div>
 
             {/* Historique des modifications déjà appliquées (mode "continuer"). */}
             {mode === "continue" && refineHistory.length > 0 && (
@@ -385,37 +397,37 @@ export default function AdaptPage() {
       >
         <Sidebar side="left" variant="sidebar" className="border-r border-border !top-14 !h-[calc(100svh-3.5rem)]">
           <SidebarHeader className="px-3 pt-3 pb-2 border-b border-border shrink-0 bg-sidebar flex flex-col gap-2.5">
-            <div className="flex flex-col gap-2 bg-muted/40 rounded-lg p-2 border border-border/40">
+            <div className="flex flex-col gap-2.5 rounded-xl bg-card/60 p-2.5 border border-border/60 shadow-sm">
               {/* Ligne 1 : libellé + statut de sauvegarde (intégré, plus de barre flottante) */}
-              <div className="flex items-center justify-between gap-2 px-1">
-                <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">{tp("active_label")}</span>
+              <div className="flex items-center justify-between gap-2 pl-0.5">
+                <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">{tp("active_label")}</span>
                 <div className="flex items-center gap-1.5">
-                  <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                  <div className="flex items-center gap-1 text-[11px] font-medium">
                     {profile.saveStatus === "saving" && (
-                      <>
+                      <span className="flex items-center gap-1 text-muted-foreground">
                         <Loader2 size={12} className="animate-spin" />
-                        <span>{tp("saving")}</span>
-                      </>
+                        {tp("saving")}
+                      </span>
                     )}
                     {profile.saveStatus === "saved" && (
-                      <>
-                        <Check size={12} className="text-emerald-500" />
-                        <span className="text-emerald-500">{tp("saved")}</span>
-                      </>
+                      <span className="flex items-center gap-1 text-emerald-500">
+                        <Check size={12} />
+                        {tp("saved")}
+                      </span>
                     )}
                     {profile.saveStatus === "error" && (
-                      <>
-                        <CloudOff size={12} className="text-destructive" />
-                        <span className="text-destructive">{tp("save_error")}</span>
-                      </>
+                      <span className="flex items-center gap-1 text-destructive">
+                        <CloudOff size={12} />
+                        {tp("save_error")}
+                      </span>
                     )}
                   </div>
                   <Button
-                    variant="ghost"
+                    variant={profile.hasUnsavedChanges ? "default" : "ghost"}
                     size="xs"
                     className={cn(
-                      "h-6 px-2 text-xs gap-1 rounded-lg transition-all",
-                      profile.hasUnsavedChanges ? "text-primary font-semibold" : "text-muted-foreground"
+                      "h-7 px-2.5 text-xs gap-1.5 rounded-lg transition-all",
+                      !profile.hasUnsavedChanges && "text-muted-foreground",
                     )}
                     onClick={profile.handleSave}
                     disabled={!profile.hasUnsavedChanges || profile.saveStatus === "saving"}
@@ -427,21 +439,30 @@ export default function AdaptPage() {
               </div>
 
               {/* Ligne 2 : profils + créer + menu d'actions (renommer/supprimer regroupés) */}
-              <div className="flex items-center gap-1 flex-wrap px-1">
-                {(profile.profiles.length > 0
-                  ? [...new Map(profile.profiles.map((p) => [p.slug, p])).values()]
-                  : [{ slug: "omar", name: "Omar" }]
-                ).map((p) => (
-                  <Button
-                    key={p.slug}
-                    variant={profile.selectedProfile === p.slug ? "default" : "ghost"}
-                    size="xs"
-                    className={cn("h-6 px-3 text-xs font-semibold rounded-lg transition-all", profile.selectedProfile === p.slug ? "shadow-sm" : "text-muted-foreground hover:text-foreground")}
-                    onClick={() => { setIsRenamingProfile(false); setProfileActionError(null); profile.handleProfileChange(p.slug); }}
-                  >
-                    {p.name.split(" ")[0]}
-                  </Button>
-                ))}
+              <div className="flex items-center gap-1.5 flex-wrap">
+                {/* Pendant le chargement initial, un skeleton discret au lieu d'un
+                    faux onglet "Omar" codé en dur (qui ne correspondait à aucun
+                    profil réel). Une fois chargé : les profils réels de la base. */}
+                {profile.initialLoading && profile.profiles.length === 0 ? (
+                  <span className="h-7 w-20 rounded-lg bg-muted/60 animate-pulse" aria-hidden />
+                ) : (
+                  [...new Map(profile.profiles.map((p) => [p.slug, p])).values()].map((p) => (
+                    <Button
+                      key={p.slug}
+                      variant={profile.selectedProfile === p.slug ? "default" : "ghost"}
+                      size="xs"
+                      className={cn(
+                        "h-7 px-3 text-xs font-semibold rounded-lg transition-all",
+                        profile.selectedProfile === p.slug
+                          ? "shadow-sm shadow-primary/25"
+                          : "text-muted-foreground hover:text-foreground hover:bg-muted",
+                      )}
+                      onClick={() => { setIsRenamingProfile(false); setProfileActionError(null); profile.handleProfileChange(p.slug); }}
+                    >
+                      {p.name.split(" ")[0]}
+                    </Button>
+                  ))
+                )}
                 {isCreatingProfile ? (
                   <div className="flex items-center gap-1">
                     <input
@@ -453,25 +474,27 @@ export default function AdaptPage() {
                         if (e.key === "Escape") { setIsCreatingProfile(false); setNewProfileName(""); }
                       }}
                       placeholder={tp("new_placeholder")}
-                      className="h-6 w-28 px-2 text-xs rounded-lg border border-border bg-input-bg focus:outline-none focus:ring-1 focus:ring-ring/40"
+                      className="h-7 w-32 px-2.5 text-xs rounded-lg border border-input bg-background focus:outline-none focus:ring-2 focus:ring-ring/40 focus:border-ring"
                     />
-                    <Button variant="default" size="xs" className="h-6 px-2 text-xs" onClick={submitNewProfile} disabled={!newProfileName.trim()} title={tp("create_blank")}>
-                      <Check size={12} />
+                    <Button variant="default" size="xs" className="size-7 p-0" onClick={submitNewProfile} disabled={!newProfileName.trim()} title={tp("create_blank")}>
+                      <Check size={13} />
                     </Button>
-                    <Button variant="ghost" size="xs" className="h-6 px-1.5 text-muted-foreground" onClick={() => { setIsCreatingProfile(false); setNewProfileName(""); }}>
-                      <X size={12} />
+                    <Button variant="ghost" size="xs" className="size-7 p-0 text-muted-foreground hover:text-foreground" onClick={() => { setIsCreatingProfile(false); setNewProfileName(""); }} title={tp("cancel")}>
+                      <X size={13} />
                     </Button>
                   </div>
                 ) : (
                   <>
+                    {/* Séparateur léger avant les actions, si des profils sont listés */}
+                    {profile.profiles.length > 0 && <span className="mx-0.5 h-4 w-px bg-border/70" aria-hidden />}
                     <Button
                       variant="ghost"
                       size="xs"
-                      className="h-6 px-2 text-xs gap-1 text-muted-foreground hover:text-foreground"
+                      className="size-7 p-0 text-muted-foreground hover:text-foreground hover:bg-muted"
                       onClick={() => setIsCreatingProfile(true)}
                       title={tp("new_profile_tooltip")}
                     >
-                      <Plus size={12} />
+                      <Plus size={14} />
                     </Button>
                     {activeMainProfile && !isRenamingProfile && (
                       <ProfileActionsMenu
@@ -487,7 +510,7 @@ export default function AdaptPage() {
               </div>
 
               {isRenamingProfile && activeMainProfile && (
-                <div className="flex items-center gap-1 px-1">
+                <div className="flex items-center gap-1">
                   <input
                     autoFocus
                     value={renameValue}
@@ -497,13 +520,13 @@ export default function AdaptPage() {
                       if (e.key === "Escape") { setIsRenamingProfile(false); setRenameValue(""); }
                     }}
                     placeholder={tp("rename_placeholder")}
-                    className="h-6 flex-1 px-2 text-xs rounded-lg border border-border bg-input-bg focus:outline-none focus:ring-1 focus:ring-ring/40"
+                    className="h-7 flex-1 px-2.5 text-xs rounded-lg border border-input bg-background focus:outline-none focus:ring-2 focus:ring-ring/40 focus:border-ring"
                   />
-                  <Button variant="default" size="xs" className="h-6 px-2 text-xs" onClick={submitRename} disabled={!renameValue.trim()} title={tp("rename_tooltip")}>
-                    <Check size={12} />
+                  <Button variant="default" size="xs" className="size-7 p-0" onClick={submitRename} disabled={!renameValue.trim()} title={tp("rename_tooltip")}>
+                    <Check size={13} />
                   </Button>
-                  <Button variant="ghost" size="xs" className="h-6 px-1.5 text-muted-foreground" onClick={() => { setIsRenamingProfile(false); setRenameValue(""); }}>
-                    <X size={12} />
+                  <Button variant="ghost" size="xs" className="size-7 p-0 text-muted-foreground hover:text-foreground" onClick={() => { setIsRenamingProfile(false); setRenameValue(""); }} title={tp("cancel")}>
+                    <X size={13} />
                   </Button>
                 </div>
               )}
@@ -568,7 +591,12 @@ export default function AdaptPage() {
           </div>
 
           <div className="flex-1 overflow-hidden p-5 flex flex-col">
-            {activeRightTab === "cv" && (
+            {/* Tant que le vrai CV n'est pas résolu au DÉMARRAGE (localStorage →
+                BD), on affiche un loader au lieu du CV d'EXEMPLE : c'est ce flash
+                du mauvais contenu qui donnait l'impression de « désordre ». Les
+                changements de profil ultérieurs se font sur place (pas de loader). */}
+            {activeRightTab === "cv" && profile.initialLoading && <LoadingSpinner type="cv" />}
+            {activeRightTab === "cv" && !profile.initialLoading && (
               <CVPreview
                 data={profile.currentCV}
                 onChange={profile.setCurrentCV}

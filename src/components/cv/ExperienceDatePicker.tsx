@@ -66,6 +66,17 @@ export function ExperienceDatePicker({
   const toggleCurrent = (checked: boolean) =>
     commit({ start: parsed.start, end: checked ? null : parsed.end, current: checked });
 
+  // Validation : une date de fin antérieure à la date de début est incohérente
+  // (le calcul de durée la clampait silencieusement à 0). On la signale à
+  // l'utilisateur au lieu de l'accepter sans un mot.
+  const rangeInvalid = !!(
+    parsed.start &&
+    parsed.end &&
+    !parsed.current &&
+    (parsed.end.year < parsed.start.year ||
+      (parsed.end.year === parsed.start.year && parsed.end.month < parsed.start.month))
+  );
+
   return (
     <Popover.Root>
       <Popover.Trigger
@@ -98,6 +109,11 @@ export function ExperienceDatePicker({
                 disabled={parsed.current}
               />
             </div>
+            {rangeInvalid && (
+              <p className="-mt-1 rounded-md bg-destructive/10 px-2.5 py-1.5 text-[11px] font-medium text-destructive" role="alert">
+                {t("invalid_range")}
+              </p>
+            )}
             <label className="flex items-center gap-2 border-t border-border/60 pt-2.5 text-sm text-foreground cursor-pointer select-none">
               <Checkbox checked={parsed.current} onCheckedChange={(c) => toggleCurrent(c === true)} />
               {t("current")}

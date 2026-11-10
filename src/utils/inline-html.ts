@@ -88,6 +88,13 @@ export function parseInlineHtml(html: string): RichTextRun[] {
     } else if (isClose) {
       if (stack.length > 1) stack.pop();
     } else {
+      // Les éléments de bloc (div/p) que produit contentEditable pour chaque
+      // nouvelle ligne n'introduisaient AUCUN séparateur → les lignes d'un champ
+      // multi-ligne fusionnaient dans le PDF. On insère un saut de ligne avant un
+      // bloc ouvrant dès qu'un contenu précède (jamais devant le tout premier).
+      if ((tag === "div" || tag === "p") && runs.length > 0) {
+        runs.push({ text: "\n", style: mergeStyle() });
+      }
       const style: InlineStyle = {};
       if (tag === "b" || tag === "strong") style.fontWeight = "bold";
       if (tag === "i" || tag === "em") style.fontStyle = "italic";

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import type { ATSReport, AIProvider, CVData } from "@/types/cv";
@@ -34,6 +34,8 @@ export interface UseATSCheck {
   /** Offre utilisée pour l'audit affiché — sert au flux d'adaptation depuis l'ATS. */
   lastJobDescription: string;
   run: (args: RunArgs) => Promise<{ success: boolean; report?: ATSReport }>;
+  /** Annule l'audit ATS en cours (comme les autres actions IA). */
+  cancel: () => void;
   reset: () => void;
 }
 
@@ -51,6 +53,12 @@ export function useATSCheck(): UseATSCheck {
   const [errorFailures, setErrorFailures] = useState<ProviderFailure[] | null>(null);
   const [lastJobDescription, setLastJobDescription] = useState("");
   const tErr = useTranslations("AIErrors");
+  // Contrôleur d'annulation de l'audit en cours (l'audit ne pouvait pas être annulé).
+  const abortRef = useRef<AbortController | null>(null);
+
+  const cancel = useCallback(() => {
+    abortRef.current?.abort();
+  }, []);
 
   const run = useCallback(async ({ cvData, jobDescription, provider: prov, model, apiKey }: RunArgs) => {
     const trimmed = jobDescription.trim();
@@ -78,6 +86,8 @@ export function useATSCheck(): UseATSCheck {
     setErrorFailures(null);
     setLastJobDescription(trimmed);
 
+    const controller = new AbortController();
+    abortRef.current = controller;
     try {
       const res = await fetch("/api/ats-check", {
         method: "POST",
@@ -89,6 +99,7 @@ export function useATSCheck(): UseATSCheck {
           model,
           apiKey,
         }),
+        signal: controller.signal,
       });
       if (!res.ok) {
         const errData = (await res.json()) as ATSErrorBody;
@@ -100,6 +111,12 @@ export function useATSCheck(): UseATSCheck {
       setStatus("success");
       return { success: true, report: data.report };
     } catch (err) {
+      // Annulation utilisateur : retour à l'état initial, pas d'erreur affichée.
+      const aborted = err instanceof DOMException ? err.name === "AbortError" : (err as { name?: string })?.name === "AbortError";
+      if (aborted) {
+        setStatus("idle");
+        return { success: false };
+      }
       const e = err as ATSErrorBody & { message?: string };
       setErrorMessage(e.error ?? e.message ?? "Unexpected error during ATS check.");
       setErrorDetails(e.details ?? null);
@@ -108,6 +125,8 @@ export function useATSCheck(): UseATSCheck {
       const reason = e.failures?.[0]?.reason;
       toast.error(reason ? tErr(reason) : (e.error ?? "Unexpected error during ATS check."));
       return { success: false };
+    } finally {
+      abortRef.current = null;
     }
   }, [tErr]);
 
@@ -129,6 +148,7 @@ export function useATSCheck(): UseATSCheck {
     errorFailures,
     lastJobDescription,
     run,
+    cancel,
     reset,
   };
 }

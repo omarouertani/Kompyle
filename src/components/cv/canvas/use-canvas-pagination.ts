@@ -34,7 +34,7 @@ interface UseCanvasPaginationArgs {
   data: CVData;
   layout: CVLayout;
   template: string;
-  onChange: (newData: CVData) => void;
+  onChange: (newData: CVData, coalesceKey?: string) => void;
   onOverflowChange?: (isOverflowing: boolean) => void;
   /** Positions résolues (défaut + sauvegardées) — sert au calcul du débordement. */
   absolutePositions: Record<string, BlockPos>;
@@ -176,10 +176,15 @@ export function useCanvasPagination({
         for (const id of group) {
           const pos = positions[id];
           const h = measureHeightPt(id) ?? pos.h ?? 20;
+          // Le 1er bloc de la colonne garde son Y manuel (ancre). Les suivants
+          // sont re-empilés EXACTEMENT sous le précédent : cela résout les
+          // chevauchements ET referme les espaces vides. Avant, `Math.max(y, …)`
+          // ne poussait que vers le BAS → après réduction de police, des trous
+          // apparaissaient et ne se refermaient jamais (cycles agrandir/réduire).
           let y = pos.y;
           if (prevBottom !== null) {
             const gap = getParentSectionId(id) !== prevParent ? SECTION_GAP : BLOCK_GAP;
-            y = Math.max(y, prevBottom + gap);
+            y = prevBottom + gap;
           }
           positions[id] = { ...pos, y: Math.round(y), h: undefined };
           prevBottom = y + h;
@@ -306,7 +311,9 @@ export function useCanvasPagination({
     (updates: Partial<CVTheme>, opts?: { reflow?: boolean }) => {
       const { data: d, layout: l, onChange: oc } = reflowRefs.current;
       if (Object.keys(updates).length > 0) {
-        oc({ ...d, layout: { ...l, theme: { ...(l.theme ?? {}), ...updates } } });
+        // Clé "theme" → un ajustement de thème (slider, couleur…) est un pas
+        // d'undo distinct d'un drag ou d'une frappe qui l'aurait précédé.
+        oc({ ...d, layout: { ...l, theme: { ...(l.theme ?? {}), ...updates } } }, "theme");
       }
       if (opts?.reflow) realignPreservingAfterRender();
     },
@@ -328,7 +335,17 @@ export function useCanvasPagination({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [absolutePositions, data, measureHeightPt]);
 
-  const isOverflowing = maxContentBottomPt * PT_TO_PX > A4_HEIGHT_PX;
+  // Même tolérance que l'algorithme de pagination (OVERFLOW_TOL_PT = 16pt) : un
+  // dépassement que la pagination juge acceptable ne doit PAS redéclencher un
+  // reflow. Avant, la tolérance était de 0pt → jusqu'à 5 reflows destructifs
+  // d'affilée pour un contenu que la pagination laissait pourtant tel quel.
+  const isOverflowing = maxContentBottomPt > (A4_HEIGHT_PX / PT_TO_PX) + OVERFLOW_TOL_PT;
+
+  // Layout « manuel » : l'utilisateur a déplacé/redimensionné des blocs
+  // (absolutePositions présent ET autoPaginated éteint). On ne le re-paginera
+  // JAMAIS automatiquement — ce serait effacer son travail. Il verra la limite
+  // A4 (trait pointillé) et pourra cliquer « Réorganiser » s'il le souhaite.
+  const isManualLayout = !layout.autoPaginated && hasSavedPositions;
 
   // La page canva fait TOUJOURS exactement une page A4 (comme le PDF) — jamais
   // une page « étirée ». Le contenu qui déborde est reporté sur la page suivante
@@ -346,6 +363,9 @@ export function useCanvasPagination({
   const paginateGuard = useRef(0);
   useEffect(() => {
     if (!isOverflowing) { paginateGuard.current = 0; return; }
+    // Placement manuel → on NE réorganise PAS automatiquement (sinon on efface le
+    // travail de l'utilisateur : blocs déplacés, verrouillés, groupés, redimensionnés).
+    if (isManualLayout) { paginateGuard.current = 0; return; }
     if (paginateGuard.current > 5) {
       console.warn("[Kompyle] Auto-pagination plafonnée — un bloc dépasse seul la page");
       return;
@@ -366,7 +386,7 @@ export function useCanvasPagination({
       run();
     }
     return () => { cancelled = true; };
-  }, [isOverflowing, buildPaginatedLayout]);
+  }, [isOverflowing, isManualLayout, buildPaginatedLayout]);
 
   return { measureHeightPt, realign, realignAfterRender, realignPreservingAfterRender, updateTheme, isOverflowing, pageHeightPx };
 }

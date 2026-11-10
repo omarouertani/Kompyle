@@ -1,4 +1,4 @@
-import type { CVData, ATSMatchedKeyword } from "@/types/cv";
+import type { CVData, ATSMatchedKeyword, ATSReport } from "@/types/cv";
 
 /**
  * Garde-fou DÉTERMINISTE des mots-clés ATS.
@@ -151,5 +151,32 @@ export function reconcileAtsKeywords(
     missingKeywords: actuallyMissing,
     removedFalsePositives,
     recoveredFalseNegatives,
+  };
+}
+
+/**
+ * Réaligne les SCORES sur les mots-clés réconciliés. Après la réconciliation
+ * déterministe, le score « keywords » du modèle peut contredire la liste
+ * affichée (ex : "keywords: 90" alors que 8 termes viennent d'être reclassés
+ * manquants). On recalcule donc le sous-score keywords à partir du ratio réel
+ * matched / (matched + missing), et on ajuste le score global du même delta
+ * pondéré (~30 % du global, poids typique des mots-clés dans un ATS). On
+ * n'agit QUE si la réconciliation a modifié les listes — sinon on fait
+ * confiance à l'évaluation holistique du modèle.
+ */
+export function reconcileAtsScores(report: ATSReport, reconciled: ReconciledKeywords): ATSReport {
+  const changed = reconciled.removedFalsePositives.length > 0 || reconciled.recoveredFalseNegatives.length > 0;
+  const total = reconciled.matchedKeywords.length + reconciled.missingKeywords.length;
+  if (!changed || total === 0) return report;
+
+  const clamp = (n: number) => Math.max(0, Math.min(100, Math.round(n)));
+  const newKeywords = clamp((reconciled.matchedKeywords.length / total) * 100);
+  const KEYWORD_WEIGHT = 0.3; // contribution approximative des mots-clés au score global
+  const delta = newKeywords - report.subScores.keywords;
+
+  return {
+    ...report,
+    overallScore: clamp(report.overallScore + delta * KEYWORD_WEIGHT),
+    subScores: { ...report.subScores, keywords: newKeywords },
   };
 }
