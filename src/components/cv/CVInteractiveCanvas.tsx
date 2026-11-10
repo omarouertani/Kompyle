@@ -22,6 +22,7 @@ import { CanvasToolbar, type CanvasBackground } from "./canvas/CanvasToolbar";
 import { CanvasFormatProvider } from "./canvas/use-canvas-format";
 import { FONT_FAMILIES } from "./canvas/ThemePanel";
 import { ContextMenu } from "./canvas/ContextMenu";
+import { OverflowBanner } from "./canvas/OverflowBanner";
 import { MultiSelectToolbar } from "./canvas/MultiSelectToolbar";
 import { useCanvasInteractions, type GrabOffset, type DropMember } from "./canvas/use-canvas-interactions";
 import { useBlockActions } from "./canvas/use-block-actions";
@@ -176,7 +177,7 @@ export default function CVInteractiveCanvas({ data, onChange: onChangeProp, temp
   );
 
   // ── Pagination / reflow / débordement / thème ───────────────────────────────
-  const { measureHeightPt, realign, realignPreservingAfterRender, updateTheme, pageHeightPx } = useCanvasPagination({
+  const { measureHeightPt, realign, realignAfterRender, realignPreservingAfterRender, updateTheme, paginate, isOverflowing, pageHeightPx } = useCanvasPagination({
     data,
     layout,
     template,
@@ -184,6 +185,21 @@ export default function CVInteractiveCanvas({ data, onChange: onChangeProp, temp
     onOverflowChange,
     absolutePositions,
   });
+
+  // Bannière de débordement : « Réduire l'espacement » baisse d'un pas l'écart
+  // entre sections (−2 pt, min 2) et l'interligne (−0,05, min 1,0), puis ré-empile
+  // les blocs sur les hauteurs re-mesurées (le placement manuel qui débordait
+  // est abandonné ; une 2ᵉ page n'est créée que si ça ne tient toujours pas).
+  const curGap = theme.sectionMargin ?? 8;
+  const curLh = theme.lineHeight ?? 1.15;
+  const canTighten = curGap > 2 || curLh > 1.0;
+  const tightenSpacing = () => {
+    updateTheme({
+      sectionMargin: Math.max(2, curGap - 2),
+      lineHeight: Math.max(1.0, Math.round((curLh - 0.05) * 100) / 100),
+    });
+    realignAfterRender();
+  };
 
   // ── Groupement / alignement ─────────────────────────────────────────────────
   const { selectionHasGroup, groupSelected, ungroupSelected } = useGrouping({ selectedIds, layout, data, onChange, defaultPositions });
@@ -358,6 +374,14 @@ export default function CVInteractiveCanvas({ data, onChange: onChangeProp, temp
         onBlockAlign={setBlocksTextAlign}
         selectedAlign={selectedTextAlign}
       />
+
+      {isOverflowing && (
+        <OverflowBanner
+          canTighten={canTighten}
+          onTighten={tightenSpacing}
+          onAddPage={paginate}
+        />
+      )}
 
       <MultiSelectToolbar
         count={isDragging || isResizing ? 0 : selectedIds.length}

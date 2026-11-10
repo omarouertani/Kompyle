@@ -388,5 +388,12 @@ export function useCanvasPagination({
     return () => { cancelled = true; };
   }, [isOverflowing, isManualLayout, buildPaginatedLayout]);
 
-  return { measureHeightPt, realign, realignAfterRender, realignPreservingAfterRender, updateTheme, isOverflowing, pageHeightPx };
+  /** Répartit les blocs sur autant de pages que nécessaire (sans condenser le
+   *  thème) : action « Ajouter une page » de la bannière de débordement. */
+  const paginate = useCallback(() => {
+    const nextLayout = buildPaginatedLayout(data, layout, template);
+    if (nextLayout) onChange({ ...data, layout: nextLayout });
+  }, [data, layout, template, onChange, buildPaginatedLayout]);
+
+  return { measureHeightPt, realign, realignAfterRender, realignPreservingAfterRender, updateTheme, paginate, isOverflowing, pageHeightPx };
 }

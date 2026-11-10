@@ -161,19 +161,19 @@ export default function CVPreview({
     if (onChange) onChange(newData);
   };
 
-  // Server-side PDF generation — disabled when content overflows the A4 page
+  // Server-side PDF generation. Un contenu qui déborde reste exportable :
+  // la bannière du canvas propose de le faire tenir, sans bloquer.
   const isPdf = mode === "pdf";
   const needsOriginalPdf = sideBySide && !!originalData;
 
   const { url: originalUrl, loading: originalLoading } = useServerPdfUrl(
-    originalData ?? null, template, needsOriginalPdf && !isOverflowing
+    originalData ?? null, template, needsOriginalPdf
   );
   const { url: adaptedUrl, loading: adaptedLoading } = useServerPdfUrl(
-    data, template, isPdf && !isOverflowing, originalData, sideBySide
+    data, template, isPdf, originalData, sideBySide
   );
 
   const handleDownload = useCallback(async () => {
-    if (isOverflowing) return;
     setIsDownloading(true);
     setDownloadError(null);
     try {
@@ -197,7 +197,7 @@ export default function CVPreview({
     } finally {
       setIsDownloading(false);
     }
-  }, [data, template, isOverflowing]);
+  }, [data, template]);
 
   return (
     <div className="flex flex-col flex-1 h-full w-full gap-3">
@@ -339,7 +339,8 @@ export default function CVPreview({
             )}
           <Button
             onClick={handleDownload}
-            disabled={isDownloading || isOverflowing}
+            disabled={isDownloading}
+            title={isOverflowing ? t("overflow_warning") : undefined}
             className="h-9 px-4 text-xs gap-1.5 font-semibold shadow-md shadow-primary/25 bg-gradient-to-b from-primary to-primary/90 hover:shadow-lg hover:shadow-primary/30 transition-all"
           >
             {isDownloading ? (
@@ -350,7 +351,7 @@ export default function CVPreview({
             ) : (
               <>
                 <Download size={14} />
-                {t("download")}
+                {isOverflowing ? t("download_anyway") : t("download")}
               </>
             )}
           </Button>
@@ -394,6 +395,7 @@ export default function CVPreview({
                     onChange={handleCanvasChange}
                     template={template}
                     originalData={originalData}
+                    onOverflowChange={setIsOverflowing}
                   />
                 </div>
               )}
