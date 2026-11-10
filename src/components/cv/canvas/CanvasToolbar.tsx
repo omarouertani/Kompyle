@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 import {
@@ -24,6 +24,7 @@ import {
   ChevronDown,
   Undo2,
   Redo2,
+  MoreHorizontal,
 } from "lucide-react";
 import type { BlockTextAlign, CVTheme, CVFontFamily } from "@/types/cv";
 import { FONT_FAMILIES, ThemePanel, fontKeyFromStack } from "./ThemePanel";
@@ -68,6 +69,10 @@ interface CanvasToolbarProps {
   /** Alignement commun des blocs sélectionnés (null si mixte / aucun). */
   selectedAlign?: BlockTextAlign | null;
 }
+
+/** Largeurs (px) de la barre sous lesquelles on compacte / on autorise le retour à la ligne. */
+const TOOLBAR_COMPACT_PX = 1180;
+const TOOLBAR_NARROW_PX = 760;
 
 export const ZOOM_MIN = 0.3;
 export const ZOOM_MAX = 2.5;
@@ -208,13 +213,99 @@ export function CanvasToolbar({
     applyFmt(() => fmt.applyInlineStyles(styles), () => onBlockStyles?.(styles) ?? false, true);
   };
 
+  // Largeur réelle de la barre : au-dessous de COMPACT_PX, les commandes de vue
+  // passent dans « … » ; au-dessous de NARROW_PX, on autorise le retour à la
+  // ligne en dernier recours (écran très étroit).
+  const rowRef = useRef<HTMLDivElement>(null);
+  const [rowWidth, setRowWidth] = useState<number>(Infinity);
+  useEffect(() => {
+    const el = rowRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver((entries) => setRowWidth(entries[0].contentRect.width));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  const compact = rowWidth < TOOLBAR_COMPACT_PX;
+  const narrow = rowWidth < TOOLBAR_NARROW_PX;
+
+  // Commandes de vue : en ligne sur une barre large, dans le menu « … » sinon.
+  const viewGroups = (
+    <>
+            {/* Page controls */}
+            <ToolGroup>
+              {Array.from({ length: pageCount }, (_, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => onSelectPage(idx)}
+                  onMouseDown={(e) => e.preventDefault()}
+                  className={cn(
+                    "px-2 h-7 text-[10px] font-semibold rounded-md transition-all",
+                    activePageIndex === idx
+                      ? "bg-card text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  P{idx + 1}
+                </button>
+              ))}
+              <ToolButton onClick={onAddPage} title={t("add_page")}>
+                <FilePlus size={12} />
+              </ToolButton>
+              {/* La suppression de page se fait via le menu contextuel (clic droit
+                  sur la page) — plus de bouton corbeille ici. */}
+            </ToolGroup>
+
+            {/* Canvas tools : bg + realign */}
+            <ToolGroup>
+              <ToolButton
+                onClick={cycleBg}
+                title={BG_LABELS[canvasBg]}
+                active={canvasBg !== "neutral"}
+              >
+                <Grid3x3 size={12} />
+              </ToolButton>
+              <ToolButton onClick={onRealign} title={t("realign_tooltip")}>
+                <RotateCcw size={12} />
+              </ToolButton>
+            </ToolGroup>
+
+            {/* Zoom — isolated on the far right, controls the global view */}
+            <ToolGroup>
+              <ToolButton onClick={() => onZoomChange(Math.max(ZOOM_MIN, zoom - 0.1))} title="−">
+                <Minus size={12} />
+              </ToolButton>
+              <span className="text-[10px] font-mono font-medium min-w-[34px] text-center text-foreground px-0.5">
+                {Math.round(zoom * 100)}%
+              </span>
+              <ToolButton onClick={() => onZoomChange(Math.min(ZOOM_MAX, zoom + 0.1))} title="+">
+                <Plus size={12} />
+              </ToolButton>
+              <button
+                type="button"
+                onClick={onZoomFit}
+                onMouseDown={(e) => e.preventDefault()}
+                className="px-2 h-7 text-[10px] font-semibold rounded-md transition-all bg-background hover:bg-muted/80 text-foreground"
+                title={t("zoom_fit_tooltip")}
+              >
+                {t("zoom_fit")}
+              </button>
+            </ToolGroup>
+
+            {/* Info / shortcuts — single icon, tooltip on hover instead of the
+                long help-text strip that used to swallow horizontal space. */}
+            <Divider />
+            <ShortcutsHelpButton />
+    </>
+  );
+
   return (
     <>
       <div
         data-canvas-toolbar
         className="border-b border-border/45 bg-background/95 backdrop-blur-md z-20 shrink-0 w-full shadow-sm"
       >
-        <div className="px-3 py-2 flex items-center gap-2 flex-wrap">
+        <div ref={rowRef} className={cn("px-3 py-2 flex items-center gap-2", narrow ? "flex-wrap" : "flex-nowrap")}>
           {/* Thème & dimensions (palettes, couleurs, sidebar, compétences,
               tailles). Compact : police/taille restent inline ci-dessous. */}
           <ToolGroup>
@@ -357,71 +448,13 @@ export function CanvasToolbar({
           {/* Push the layout/zoom controls to the right edge */}
           <div className="flex-1" />
 
-          {/* Page controls */}
-          <ToolGroup>
-            {Array.from({ length: pageCount }, (_, idx) => (
-              <button
-                key={idx}
-                type="button"
-                onClick={() => onSelectPage(idx)}
-                onMouseDown={(e) => e.preventDefault()}
-                className={cn(
-                  "px-2 h-7 text-[10px] font-semibold rounded-md transition-all",
-                  activePageIndex === idx
-                    ? "bg-card text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground"
-                )}
-              >
-                P{idx + 1}
-              </button>
-            ))}
-            <ToolButton onClick={onAddPage} title={t("add_page")}>
-              <FilePlus size={12} />
-            </ToolButton>
-            {/* La suppression de page se fait via le menu contextuel (clic droit
-                sur la page) — plus de bouton corbeille ici. */}
-          </ToolGroup>
-
-          {/* Canvas tools : bg + realign */}
-          <ToolGroup>
-            <ToolButton
-              onClick={cycleBg}
-              title={BG_LABELS[canvasBg]}
-              active={canvasBg !== "neutral"}
-            >
-              <Grid3x3 size={12} />
-            </ToolButton>
-            <ToolButton onClick={onRealign} title={t("realign_tooltip")}>
-              <RotateCcw size={12} />
-            </ToolButton>
-          </ToolGroup>
-
-          {/* Zoom — isolated on the far right, controls the global view */}
-          <ToolGroup>
-            <ToolButton onClick={() => onZoomChange(Math.max(ZOOM_MIN, zoom - 0.1))} title="−">
-              <Minus size={12} />
-            </ToolButton>
-            <span className="text-[10px] font-mono font-medium min-w-[34px] text-center text-foreground px-0.5">
-              {Math.round(zoom * 100)}%
-            </span>
-            <ToolButton onClick={() => onZoomChange(Math.min(ZOOM_MAX, zoom + 0.1))} title="+">
-              <Plus size={12} />
-            </ToolButton>
-            <button
-              type="button"
-              onClick={onZoomFit}
-              onMouseDown={(e) => e.preventDefault()}
-              className="px-2 h-7 text-[10px] font-semibold rounded-md transition-all bg-background hover:bg-muted/80 text-foreground"
-              title={t("zoom_fit_tooltip")}
-            >
-              {t("zoom_fit")}
-            </button>
-          </ToolGroup>
-
-          {/* Info / shortcuts — single icon, tooltip on hover instead of the
-              long help-text strip that used to swallow horizontal space. */}
-          <Divider />
-          <ShortcutsHelpButton />
+          {/* Sur une barre étroite, les commandes de vue (pages, fond, zoom, aide)
+              passent dans un menu « … » pour garder une seule ligne. */}
+          {compact ? (
+            <MoreMenu title={t("toolbar_more")}>{viewGroups}</MoreMenu>
+          ) : (
+            viewGroups
+          )}
         </div>
       </div>
 
@@ -440,6 +473,28 @@ export function CanvasToolbar({
 }
 
 /* ── Toolbar primitives ─────────────────────────────────────────────────── */
+
+/** Bouton « … » qui ouvre un panneau contenant des groupes d'outils. */
+function MoreMenu({ title, children }: { title: string; children: React.ReactNode }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="relative shrink-0">
+      <ToolGroup>
+        <ToolButton title={title} active={open} onClick={() => setOpen((o) => !o)}>
+          <MoreHorizontal size={14} />
+        </ToolButton>
+      </ToolGroup>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-30" onClick={() => setOpen(false)} />
+          <div className="absolute right-0 top-9 z-40 rounded-xl border border-border/70 bg-popover shadow-xl p-2 flex flex-wrap items-center gap-2 w-max max-w-[min(92vw,420px)]">
+            {children}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
 
 function Divider() {
   return <div className="w-px h-5 bg-border/60 mx-0.5 shrink-0" />;
