@@ -19,6 +19,7 @@ import {
   parseInlineHtml,
   toPdfRunStyle,
   inheritableTextStyle,
+  detectRichAlign,
 } from "@/utils/inline-html";
 
 /**
@@ -45,6 +46,15 @@ function renderRichChildren(children: ReactNode, composedStyle: unknown): ReactN
       {run.text}
     </PdfText>
   ));
+}
+
+/** Paragraph alignment set in the editor (`<div style="text-align:…">`) has to
+ *  live on the outer <Text>: react-pdf ignores `textAlign` on nested runs.
+ *  Composed AFTER the caller's style so it beats a template's `justify`. */
+function richAlignStyle(children: ReactNode): StyleInput {
+  if (typeof children !== "string" || !hasInlineHtml(children)) return undefined;
+  const align = detectRichAlign(children);
+  return align ? { textAlign: align } : undefined;
 }
 
 /**
@@ -117,6 +127,7 @@ export const Text = ({ style, children, ...props }: TextLikeProps) => {
       color: theme.color,
     },
     style as StyleInput,
+    richAlignStyle(children),
     safeTextStyle,
   );
   return (
@@ -137,6 +148,7 @@ export const Heading = ({ style, children, ...props }: TextLikeProps) => {
       lineHeight: headingSafeLineHeight,
     },
     style as StyleInput,
+    richAlignStyle(children),
     safeTextStyle,
   );
   return (
@@ -158,6 +170,7 @@ export const Bold = ({ style, children, ...props }: TextLikeProps) => {
       color: theme.color,
     },
     style as StyleInput,
+    richAlignStyle(children),
     safeTextStyle,
   );
   return (
@@ -178,6 +191,7 @@ export const Small = ({ style, children, ...props }: TextLikeProps) => {
       color: theme.mutedColor,
     },
     style as StyleInput,
+    richAlignStyle(children),
     safeTextStyle,
   );
   return (
@@ -201,6 +215,7 @@ export const Link = ({ style, children, src, ...props }: LinkLikeProps) => {
       color: theme.color,
     },
     style as StyleInput,
+    richAlignStyle(children),
     safeTextStyle,
   );
   const cleanSrc = typeof src === "string" ? stripHtml(src) : src;

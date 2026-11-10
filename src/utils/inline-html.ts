@@ -10,10 +10,16 @@ import { stripHtml, hasInlineHtml } from "./strip-html";
 // client components (the canvas) can use them without pulling in react-pdf.
 export { stripHtml, hasInlineHtml };
 
+export type RichTextAlign = "left" | "center" | "right" | "justify";
+
 export interface InlineStyle {
-  fontWeight?: "bold";
-  fontStyle?: "italic";
-  textDecoration?: "underline" | "line-through" | "underline line-through";
+  fontWeight?: "bold" | "normal";
+  fontStyle?: "italic" | "normal";
+  textDecoration?: "underline" | "line-through" | "underline line-through" | "none";
+  /** Paragraph alignment (from `text-align` / `align=` on div/p). Never emitted
+   *  on a run: react-pdf only honours it on the parent <Text> — see
+   *  `detectRichAlign`. */
+  textAlign?: RichTextAlign;
   color?: string;
   fontFamily?: string;
   letterSpacing?: number;
@@ -39,6 +45,15 @@ function parseLengthToPt(raw: string): number | undefined {
   return n;
 }
 
+function parseTextAlign(raw: string): RichTextAlign | undefined {
+  const v = raw.trim().toLowerCase();
+  if (v === "left" || v === "start") return "left";
+  if (v === "right" || v === "end") return "right";
+  if (v === "center") return "center";
+  if (v === "justify") return "justify";
+  return undefined;
+}
+
 /** Minimal HTML → run parser over the controlled subset execCommand produces. */
 export function parseInlineHtml(html: string): RichTextRun[] {
   if (!html) return [];
@@ -46,7 +61,31 @@ export function parseInlineHtml(html: string): RichTextRun[] {
 
   const runs: RichTextRun[] = [];
   const stack: InlineStyle[] = [{}];
-  const mergeStyle = (): InlineStyle => stack.reduce<InlineStyle>((acc, s) => ({ ...acc, ...s }), {});
+  // Decorations are cumulative (`<s><u>x</u></s>` = underline + line-through)
+  // and `text-decoration: none` clears what the ancestors set, so they can't
+  // be merged with a plain "last wins" spread like the other props.
+  const mergeStyle = (): InlineStyle => {
+    const acc: InlineStyle = {};
+    let underline = false;
+    let strike = false;
+    let sawNone = false;
+    for (const { textDecoration, ...rest } of stack) {
+      Object.assign(acc, rest);
+      if (textDecoration === "none") {
+        underline = false;
+        strike = false;
+        sawNone = true;
+      } else if (textDecoration) {
+        if (textDecoration.includes("underline")) underline = true;
+        if (textDecoration.includes("line-through")) strike = true;
+      }
+    }
+    const decoration: InlineStyle["textDecoration"] = underline && strike
+      ? "underline line-through"
+      : underline ? "underline" : strike ? "line-through" : sawNone ? "none" : undefined;
+    if (decoration) acc.textDecoration = decoration;
+    return acc;
+  };
 
   const push = (text: string) => {
     if (!text) return;
@@ -99,11 +138,7 @@ export function parseInlineHtml(html: string): RichTextRun[] {
       if (tag === "b" || tag === "strong") style.fontWeight = "bold";
       if (tag === "i" || tag === "em") style.fontStyle = "italic";
       if (tag === "u") style.textDecoration = "underline";
-      if (tag === "s" || tag === "strike") {
-        style.textDecoration = style.textDecoration === "underline"
-          ? "underline line-through"
-          : "line-through";
-      }
+      if (tag === "s" || tag === "strike") style.textDecoration = "line-through";
       // Legacy <font color="…" face="…">.
       if (tag === "font") {
         const colorAttr = /color\s*=\s*"?([^"\s>]+)/i.exec(attrs);
@@ -113,6 +148,11 @@ export function parseInlineHtml(html: string): RichTextRun[] {
       }
       // span/div/p: read the style="…" attribute (property captured first so
       // background-color isn't mis-parsed as color).
+      if (tag === "div" || tag === "p") {
+        const alignAttr = /(?:^|\s)align\s*=\s*["']?([a-z]+)/i.exec(attrs);
+        const align = alignAttr ? parseTextAlign(alignAttr[1]) : undefined;
+        if (align) style.textAlign = align;
+      }
       if (tag === "span" || tag === "div" || tag === "p") {
         const styleMatch = /style\s*=\s*"([^"]*)"/i.exec(attrs);
         const styleStr = styleMatch?.[1] ?? "";
@@ -131,15 +171,21 @@ export function parseInlineHtml(html: string): RichTextRun[] {
             const n = parseLengthToPt(val);
             if (n !== undefined) style.letterSpacing = n;
           } else if (prop === "font-weight") {
-            if (/bold|[6-9]\d\d/.test(val)) style.fontWeight = "bold";
+            if (/^(bold|bolder|[6-9]00)$/i.test(val)) style.fontWeight = "bold";
+            else if (/^(normal|lighter|[1-5]00)$/i.test(val)) style.fontWeight = "normal";
           } else if (prop === "font-style") {
-            if (val.includes("italic")) style.fontStyle = "italic";
+            if (/^(italic|oblique)\b/i.test(val)) style.fontStyle = "italic";
+            else if (/^normal$/i.test(val)) style.fontStyle = "normal";
           } else if (prop === "text-decoration" || prop === "text-decoration-line") {
             const hasU = /underline/i.test(val);
             const hasS = /line-through/i.test(val);
-            style.textDecoration = hasU && hasS
-              ? "underline line-through"
-              : hasU ? "underline" : hasS ? "line-through" : style.textDecoration;
+            if (hasU && hasS) style.textDecoration = "underline line-through";
+            else if (hasU) style.textDecoration = "underline";
+            else if (hasS) style.textDecoration = "line-through";
+            else if (/^none\b/i.test(val)) style.textDecoration = "none";
+          } else if (prop === "text-align") {
+            const align = parseTextAlign(val);
+            if (align) style.textAlign = align;
           }
         }
       }
@@ -149,6 +195,22 @@ export function parseInlineHtml(html: string): RichTextRun[] {
   }
   if (lastIndex < html.length) push(html.slice(lastIndex));
   return runs;
+}
+
+/**
+ * Paragraph alignment carried by inline HTML (e.g. `execCommand("justifyCenter")`
+ * writes `<div style="text-align: center;">…</div>`). react-pdf only applies
+ * `textAlign` on the parent <Text>, not on a nested run, so the primitives read
+ * it here and set it on the outer <Text>.
+ * Known limit: when a field holds several paragraphs with different
+ * alignments, the first aligned paragraph wins for the whole field.
+ */
+export function detectRichAlign(html: string): RichTextAlign | undefined {
+  if (!html || !/<(div|p)\b/i.test(html)) return undefined;
+  for (const run of parseInlineHtml(html)) {
+    if (run.style?.textAlign) return run.style.textAlign;
+  }
+  return undefined;
 }
 
 /** Maps a parsed inline style to a react-pdf style object, resolving the
