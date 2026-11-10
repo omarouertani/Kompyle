@@ -342,3 +342,5 @@ export const getStyles = (theme?: CVTheme, sidebarWidth = 165) => {
     },
   });
 };
+
+export type ModernStyles = ReturnType<typeof getStyles>;

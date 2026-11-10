@@ -312,3 +312,5 @@ export const getStyles = (theme?: CVTheme, sidebarWidth = 165, variant: CVTempla
     },
   });
 };
+
+export type ClassicStyles = ReturnType<typeof getStyles>;

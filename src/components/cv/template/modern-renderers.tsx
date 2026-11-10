@@ -3,11 +3,12 @@ import { View, Text, Link, KeepTogether } from "@/components/pdf-primitives";
 import type { CVData } from "@/types/cv";
 import { wrapText, formatUrl, displayUrl, DiffText, RichText, hasInlineHtml } from "@/utils/pdf-text-utils";
 import { sectionTitle } from "./shared";
+import type { ModernStyles } from "./modern-styles";
 
 export type SectionRenderer = (
   data: CVData,
   isSidebar: boolean,
-  styles: any,
+  styles: ModernStyles,
   originalData?: CVData,
   part?: "title" | "content" | "item",
   itemIndex?: number
@@ -456,7 +457,7 @@ export const renderColumn = (
   ids: string[],
   data: CVData,
   isSidebar: boolean,
-  styles: any,
+  styles: ModernStyles,
   originalData?: CVData
 ) => {
   const known = ids.filter((id) => SECTION_RENDERERS[id]);
