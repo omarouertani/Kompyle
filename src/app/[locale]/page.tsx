@@ -621,6 +621,7 @@ export default function AdaptPage() {
               <CoverLetterPreview
                 data={profile.coverLetterData || initialCoverLetter}
                 personalInfo={profile.currentCV.personalInfo}
+                theme={profile.currentCV.layout?.theme}
                 isAdapting={profile.loadingType === "letter"}
               />
             )}

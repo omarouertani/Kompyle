@@ -6,96 +6,104 @@ import {
   View,
   StyleSheet,
 } from "@react-pdf/renderer";
-import type { CoverLetterData, PersonalInfo } from "@/types/cv";
-import { registerPdfFont, ACTIVE_PDF_FONT } from "@/utils/pdf-fonts";
+import type { CoverLetterData, CVTheme, PersonalInfo } from "@/types/cv";
+import { resolvePdfFontFamily } from "@/utils/pdf-fonts";
 import { stripHtml } from "@/utils/strip-html";
 
-// Enregistre la police active (idempotent) et l'utilise pour toute la lettre.
-// (Avant, ce template comptait sur une police enregistrée par CVTemplate,
-// d'où une erreur « Font not registered » quand elle manquait.)
-const FONT_FAMILY = registerPdfFont(ACTIVE_PDF_FONT);
+/** Styles matching the CV theme: same font family (registered on demand,
+ *  idempotent), text colour, page background and accent colour for the
+ *  sender name, the rule under the header and the subject. Bold works for
+ *  every family, including the standard Times-Roman / Courier (react-pdf
+ *  maps fontWeight to Times-Bold / Courier-Bold). Without a theme the letter
+ *  keeps its former look (Carlito, black text). */
+function makeStyles(theme?: CVTheme) {
+  const fontFamily = resolvePdfFontFamily(theme?.fontFamily);
+  const textColor = theme?.textColor || "#000000";
+  const accentColor = theme?.primaryColor || textColor;
+  return StyleSheet.create({
+    page: {
+      paddingTop: 40,
+      paddingBottom: 40,
+      paddingLeft: 50,
+      paddingRight: 50,
+      fontFamily,
+      fontSize: 11,
+      lineHeight: 1.5,
+      color: textColor,
+      ...(theme?.pageBg ? { backgroundColor: theme.pageBg } : {}),
+    },
 
-const styles = StyleSheet.create({
-  page: {
-    paddingTop: 40,
-    paddingBottom: 40,
-    paddingLeft: 50,
-    paddingRight: 50,
-    fontFamily: FONT_FAMILY,
-    fontSize: 11,
-    lineHeight: 1.5,
-    color: "#000000",
-  },
-  
-  /* ---------- Header / Sender ---------- */
-  senderBlock: {
-    marginBottom: 30,
-  },
-  senderName: {
-    fontSize: 18,
-    fontFamily: FONT_FAMILY,
-    fontWeight: "bold",
-    marginBottom: 4,
-  },
-  senderContact: {
-    fontSize: 10,
-    color: "#444444",
-    marginBottom: 2,
-  },
+    /* ---------- Header / Sender ---------- */
+    senderBlock: {
+      marginBottom: 30,
+      paddingBottom: 10,
+      borderBottomWidth: 1,
+      borderBottomColor: accentColor,
+    },
+    senderName: {
+      fontSize: 18,
+      fontWeight: "bold",
+      color: accentColor,
+      marginBottom: 4,
+    },
+    senderContact: {
+      fontSize: 10,
+      color: theme?.textColor || "#444444",
+      marginBottom: 2,
+    },
 
-  /* ---------- Recipient & Date ---------- */
-  recipientDateBlock: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 30,
-  },
-  recipientBlock: {
-    flex: 1,
-  },
-  recipientText: {
-    fontSize: 11,
-    marginBottom: 2,
-  },
-  recipientName: {
-    fontFamily: FONT_FAMILY,
-    fontWeight: "bold",
-  },
-  dateBlock: {
-    flex: 1,
-    alignItems: "flex-end",
-  },
+    /* ---------- Recipient & Date ---------- */
+    recipientDateBlock: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      marginBottom: 30,
+    },
+    recipientBlock: {
+      flex: 1,
+    },
+    recipientText: {
+      fontSize: 11,
+      marginBottom: 2,
+    },
+    recipientName: {
+      fontWeight: "bold",
+    },
+    dateBlock: {
+      flex: 1,
+      alignItems: "flex-end",
+    },
 
-  /* ---------- Subject ---------- */
-  subjectBlock: {
-    marginBottom: 20,
-  },
-  subjectText: {
-    fontFamily: FONT_FAMILY,
-    fontWeight: "bold",
-    fontSize: 11,
-  },
+    /* ---------- Subject ---------- */
+    subjectBlock: {
+      marginBottom: 20,
+    },
+    subjectText: {
+      fontWeight: "bold",
+      fontSize: 11,
+      color: accentColor,
+    },
 
-  /* ---------- Body ---------- */
-  salutation: {
-    marginBottom: 15,
-  },
-  paragraph: {
-    marginBottom: 15,
-    textAlign: "justify",
-  },
-  
-  /* ---------- Sign-off ---------- */
-  signOffBlock: {
-    marginTop: 20,
-  },
-  signOff: {
-    marginBottom: 30,
-  },
-  signatureName: {
-    fontFamily: FONT_FAMILY,
-    fontWeight: "bold",
-  },
-});
+    /* ---------- Body ---------- */
+    salutation: {
+      marginBottom: 15,
+    },
+    paragraph: {
+      marginBottom: 15,
+      textAlign: "justify",
+    },
+
+    /* ---------- Sign-off ---------- */
+    signOffBlock: {
+      marginTop: 20,
+    },
+    signOff: {
+      marginBottom: 30,
+    },
+    signatureName: {
+      fontWeight: "bold",
+    },
+  });
+}
 
 /** Translated strings (react-pdf templates cannot call hooks, so the preview
  *  resolves them and passes them in). */
@@ -110,6 +118,8 @@ interface CoverLetterTemplateProps {
   data: CoverLetterData;
   personalInfo: PersonalInfo;
   labels: CoverLetterLabels;
+  /** Theme of the current CV, so the letter matches it. */
+  theme?: CVTheme;
 }
 
 /** Remplace les placeholders de nom laissés par l'IA ("[Votre nom]",
@@ -117,7 +127,8 @@ interface CoverLetterTemplateProps {
 const fillNamePlaceholders = (text: string, name: string): string =>
   name ? text.replace(/\[\s*(votre\s+nom|your\s+name|nom\s+pr[ée]nom|pr[ée]nom\s+nom|name|nom)\s*\]/gi, name) : text;
 
-const CoverLetterTemplate: React.FC<CoverLetterTemplateProps> = ({ data, personalInfo, labels }) => {
+const CoverLetterTemplate: React.FC<CoverLetterTemplateProps> = ({ data, personalInfo, labels, theme }) => {
+  const styles = makeStyles(theme);
   // Les champs du CV peuvent porter du HTML inline (mise en forme appliquée sur
   // le canvas). Ce template utilise le <Text> brut de react-pdf (pas la primitive
   // qui parse le HTML) : on nettoie donc ici, sinon la lettre afficherait des

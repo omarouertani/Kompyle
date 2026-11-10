@@ -6,7 +6,7 @@ import { AlertTriangle } from "lucide-react";
 import { PDFViewer, pdf } from "@react-pdf/renderer";
 import CoverLetterTemplate, { type CoverLetterLabels } from "./CoverLetterTemplate";
 import AIProgressOverlay from "./AIProgressOverlay";
-import type { CoverLetterData, PersonalInfo } from "@/types/cv";
+import type { CoverLetterData, CVTheme, PersonalInfo } from "@/types/cv";
 import { Download, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -19,12 +19,15 @@ interface CoverLetterPreviewProps {
   data: CoverLetterData;
   personalInfo: PersonalInfo;
   isAdapting?: boolean;
+  /** Theme of the current CV (font, colours): the letter matches it. */
+  theme?: CVTheme;
 }
 
 export default function CoverLetterPreview({
   data,
   personalInfo,
   isAdapting = false,
+  theme,
 }: CoverLetterPreviewProps) {
   const t = useTranslations("LetterPreview");
   const tAdapt = useTranslations("AIAdapt");
@@ -44,9 +47,10 @@ export default function CoverLetterPreview({
   // below uses the live values.
   const previewData = useDebouncedValue(data);
   const previewInfo = useDebouncedValue(personalInfo);
+  const previewTheme = useDebouncedValue(theme);
   const letterDoc = useMemo(
-    () => <CoverLetterTemplate data={previewData} personalInfo={previewInfo} labels={labels} />,
-    [previewData, previewInfo, labels]
+    () => <CoverLetterTemplate data={previewData} personalInfo={previewInfo} labels={labels} theme={previewTheme} />,
+    [previewData, previewInfo, labels, previewTheme]
   );
 
   // Génération à la demande (au clic) au lieu d'un PDFDownloadLink qui
@@ -55,7 +59,7 @@ export default function CoverLetterPreview({
     setIsDownloading(true);
     setDownloadError(false);
     try {
-      const blob = await pdf(<CoverLetterTemplate data={data} personalInfo={personalInfo} labels={labels} />).toBlob();
+      const blob = await pdf(<CoverLetterTemplate data={data} personalInfo={personalInfo} labels={labels} theme={theme} />).toBlob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
@@ -68,7 +72,7 @@ export default function CoverLetterPreview({
     } finally {
       setIsDownloading(false);
     }
-  }, [data, personalInfo, labels, t]);
+  }, [data, personalInfo, labels, theme, t]);
 
   return (
     <div className="flex flex-col flex-1 h-full w-full gap-3">
