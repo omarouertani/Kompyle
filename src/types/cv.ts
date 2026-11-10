@@ -114,7 +114,10 @@ export interface ElementPosition {
   fontScale?: number; // échelle de police (resize diagonal) — 1 par défaut
   locked?: boolean;   // bloc verrouillé : ni drag ni resize
   groupId?: string;   // identifiant de groupe : les blocs partageant un groupId se déplacent ensemble
+  align?: BlockTextAlign; // alignement du texte du bloc (toolbar, bloc sélectionné sans éditeur actif)
 }
+
+export type BlockTextAlign = "left" | "center" | "right" | "justify";
 
 export interface CVLayout {
   sidebarWidth?: number; // largeur de la colonne latérale, en points (défaut 165)

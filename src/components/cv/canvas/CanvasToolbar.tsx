@@ -23,7 +23,7 @@ import {
   Heading2,
   ChevronDown,
 } from "lucide-react";
-import type { CVTheme, CVFontFamily } from "@/types/cv";
+import type { BlockTextAlign, CVTheme, CVFontFamily } from "@/types/cv";
 import { FONT_FAMILIES, ThemePanel } from "./ThemePanel";
 import { ColorDrawer } from "./ColorDrawer";
 import { useCanvasFormat } from "./use-canvas-format";
@@ -55,6 +55,10 @@ interface CanvasToolbarProps {
   onBlockCommand?: (command: string, value?: string, opts?: { toggle?: boolean }) => boolean;
   /** Enveloppe le texte des blocs sélectionnés dans un style (police/taille/titre). */
   onBlockStyles?: (styles: Record<string, string>) => boolean;
+  /** Aligne le texte des blocs sélectionnés (aucun éditeur actif). */
+  onBlockAlign?: (align: BlockTextAlign) => void;
+  /** Alignement commun des blocs sélectionnés (null si mixte / aucun). */
+  selectedAlign?: BlockTextAlign | null;
 }
 
 export const ZOOM_MIN = 0.3;
@@ -84,6 +88,8 @@ export function CanvasToolbar({
   selectedIds = [],
   onBlockCommand,
   onBlockStyles,
+  onBlockAlign,
+  selectedAlign = null,
 }: CanvasToolbarProps) {
   const t = useTranslations("Canvas");
   const fmt = useCanvasFormat();
@@ -141,6 +147,20 @@ export function CanvasToolbar({
     if (ok && reflow) onReflow?.();
     return ok;
   };
+
+  // Alignement : éditeur focalisé → paragraphe courant (execCommand, HTML) ;
+  // sinon bloc(s) sélectionné(s) → alignement stocké dans la position du bloc.
+  const alignRun = (cmd: Parameters<typeof fmt.exec>[0], align: BlockTextAlign) => {
+    if (fmt.activeEditor) {
+      fmt.exec(cmd);
+      return;
+    }
+    if (selectedIds.length >= 1 && onBlockAlign) {
+      onBlockAlign(align);
+      onReflow?.();
+    }
+  };
+  const currentAlign = fmt.activeEditor ? fmt.state.align : selectedAlign;
 
   const handlePickColor = (color: string) => {
     const c = normalizeHex(color);
@@ -257,29 +277,29 @@ export function CanvasToolbar({
           <ToolGroup>
             <ToolButton
               title={t("format_align_left")}
-              active={fmt.state.align === "left"}
-              onClick={() => fmt.exec("justifyLeft")}
+              active={currentAlign === "left"}
+              onClick={() => alignRun("justifyLeft", "left")}
             >
               <AlignLeft size={13} />
             </ToolButton>
             <ToolButton
               title={t("format_align_center")}
-              active={fmt.state.align === "center"}
-              onClick={() => fmt.exec("justifyCenter")}
+              active={currentAlign === "center"}
+              onClick={() => alignRun("justifyCenter", "center")}
             >
               <AlignCenter size={13} />
             </ToolButton>
             <ToolButton
               title={t("format_align_right")}
-              active={fmt.state.align === "right"}
-              onClick={() => fmt.exec("justifyRight")}
+              active={currentAlign === "right"}
+              onClick={() => alignRun("justifyRight", "right")}
             >
               <AlignRight size={13} />
             </ToolButton>
             <ToolButton
               title={t("format_align_justify")}
-              active={fmt.state.align === "justify"}
-              onClick={() => fmt.exec("justifyFull")}
+              active={currentAlign === "justify"}
+              onClick={() => alignRun("justifyFull", "justify")}
             >
               <AlignJustify size={13} />
             </ToolButton>

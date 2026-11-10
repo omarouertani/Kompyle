@@ -26,7 +26,7 @@ import {
   renderCertifications,
   renderInterests,
 } from "./template/classic-renderers";
-import { isBlockOutOfPage } from "./template/shared";
+import { blockTextAlign, isBlockOutOfPage } from "./template/shared";
 
 registerPdfFont(ACTIVE_PDF_FONT);
 
@@ -145,7 +145,7 @@ const CVTemplate: React.FC<CVTemplateProps> = ({ data, originalData, variant = "
     if (!rendered) return null;
 
     return (
-      <View key={blockId} style={{ position: "absolute", left: pos.x, top: pos.y, width: pos.w }}>
+      <View key={blockId} style={{ position: "absolute", left: pos.x, top: pos.y, width: pos.w, textAlign: blockTextAlign(pos) }}>
         {rendered}
       </View>
     );
@@ -162,22 +162,22 @@ const CVTemplate: React.FC<CVTemplateProps> = ({ data, originalData, variant = "
     return (
       <>
         {/* Name */}
-        <View style={{ position: "absolute", left: namePos.x, top: namePos.y, width: namePos.w }}>
+        <View style={{ position: "absolute", left: namePos.x, top: namePos.y, width: namePos.w, textAlign: blockTextAlign(namePos) }}>
           <Text style={styles.h1}>{personalInfo.name}</Text>
         </View>
 
         {/* Role */}
-        <View style={{ position: "absolute", left: rolePos.x, top: rolePos.y, width: rolePos.w }}>
+        <View style={{ position: "absolute", left: rolePos.x, top: rolePos.y, width: rolePos.w, textAlign: blockTextAlign(rolePos) }}>
           <Text style={styles.role}>{personalInfo.role}</Text>
         </View>
 
         {/* Tech Line (classique/moderne) ou ligne de coordonnées (canadien) */}
         {isCanadian ? (
-          <View style={{ position: "absolute", left: contactPos.x, top: contactPos.y, width: contactPos.w }}>
+          <View style={{ position: "absolute", left: contactPos.x, top: contactPos.y, width: contactPos.w, textAlign: blockTextAlign(contactPos) }}>
             {renderCanadianContact()}
           </View>
         ) : (
-          <View style={{ position: "absolute", left: techPos.x, top: techPos.y, width: techPos.w }}>
+          <View style={{ position: "absolute", left: techPos.x, top: techPos.y, width: techPos.w, textAlign: blockTextAlign(techPos) }}>
             <DiffText
               oldText={originalData?.personalInfo.techLine}
               newText={personalInfo.techLine}

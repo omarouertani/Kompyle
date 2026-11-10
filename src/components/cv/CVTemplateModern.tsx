@@ -26,7 +26,7 @@ import {
   renderCertifications,
   renderInterests,
 } from "./template/modern-renderers";
-import { isBlockOutOfPage } from "./template/shared";
+import { blockTextAlign, isBlockOutOfPage } from "./template/shared";
 
 registerPdfFont(ACTIVE_PDF_FONT);
 
@@ -105,14 +105,14 @@ const CVTemplateModern: React.FC<CVTemplateModernProps> = ({ data, originalData 
                     )}
                   </View>
                 </View>
-                <View style={{ position: "absolute", left: namePos.x, top: namePos.y, width: namePos.w }}>
+                <View style={{ position: "absolute", left: namePos.x, top: namePos.y, width: namePos.w, textAlign: blockTextAlign(namePos) }}>
                   <Text style={styles.h1}>{personalInfo.name}</Text>
                 </View>
-                <View style={{ position: "absolute", left: rolePos.x, top: rolePos.y, width: rolePos.w }}>
+                <View style={{ position: "absolute", left: rolePos.x, top: rolePos.y, width: rolePos.w, textAlign: blockTextAlign(rolePos) }}>
                   <Text style={styles.role}>{personalInfo.role}</Text>
                 </View>
                 {personalInfo.techLine && (
-                  <View style={{ position: "absolute", left: techPos.x, top: techPos.y, width: techPos.w }}>
+                  <View style={{ position: "absolute", left: techPos.x, top: techPos.y, width: techPos.w, textAlign: blockTextAlign(techPos) }}>
                     <DiffText
                       oldText={originalData?.personalInfo.techLine}
                       newText={personalInfo.techLine}
@@ -176,7 +176,7 @@ const CVTemplateModern: React.FC<CVTemplateModernProps> = ({ data, originalData 
             if (!rendered) return null;
 
             return (
-              <View key={blockId} style={{ position: "absolute", left: pos.x, top: pos.y, width: pos.w }}>
+              <View key={blockId} style={{ position: "absolute", left: pos.x, top: pos.y, width: pos.w, textAlign: blockTextAlign(pos) }}>
                 {rendered}
               </View>
             );

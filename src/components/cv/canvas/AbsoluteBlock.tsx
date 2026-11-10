@@ -111,7 +111,7 @@ export function AbsoluteBlock({
           précoce et blocs plus hauts qu'en PDF (mesures de pagination faussées).
           data-block-content : sert au clonage « ghost » pendant le drag — on
           retrouve le wrapper exact (pas l'indicateur de hover ni le label). */}
-      <div data-block-content>{children}</div>
+      <div data-block-content style={pos.align ? { textAlign: pos.align } : undefined}>{children}</div>
 
       {isSelected && !locked && HANDLES.map(({ edge, cursor, cls, corner }) => (
         <div

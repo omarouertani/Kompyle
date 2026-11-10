@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback } from "react";
-import type { CVData, CVLayout } from "@/types/cv";
+import { useCallback, useMemo } from "react";
+import type { BlockTextAlign, CVData, CVLayout } from "@/types/cv";
 import type { BlockPos } from "./snap";
 import type { AlignKind } from "./MultiSelectToolbar";
 
@@ -88,5 +88,30 @@ export function useAlignment({ selectedIds, layout, data, onChange, defaultPosit
     [selectedIds, layout, defaultPositions, data, onChange, measureHeightPt]
   );
 
-  return { alignSelected };
+  /** Alignement du TEXTE des blocs sélectionnés (toolbar, sans éditeur actif).
+   *  Stocké dans la position du bloc plutôt que dans son HTML : un bloc peut
+   *  regrouper plusieurs champs en ligne (ex. `contactLine`). */
+  const setBlocksTextAlign = useCallback(
+    (align: BlockTextAlign) => {
+      if (selectedIds.length === 0) return;
+      const positions: Record<string, BlockPos> = { ...defaultPositions, ...(layout.absolutePositions ?? {}) };
+      const updates: Record<string, BlockPos> = {};
+      for (const id of selectedIds) {
+        const p = positions[id] ?? defaultPositions[id];
+        if (p) updates[id] = { ...p, align };
+      }
+      if (Object.keys(updates).length === 0) return;
+      onChange({ ...data, layout: { ...layout, absolutePositions: { ...positions, ...updates } } });
+    },
+    [selectedIds, layout, defaultPositions, data, onChange]
+  );
+
+  /** Alignement commun des blocs sélectionnés, sinon null. */
+  const selectedTextAlign = useMemo<BlockTextAlign | null>(() => {
+    if (selectedIds.length === 0) return null;
+    const aligns = new Set(selectedIds.map((id) => layout.absolutePositions?.[id]?.align ?? null));
+    return aligns.size === 1 ? [...aligns][0] : null;
+  }, [selectedIds, layout.absolutePositions]);
+
+  return { alignSelected, setBlocksTextAlign, selectedTextAlign };
 }

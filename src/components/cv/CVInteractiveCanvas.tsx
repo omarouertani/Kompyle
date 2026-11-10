@@ -171,7 +171,7 @@ export default function CVInteractiveCanvas({ data, onChange: onChangeProp, temp
 
   // ── Groupement / alignement ─────────────────────────────────────────────────
   const { selectionHasGroup, groupSelected, ungroupSelected } = useGrouping({ selectedIds, layout, data, onChange, defaultPositions });
-  const { alignSelected } = useAlignment({ selectedIds, layout, data, onChange, defaultPositions, measureHeightPt });
+  const { alignSelected, setBlocksTextAlign, selectedTextAlign } = useAlignment({ selectedIds, layout, data, onChange, defaultPositions, measureHeightPt });
 
   // ── Routage inter-pages (déplacement de section, drop) ──────────────────────
   const { moveSectionToPage, pageOfSection, homePageOf } = usePageRouting({
@@ -325,6 +325,8 @@ export default function CVInteractiveCanvas({ data, onChange: onChangeProp, temp
         selectedIds={selectedIds}
         onBlockCommand={(cmd, val) => runBlockCommand(cmd, val)}
         onBlockStyles={(styles) => applyStyles(selectedIds, styles)}
+        onBlockAlign={setBlocksTextAlign}
+        selectedAlign={selectedTextAlign}
       />
 
       <MultiSelectToolbar

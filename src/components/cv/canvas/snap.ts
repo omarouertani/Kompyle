@@ -20,6 +20,8 @@ export type BlockPos = {
   /** Identifiant de groupe : les blocs partageant un groupId se déplacent et
    *  se sélectionnent ensemble (Ctrl+G pour grouper). */
   groupId?: string;
+  /** Alignement du texte du bloc (toolbar, bloc sélectionné). */
+  align?: "left" | "center" | "right" | "justify";
 };
 
 /** Rectangle plein (avec hauteur résolue) utilisé pour la géométrie du snap. */
