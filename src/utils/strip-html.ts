@@ -26,6 +26,17 @@ export function decodeEntities(text: string): string {
   });
 }
 
+/** Builds a download-safe file name stem from CV fields: strips inline HTML,
+ *  drops characters forbidden on Windows/macOS (`\ / : * ? " < > |`), turns
+ *  whitespace into `_` and joins the non-empty parts with `_`.
+ *  `safeFileName(["CV", "<b>Dev</b> / Ops"])` → `"CV_Dev_Ops"`. */
+export function safeFileName(parts: string[]): string {
+  return parts
+    .map((p) => stripHtml(p ?? "").replace(/[\\/:*?"<>|]+/g, " ").trim().replace(/\s+/g, "_"))
+    .filter(Boolean)
+    .join("_");
+}
+
 /** True when a string contains markup we should parse (not just a stray `<`). */
 export function hasInlineHtml(text: string): boolean {
   return !!text && INLINE_TAG_RE.test(text);

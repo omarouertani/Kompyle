@@ -10,6 +10,7 @@ import type { CoverLetterData, PersonalInfo } from "@/types/cv";
 import { Download, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { safeFileName } from "@/utils/strip-html";
 
 const emptySubscribe = () => () => {};
 
@@ -52,7 +53,7 @@ export default function CoverLetterPreview({
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `${t("file_prefix")}_${personalInfo.role.replace(/\s+/g, "_")}.pdf`;
+      a.download = `${safeFileName([t("file_prefix"), personalInfo.role])}.pdf`;
       a.click();
       URL.revokeObjectURL(url);
     } catch (err) {
