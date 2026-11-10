@@ -112,6 +112,8 @@ export interface CVTheme {
   brandColors?: string[];
   /** Dernières couleurs utilisées (persistées pour survivre au rechargement). */
   recentColors?: string[];
+  /** Dernières polices utilisées dans la barre d’outils (5 max). */
+  recentFonts?: CVFontFamily[];
 }
 
 export interface ElementPosition {

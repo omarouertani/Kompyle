@@ -232,11 +232,14 @@ export function CanvasToolbar({
           <ToolGroup>
             <FontFamilyPicker
               value={activeFont}
+              recent={theme.recentFonts ?? []}
               onChange={(f) => {
                 // Sélection de texte → applique au texte ; sinon, au(x) bloc(s)
                 // sélectionné(s). Reflow car la hauteur peut changer.
                 const stack = FONT_FAMILIES[f].stack;
-                applyFmt(() => fmt.applyInlineStyle("font-family", stack), () => onBlockStyles?.({ "font-family": stack }) ?? false, true);
+                if (applyFmt(() => fmt.applyInlineStyle("font-family", stack), () => onBlockStyles?.({ "font-family": stack }) ?? false, true)) {
+                  onThemeChange({ recentFonts: [f, ...(theme.recentFonts ?? []).filter((x) => x !== f)].slice(0, 5) });
+                }
               }}
             />
             <FontSizeStepper
@@ -487,17 +490,54 @@ function ToolButton({ children, onClick, active, destructive, disabled, title, c
   );
 }
 
-function FontFamilyPicker({ value, onChange }: { value: CVFontFamily; onChange: (f: CVFontFamily) => void }) {
+function FontFamilyPicker({
+  value,
+  recent,
+  onChange,
+}: {
+  value: CVFontFamily;
+  /** Polices récemment utilisées (affichées en tête). */
+  recent: CVFontFamily[];
+  onChange: (f: CVFontFamily) => void;
+}) {
   const t = useTranslations("Canvas");
   const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
   const stack = FONT_FAMILIES[value].stack;
   const label = FONT_FAMILIES[value].label;
+
+  const all = Object.keys(FONT_FAMILIES) as CVFontFamily[];
+  const q = query.trim().toLowerCase();
+  const matches = q ? all.filter((k) => FONT_FAMILIES[k].label.toLowerCase().includes(q) || k.includes(q)) : all;
+  // Récentes en tête (hors recherche) ; jamais en double dans la liste complète.
+  const recentKeys = q ? [] : recent.filter((k) => k in FONT_FAMILIES);
+  const rest = matches.filter((k) => !recentKeys.includes(k));
+
+  const close = () => { setOpen(false); setQuery(""); };
+  const pick = (k: CVFontFamily) => { onChange(k); close(); };
+
+  const renderItem = (key: CVFontFamily) => (
+    <button
+      key={key}
+      type="button"
+      onClick={() => pick(key)}
+      onMouseDown={(e) => e.preventDefault()}
+      className={cn(
+        "w-full px-2 py-1.5 rounded-md text-left text-xs transition-colors flex items-center justify-between",
+        value === key ? "bg-primary/10 text-foreground font-semibold" : "text-foreground hover:bg-muted/60",
+      )}
+      style={{ fontFamily: FONT_FAMILIES[key].stack }}
+    >
+      <span>{FONT_FAMILIES[key].label}</span>
+      <span className="text-muted-foreground text-[10px]">Aa</span>
+    </button>
+  );
 
   return (
     <div className="relative">
       <button
         type="button"
-        onClick={() => setOpen((o) => !o)}
+        onClick={() => (open ? close() : setOpen(true))}
         onMouseDown={(e) => e.preventDefault()}
         title={t("format_font")}
         className="h-7 px-2 flex items-center gap-1.5 rounded-md hover:bg-background/80 text-foreground text-[11px] min-w-[88px]"
@@ -508,24 +548,33 @@ function FontFamilyPicker({ value, onChange }: { value: CVFontFamily; onChange: 
       </button>
       {open && (
         <>
-          <div className="fixed inset-0 z-30" onClick={() => setOpen(false)} />
-          <div className="absolute left-0 top-8 z-40 w-44 rounded-xl border border-border/70 bg-popover shadow-xl p-1">
-            {(Object.entries(FONT_FAMILIES) as Array<[CVFontFamily, { label: string; stack: string }]>).map(([key, font]) => (
-              <button
-                key={key}
-                type="button"
-                onClick={() => { onChange(key); setOpen(false); }}
-                onMouseDown={(e) => e.preventDefault()}
-                className={cn(
-                  "w-full px-2 py-1.5 rounded-md text-left text-xs transition-colors flex items-center justify-between",
-                  value === key ? "bg-primary/10 text-foreground font-semibold" : "text-foreground hover:bg-muted/60",
-                )}
-                style={{ fontFamily: font.stack }}
-              >
-                <span>{font.label}</span>
-                <span className="text-muted-foreground text-[10px]">Aa</span>
-              </button>
-            ))}
+          <div className="fixed inset-0 z-30" onClick={close} />
+          <div className="absolute left-0 top-8 z-40 w-48 rounded-xl border border-border/70 bg-popover shadow-xl p-1">
+            <input
+              autoFocus
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Escape") close();
+                if (e.key === "Enter" && matches[0]) pick(matches[0]);
+              }}
+              placeholder={t("font_search")}
+              className="mb-1 h-7 w-full px-2 rounded-md border border-border/70 bg-background text-xs outline-none focus:ring-2 focus:ring-primary/30"
+            />
+            <div className="max-h-72 overflow-y-auto">
+              {recentKeys.length > 0 && (
+                <>
+                  <div className="px-2 pt-1 pb-0.5 text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">{t("font_recent")}</div>
+                  {recentKeys.map(renderItem)}
+                  <div className="my-1 h-px bg-border/60" />
+                </>
+              )}
+              {rest.map(renderItem)}
+              {matches.length === 0 && (
+                <div className="px-2 py-2 text-[11px] text-muted-foreground">{t("font_none")}</div>
+              )}
+            </div>
           </div>
         </>
       )}
