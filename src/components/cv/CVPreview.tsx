@@ -58,32 +58,30 @@ function useServerPdfUrl(
   sideBySide?: boolean
 ): { url: string | null; loading: boolean } {
   const [url, setUrl] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  // Inputs of the last request that settled (success or failure). "Loading"
+  // is derived from it instead of being set synchronously inside the effect.
+  const [settled, setSettled] = useState<{
+    data: CVData | null;
+    template: string;
+    originalData?: CVData | null;
+    sideBySide?: boolean;
+  } | null>(null);
   const prevUrlRef = useRef<string | null>(null);
-  const dataRef = useRef({ data, template, originalData, sideBySide });
-  dataRef.current = { data, template, originalData, sideBySide };
 
   useEffect(() => {
-    if (!enabled || !data) {
-      if (prevUrlRef.current) {
-        URL.revokeObjectURL(prevUrlRef.current);
-        prevUrlRef.current = null;
-      }
-      setUrl(null);
-      setLoading(false);
-      return;
-    }
+    // Disabled: nothing to fetch. The last blob URL is kept (revoked when it
+    // is replaced or on unmount) so re-enabling shows it while refreshing.
+    if (!enabled || !data) return;
 
-    setLoading(true);
     let cancelled = false;
+    const inputs = { data, template, originalData, sideBySide };
 
     const timer = setTimeout(async () => {
       try {
-        const { data: d, template: t, originalData: od, sideBySide: sbs } = dataRef.current;
         const res = await fetch("/api/render-pdf", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ data: d, template: t, originalData: od, sideBySide: sbs }),
+          body: JSON.stringify(inputs),
         });
         if (cancelled) return;
         if (!res.ok) throw new Error(`Server returned ${res.status}`);
@@ -96,7 +94,7 @@ function useServerPdfUrl(
       } catch (err) {
         console.error("Server PDF generation failed:", err);
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) setSettled(inputs);
       }
     }, 600);
 
@@ -104,7 +102,6 @@ function useServerPdfUrl(
       cancelled = true;
       clearTimeout(timer);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enabled, data, template, originalData, sideBySide]);
 
   useEffect(() => {
@@ -113,7 +110,14 @@ function useServerPdfUrl(
     };
   }, []);
 
-  return { url, loading };
+  const active = enabled && !!data;
+  const pending =
+    !settled ||
+    settled.data !== data ||
+    settled.template !== template ||
+    settled.originalData !== originalData ||
+    settled.sideBySide !== sideBySide;
+  return { url: active ? url : null, loading: active && pending };
 }
 
 export default function CVPreview({
