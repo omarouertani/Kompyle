@@ -25,7 +25,7 @@ const QUICK_SWATCHES: Record<string, string[]> = {
 /** Polices disponibles sur le canvas (la clé est persistée dans theme.fontFamily). */
 // Stacks alignées sur les polices PDF (src/utils/pdf-fonts.ts) pour que les
 // métriques (chasse, ascendants/descendants) soient identiques canvas ↔ PDF :
-//   sans  → Carlito          (PDF: Carlito)
+//   sans  → Carlito          (PDF: Carlito ; @font-face auto-hébergé dans globals.css)
 //   serif → Times New Roman  (PDF: Times-Roman, standard PDF)
 //   modern → Inter           (PDF: Inter — préchargée via next/font dans le layout)
 //   mono  → Courier New      (PDF: Courier, standard PDF)
