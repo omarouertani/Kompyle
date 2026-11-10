@@ -6,7 +6,7 @@ import { ThemeProvider as NextThemesProvider, type ThemeProviderProps } from "ne
 // Suppress the React 19 warning for the script tag injected by next-themes
 if (typeof window !== "undefined" && process.env.NODE_ENV === "development") {
   const origError = console.error;
-  console.error = (...args: any[]) => {
+  console.error = (...args: unknown[]) => {
     if (typeof args[0] === "string" && args[0].includes("Encountered a script tag")) {
       return;
     }

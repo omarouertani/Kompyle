@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { CVData } from "@/types/cv";
 import { HISTORY_LIMIT, HISTORY_COALESCE_MS } from "./constants";
 
@@ -28,6 +28,12 @@ export function useUndoRedo(data: CVData, onChangeProp: (newData: CVData) => voi
   const redoStack = useRef<CVData[]>([]);
   const lastPushTs = useRef(0);
   const lastKeyRef = useRef<string | undefined>(undefined);
+  // Tailles des piles en état React → boutons Annuler/Rétablir (canUndo/canRedo).
+  const [sizes, setSizes] = useState({ undo: 0, redo: 0 });
+  const syncSizes = useCallback(
+    () => setSizes({ undo: undoStack.current.length, redo: redoStack.current.length }),
+    []
+  );
 
   const onChange = useCallback(
     (next: CVData, coalesceKey?: string) => {
@@ -42,9 +48,13 @@ export function useUndoRedo(data: CVData, onChangeProp: (newData: CVData) => voi
       // Fenêtre glissante pour une rafale de MÊME nature (drag de slider, frappe).
       lastPushTs.current = now;
       lastKeyRef.current = coalesceKey;
+      // Présent mis à jour tout de suite : un undo() appelé dans la foulée (ex.
+      // Ctrl+Z juste après le commit d'un éditeur) doit voir ce nouvel état.
+      presentRef.current = next;
+      syncSizes();
       onChangeProp(next);
     },
-    [onChangeProp]
+    [onChangeProp, syncSizes]
   );
 
   const undo = useCallback(() => {
@@ -53,8 +63,10 @@ export function useUndoRedo(data: CVData, onChangeProp: (newData: CVData) => voi
     redoStack.current.push(presentRef.current);
     lastPushTs.current = 0; // la prochaine mutation repart sur un nouveau pas
     lastKeyRef.current = undefined;
+    presentRef.current = prev;
+    syncSizes();
     onChangeProp(prev);
-  }, [onChangeProp]);
+  }, [onChangeProp, syncSizes]);
 
   const redo = useCallback(() => {
     const next = redoStack.current.pop();
@@ -63,8 +75,10 @@ export function useUndoRedo(data: CVData, onChangeProp: (newData: CVData) => voi
     if (undoStack.current.length > HISTORY_LIMIT) undoStack.current.shift();
     lastPushTs.current = 0;
     lastKeyRef.current = undefined;
+    presentRef.current = next;
+    syncSizes();
     onChangeProp(next);
-  }, [onChangeProp]);
+  }, [onChangeProp, syncSizes]);
 
-  return { onChange, undo, redo };
+  return { onChange, undo, redo, canUndo: sizes.undo > 0, canRedo: sizes.redo > 0 };
 }

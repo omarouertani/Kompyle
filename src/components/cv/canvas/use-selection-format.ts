@@ -203,5 +203,29 @@ export function useSelectionFormat({ data, onChange }: UseSelectionFormatArgs) {
     [data, onChange]
   );
 
-  return { applyStyles, toggleCommand };
+  /** EFFACER : retire toute la mise en forme inline (styles, gras, liens…) de
+   *  tout le texte des blocs, en gardant le texte et sa structure (lignes,
+   *  listes). */
+  const clearFormat = useCallback(
+    (blockIds: string[]) => {
+      const ids = [...new Set(blockIds)].filter((id) => id !== "photo");
+      if (ids.length === 0) return false;
+      let next = data;
+      for (const id of ids) next = applyToBlock(next, id, clearInlineFormat);
+      if (next !== data) onChange(next);
+      return true;
+    },
+    [data, onChange]
+  );
+
+  return { applyStyles, toggleCommand, clearFormat };
+}
+
+/** Retire les attributs style et déballe les balises de mise en forme
+ *  (b/i/u/s/span/font/a) ; conserve div/p/br/ul/ol/li et le texte. */
+export function clearInlineFormat(html: string): string {
+  if (!html) return html;
+  return html
+    .replace(/\s(?:style|color|face|align|href|target|rel)\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, "")
+    .replace(/<\/?(?:b|strong|i|em|u|s|strike|span|font|a)(?:\s[^>]*)?>/gi, "");
 }

@@ -6,11 +6,13 @@ import CVInteractiveCanvas from "./CVInteractiveCanvas";
 import AIProgressOverlay from "./AIProgressOverlay";
 import type { CVData } from "@/types/cv";
 import { normalizeTemplate } from "@/lib/cv-layout";
-import { stripHtml } from "@/utils/strip-html";
-import { Download, Loader2, LayoutPanelLeft, History, AlertTriangle, LayoutTemplate, Trash2, ShieldCheck } from "lucide-react";
+import { safeFileName, stripHtml } from "@/utils/strip-html";
+import { Download, Loader2, LayoutPanelLeft, History, AlertTriangle, LayoutTemplate, Trash2, ShieldCheck, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { cn } from "@/lib/utils";
+import { DEFAULT_PAGE_SIZE, type PageSizeId } from "@/lib/page-size";
+import { cvToPlainText } from "@/lib/cv-text";
 import {
   Select,
   SelectContent,
@@ -58,32 +60,30 @@ function useServerPdfUrl(
   sideBySide?: boolean
 ): { url: string | null; loading: boolean } {
   const [url, setUrl] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  // Inputs of the last request that settled (success or failure). "Loading"
+  // is derived from it instead of being set synchronously inside the effect.
+  const [settled, setSettled] = useState<{
+    data: CVData | null;
+    template: string;
+    originalData?: CVData | null;
+    sideBySide?: boolean;
+  } | null>(null);
   const prevUrlRef = useRef<string | null>(null);
-  const dataRef = useRef({ data, template, originalData, sideBySide });
-  dataRef.current = { data, template, originalData, sideBySide };
 
   useEffect(() => {
-    if (!enabled || !data) {
-      if (prevUrlRef.current) {
-        URL.revokeObjectURL(prevUrlRef.current);
-        prevUrlRef.current = null;
-      }
-      setUrl(null);
-      setLoading(false);
-      return;
-    }
+    // Disabled: nothing to fetch. The last blob URL is kept (revoked when it
+    // is replaced or on unmount) so re-enabling shows it while refreshing.
+    if (!enabled || !data) return;
 
-    setLoading(true);
     let cancelled = false;
+    const inputs = { data, template, originalData, sideBySide };
 
     const timer = setTimeout(async () => {
       try {
-        const { data: d, template: t, originalData: od, sideBySide: sbs } = dataRef.current;
         const res = await fetch("/api/render-pdf", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ data: d, template: t, originalData: od, sideBySide: sbs }),
+          body: JSON.stringify(inputs),
         });
         if (cancelled) return;
         if (!res.ok) throw new Error(`Server returned ${res.status}`);
@@ -96,7 +96,7 @@ function useServerPdfUrl(
       } catch (err) {
         console.error("Server PDF generation failed:", err);
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) setSettled(inputs);
       }
     }, 600);
 
@@ -104,7 +104,6 @@ function useServerPdfUrl(
       cancelled = true;
       clearTimeout(timer);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enabled, data, template, originalData, sideBySide]);
 
   useEffect(() => {
@@ -113,7 +112,14 @@ function useServerPdfUrl(
     };
   }, []);
 
-  return { url, loading };
+  const active = enabled && !!data;
+  const pending =
+    !settled ||
+    settled.data !== data ||
+    settled.template !== template ||
+    settled.originalData !== originalData ||
+    settled.sideBySide !== sideBySide;
+  return { url: active ? url : null, loading: active && pending };
 }
 
 export default function CVPreview({
@@ -136,7 +142,7 @@ export default function CVPreview({
   const [mode, setMode] = useState<"canvas" | "pdf">("canvas");
   const [isDownloading, setIsDownloading] = useState(false);
   const [isOverflowing, setIsOverflowing] = useState(false);
-  const [downloadError, setDownloadError] = useState(false);
+  const [downloadError, setDownloadError] = useState<null | "generic" | "too_large">(null);
   const [confirmDeleteVersion, setConfirmDeleteVersion] = useState(false);
   const mounted = useSyncExternalStore(emptySubscribe, () => true, () => false);
 
@@ -157,42 +163,54 @@ export default function CVPreview({
     if (onChange) onChange(newData);
   };
 
-  // Server-side PDF generation — disabled when content overflows the A4 page
+  // Server-side PDF generation. Un contenu qui déborde reste exportable :
+  // la bannière du canvas propose de le faire tenir, sans bloquer.
   const isPdf = mode === "pdf";
   const needsOriginalPdf = sideBySide && !!originalData;
 
   const { url: originalUrl, loading: originalLoading } = useServerPdfUrl(
-    originalData ?? null, template, needsOriginalPdf && !isOverflowing
+    originalData ?? null, template, needsOriginalPdf
   );
   const { url: adaptedUrl, loading: adaptedLoading } = useServerPdfUrl(
-    data, template, isPdf && !isOverflowing, originalData, sideBySide
+    data, template, isPdf, originalData, sideBySide
   );
 
   const handleDownload = useCallback(async () => {
-    if (isOverflowing) return;
     setIsDownloading(true);
-    setDownloadError(false);
+    setDownloadError(null);
     try {
       const res = await fetch("/api/render-pdf", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ data, template }),
       });
+      if (res.status === 413) setDownloadError("too_large");
       if (!res.ok) throw new Error(`Server returned ${res.status}`);
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `CV_${stripHtml(data.personalInfo.name).replace(/\s+/g, "_")}_${stripHtml(data.personalInfo.role).replace(/\s+/g, "_")}.pdf`;
+      a.download = `${safeFileName(["CV", data.personalInfo.name, data.personalInfo.role])}.pdf`;
       a.click();
       URL.revokeObjectURL(url);
     } catch (err) {
       console.error("PDF download failed:", err);
-      setDownloadError(true);
+      setDownloadError((prev) => prev ?? "generic");
     } finally {
       setIsDownloading(false);
     }
-  }, [data, template, isOverflowing]);
+  }, [data, template]);
+
+  const handleDownloadText = useCallback(() => {
+    // BOM UTF-8 : les accents s'affichent correctement dans le Bloc-notes Windows.
+    const blob = new Blob(["﻿", cvToPlainText(data)], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${safeFileName(["CV", data.personalInfo.name, data.personalInfo.role])}.txt`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }, [data]);
 
   return (
     <div className="flex flex-col flex-1 h-full w-full gap-3">
@@ -316,6 +334,25 @@ export default function CVPreview({
               </SelectGroup>
             </SelectContent>
           </Select>
+
+          {/* Format de page : A4 (Europe) ou Letter (Amérique du Nord). */}
+          <Select
+            value={data.layout?.pageSize ?? DEFAULT_PAGE_SIZE}
+            onValueChange={(val) => {
+              if (!val || !data.layout || !onChange) return;
+              onChange({ ...data, layout: { ...data.layout, pageSize: val as PageSizeId } });
+            }}
+          >
+            <SelectTrigger className="h-9 w-[96px] rounded-lg border border-border/60 bg-muted/40 hover:bg-muted/60 transition-colors text-xs gap-1.5" title={t("label_page_size")}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent className="bg-popover border border-border shadow-md rounded-lg p-1">
+              <SelectGroup>
+                <SelectItem value="A4" className="cursor-pointer text-xs">A4</SelectItem>
+                <SelectItem value="LETTER" className="cursor-pointer text-xs">Letter</SelectItem>
+              </SelectGroup>
+            </SelectContent>
+          </Select>
         </div>
 
         {mounted && (
@@ -329,12 +366,13 @@ export default function CVPreview({
             {downloadError && !isOverflowing && (
               <div className="flex items-center gap-1.5 text-destructive text-xs font-medium">
                 <AlertTriangle size={13} />
-                {t("download_error")}
+                {downloadError === "too_large" ? t("pdf_too_large") : t("download_error")}
               </div>
             )}
           <Button
             onClick={handleDownload}
-            disabled={isDownloading || isOverflowing}
+            disabled={isDownloading}
+            title={isOverflowing ? t("overflow_warning") : undefined}
             className="h-9 px-4 text-xs gap-1.5 font-semibold shadow-md shadow-primary/25 bg-gradient-to-b from-primary to-primary/90 hover:shadow-lg hover:shadow-primary/30 transition-all"
           >
             {isDownloading ? (
@@ -345,9 +383,20 @@ export default function CVPreview({
             ) : (
               <>
                 <Download size={14} />
-                {t("download")}
+                {isOverflowing ? t("download_anyway") : t("download")}
               </>
             )}
+          </Button>
+          {/* Texte brut (une colonne, sans mise en forme) : le format le plus sûr
+              pour les ATS et pour les formulaires de candidature. */}
+          <Button
+            variant="outline"
+            onClick={handleDownloadText}
+            title={t("download_txt_tooltip")}
+            className="h-9 px-3 text-xs gap-1.5"
+          >
+            <FileText size={14} />
+            TXT
           </Button>
           </div>
         )}
@@ -389,6 +438,7 @@ export default function CVPreview({
                     onChange={handleCanvasChange}
                     template={template}
                     originalData={originalData}
+                    onOverflowChange={setIsOverflowing}
                   />
                 </div>
               )}

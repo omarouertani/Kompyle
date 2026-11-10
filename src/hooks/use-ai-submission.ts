@@ -42,6 +42,17 @@ interface UseAISubmissionDeps {
   tAdapt: (key: string, values?: Record<string, string>) => string;
 }
 
+/** Une lettre renvoyée par l'IA ne connaît ni la signature ni le modèle
+ *  visuel choisis par l'utilisateur : on les reprend de la lettre actuelle. */
+function keepLetterExtras(next: CoverLetterData, prev: CoverLetterData | null): CoverLetterData {
+  if (!prev) return next;
+  return {
+    ...next,
+    ...(prev.signature ? { signature: prev.signature } : {}),
+    ...(prev.template ? { template: prev.template } : {}),
+  };
+}
+
 export function useAISubmission(deps: UseAISubmissionDeps) {
   const {
     jobDescription, provider, model, apiKey, currentCV, coverLetterData, locale, selectedProfile, currentProfileId, selectedTemplate,
@@ -206,7 +217,8 @@ export function useAISubmission(deps: UseAISubmissionDeps) {
       }
       const data = await res.json();
       if (isStale(startId)) return;
-      setCoverLetterData(data.coverLetter);
+      // Une nouvelle lettre garde la signature et le modèle déjà choisis.
+      setCoverLetterData(keepLetterExtras(data.coverLetter, coverLetterData));
       setActiveRightTab("letter");
       setStatus("success");
       setStatusMessage(t("status_success_letter", { provider: getModelName(data.model) }));
@@ -227,7 +239,7 @@ export function useAISubmission(deps: UseAISubmissionDeps) {
       abortRef.current = null;
       setLoadingType(null);
     }
-  }, [jobDescription, provider, model, apiKey, currentCV, t, tAdapt, setActiveRightTab, setCoverLetterData, setStatus, setStatusMessage, setStatusDetails, setLoadingType, ensureKey, showErrorToast, isStale]);
+  }, [jobDescription, provider, model, apiKey, currentCV, coverLetterData, t, tAdapt, setActiveRightTab, setCoverLetterData, setStatus, setStatusMessage, setStatusDetails, setLoadingType, ensureKey, showErrorToast, isStale]);
 
   /** Modification ciblée du CV courant (même version — pas une nouvelle copie). */
   const handleRefineCV = useCallback(async (instruction: string): Promise<boolean> => {
@@ -316,7 +328,8 @@ export function useAISubmission(deps: UseAISubmissionDeps) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           instruction: instruction.trim(),
-          coverLetter: coverLetterData,
+          // La signature (image) ne part jamais vers l'IA.
+          coverLetter: coverLetterData ? { ...coverLetterData, signature: undefined } : coverLetterData,
           jobDescription: jobDescription.trim() || undefined,
           provider,
           model,
@@ -330,7 +343,7 @@ export function useAISubmission(deps: UseAISubmissionDeps) {
       }
       const data = await res.json();
       if (isStale(startId)) return false;
-      setCoverLetterData(data.coverLetter);
+      setCoverLetterData(keepLetterExtras(data.coverLetter, coverLetterData));
       setStatus("success");
       setStatusMessage(t("status_success_refine", { provider: getModelName(data.model) }));
       toast.success(tAdapt("toast_refine_success"));

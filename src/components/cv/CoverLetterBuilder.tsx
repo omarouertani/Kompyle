@@ -1,10 +1,13 @@
 "use client";
 
-import React from "react";
-import { useTranslations } from "next-intl";
-import type { CoverLetterData, PersonalInfo } from "@/types/cv";
+import React, { useState } from "react";
+import { useLocale, useTranslations } from "next-intl";
+import type { CoverLetterData, CoverLetterTemplateId, PersonalInfo } from "@/types/cv";
+import { defaultLetterDate } from "./CoverLetterTemplate";
+import { resizeImageToDataUrl } from "@/utils/resize-image";
+import { cn } from "@/lib/utils";
 import { stripHtml } from "@/utils/strip-html";
-import { Building, FileText, Plus, X, User } from "lucide-react";
+import { Building, FileText, Plus, X, User, PenLine, Upload } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
@@ -29,8 +32,10 @@ function SectionHeading({ icon: Icon, children }: { icon: React.ElementType; chi
 
 export default function CoverLetterBuilder({ data, onChange, personalInfo }: CoverLetterBuilderProps) {
   const t = useTranslations("LetterBuilder");
+  const locale = useLocale();
+  const [signatureError, setSignatureError] = useState(false);
 
-  const handleChange = (field: keyof CoverLetterData, value: string | string[]) => {
+  const handleChange = (field: keyof CoverLetterData, value: string | string[] | undefined) => {
     onChange({ ...data, [field]: value });
   };
 
@@ -105,7 +110,76 @@ export default function CoverLetterBuilder({ data, onChange, personalInfo }: Cov
             <Input
               value={data.date}
               onChange={(e) => handleChange("date", e.target.value)}
+              placeholder={defaultLetterDate(locale)}
             />
+            <span className="text-[10px] text-muted-foreground">{t("date_hint")}</span>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Style & signature ── */}
+      <section>
+        <SectionHeading icon={PenLine}>{t("style_section")}</SectionHeading>
+        <div className="flex flex-col gap-5">
+          <div className="flex flex-col gap-2">
+            <Label>{t("template")}</Label>
+            <div className="flex gap-2">
+              {(["classic", "modern"] as CoverLetterTemplateId[]).map((id) => {
+                const active = (data.template ?? "classic") === id;
+                return (
+                  <Button
+                    key={id}
+                    type="button"
+                    variant={active ? "default" : "outline"}
+                    size="sm"
+                    className={cn("flex-1", active && "pointer-events-none")}
+                    onClick={() => handleChange("template", id)}
+                  >
+                    {t(`template_${id}`)}
+                  </Button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <Label>{t("signature")}</Label>
+            <div className="flex items-center gap-3">
+              {data.signature ? (
+                // eslint-disable-next-line @next/next/no-img-element -- data URL preview
+                <img src={data.signature} alt={t("signature")} className="h-12 max-w-[160px] object-contain rounded border border-border/60 bg-white p-1" />
+              ) : (
+                <div className="h-12 w-[160px] rounded border border-dashed border-border/80 bg-muted/30" />
+              )}
+              <input
+                id="letter-signature-input"
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                className="hidden"
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  e.target.value = "";
+                  if (!file) return;
+                  try {
+                    setSignatureError(false);
+                    handleChange("signature", await resizeImageToDataUrl(file, 400, 0.9, "png"));
+                  } catch {
+                    setSignatureError(true);
+                  }
+                }}
+              />
+              <Button type="button" variant="outline" size="sm" className="gap-1.5" onClick={() => document.getElementById("letter-signature-input")?.click()}>
+                <Upload size={14} /> {data.signature ? t("signature_change") : t("signature_add")}
+              </Button>
+              {data.signature && (
+                <Button type="button" variant="ghost" size="sm" className="text-muted-foreground hover:text-destructive" onClick={() => handleChange("signature", undefined)}>
+                  {t("signature_remove")}
+                </Button>
+              )}
+            </div>
+            <span className={cn("text-[10px]", signatureError ? "text-destructive" : "text-muted-foreground")}>
+              {signatureError ? t("signature_error") : t("signature_hint")}
+            </span>
           </div>
         </div>
       </section>

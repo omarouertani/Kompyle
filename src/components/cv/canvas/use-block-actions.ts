@@ -125,6 +125,53 @@ export function useBlockActions({ data, defaultPositions, onChange }: UseBlockAc
     [data, layout, saved, onChange]
   );
 
+  /** Colle (duplique) plusieurs éléments en une seule modification. Chaque copie
+   *  est insérée juste après son original et placée à sa position décalée de
+   *  `offset` pt (x et y). Renvoie les ids des copies (pour les sélectionner). */
+  const pasteItems = useCallback(
+    (blockIds: string[], offset = 12): string[] => {
+      // Regroupe les index copiés par famille (skill, experience…).
+      const byFamily = new Map<string, number[]>();
+      for (const id of blockIds) {
+        const m = id.match(DUPLICABLE);
+        if (!m) continue;
+        const list = byFamily.get(m[1]) ?? [];
+        const idx = parseInt(m[2]);
+        if (!list.includes(idx)) list.push(idx);
+        byFamily.set(m[1], list);
+      }
+      if (byFamily.size === 0) return [];
+
+      const next: CVData = { ...data };
+      let nextSaved = saved;
+      const pastedIds: string[] = [];
+      for (const [family, indexes] of byFamily) {
+        const key = SECTION_KEYS[family as keyof typeof SECTION_KEYS];
+        let list = [...((next[key] as { id?: string }[]) ?? [])];
+        const asc = indexes.filter((i) => i >= 0 && i < list.length).sort((a, b) => a - b);
+        // Ordre DÉCROISSANT : une insertion en i+1 ne décale pas les index < i,
+        // donc les originaux restant à traiter gardent leur index et leur position.
+        for (const idx of [...asc].reverse()) {
+          const src = nextSaved[`${family}_${idx}`] ?? defaultPositions[`${family}_${idx}`];
+          list = [...list.slice(0, idx + 1), { ...list[idx], id: uuidv4() }, ...list.slice(idx + 1)];
+          nextSaved = reindexFamily(nextSaved, family, { type: "insert", index: idx + 1 });
+          if (src) {
+            nextSaved = {
+              ...nextSaved,
+              [`${family}_${idx + 1}`]: { ...src, x: src.x + offset, y: src.y + offset, locked: undefined, groupId: undefined },
+            };
+          }
+        }
+        (next as unknown as Record<string, unknown>)[key] = list;
+        // Index final de la copie du k-ième original (ordre croissant) = i_k + k.
+        asc.forEach((idx, k) => pastedIds.push(`${family}_${idx + k + 1}`));
+      }
+      onChange({ ...next, layout: { ...layout, autoPaginated: false, absolutePositions: nextSaved } });
+      return pastedIds;
+    },
+    [data, layout, saved, defaultPositions, onChange]
+  );
+
   /** Un bloc représente-t-il un ÉLÉMENT supprimable individuellement (sans
    *  toucher au reste de sa section) ? */
   const canDeleteBlock = useCallback((blockId: string) => {
@@ -200,5 +247,5 @@ export function useBlockActions({ data, defaultPositions, onChange }: UseBlockAc
     [data, layout, onChange]
   );
 
-  return { autoHeight, resetPosition, canDuplicate, duplicateItem, canDeleteBlock, deleteBlock, hideSectionOf };
+  return { autoHeight, resetPosition, canDuplicate, duplicateItem, pasteItems, canDeleteBlock, deleteBlock, hideSectionOf };
 }

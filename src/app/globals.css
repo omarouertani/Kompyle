@@ -1,7 +1,15 @@
-@import url('https://fonts.googleapis.com/css2?family=Carlito:ital,wght@0,400;0,700;1,400;1,700&display=swap');
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "@fontsource-variable/ibm-plex-sans";
+
+/* Carlito (clone métrique de Calibri, police « sans » par défaut du CV) :
+   mêmes .ttf auto-hébergés que le PDF (public/fonts/carlito, src/utils/pdf-fonts.ts).
+   Nom de famille fixe « Carlito » (pas next/font, qui génère un nom haché) : les
+   CV enregistrés contiennent la pile inline « 'Carlito', sans-serif ». */
+@font-face { font-family: "Carlito"; src: url("/fonts/carlito/Carlito-Regular.ttf") format("truetype"); font-weight: 400; font-style: normal; font-display: swap; }
+@font-face { font-family: "Carlito"; src: url("/fonts/carlito/Carlito-Bold.ttf") format("truetype"); font-weight: 700; font-style: normal; font-display: swap; }
+@font-face { font-family: "Carlito"; src: url("/fonts/carlito/Carlito-Italic.ttf") format("truetype"); font-weight: 400; font-style: italic; font-display: swap; }
+@font-face { font-family: "Carlito"; src: url("/fonts/carlito/Carlito-BoldItalic.ttf") format("truetype"); font-weight: 700; font-style: italic; font-display: swap; }
 
 @plugin "@tailwindcss/typography";
 @custom-variant dark (&:is(.dark *));

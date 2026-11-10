@@ -26,7 +26,10 @@ import {
   renderCertifications,
   renderInterests,
 } from "./template/classic-renderers";
-import { isBlockOutOfPage } from "./template/shared";
+import { blockTextAlign, isBlockOutOfPage, pdfMetadata } from "./template/shared";
+import { getPageDims } from "@/lib/page-size";
+import { detectJobLanguage } from "@/lib/detect-language";
+import { stripHtml } from "@/utils/strip-html";
 
 registerPdfFont(ACTIVE_PDF_FONT);
 
@@ -50,6 +53,9 @@ const CVTemplate: React.FC<CVTemplateProps> = ({ data, originalData, variant = "
   // Police du thème (canvas) → famille PDF enregistrée, injectée via le
   // contexte du thème PDF (toutes les primitives en héritent).
   const pdfFontFamily = resolvePdfFontFamily(layout.theme?.fontFamily);
+  // Format de page (A4 / Letter) et langue du document (métadonnées PDF).
+  const pageDims = getPageDims(layout);
+  const cvLanguage = detectJobLanguage(stripHtml(`${data.personalInfo?.role ?? ""} ${data.personalInfo?.summary ?? ""}`));
 
   // Le PDF rend depuis les positions absolues dès qu'elles existent, afin que la
   // sortie PDF corresponde EXACTEMENT à ce que l'utilisateur voit dans le canvas
@@ -88,7 +94,7 @@ const CVTemplate: React.FC<CVTemplateProps> = ({ data, originalData, variant = "
     if (!pos) return null;
     // Position hors page A4 : on ignore le bloc plutôt que de casser le rendu
     // PDF (page blanche). Le canvas signale la limite (ligne ambre).
-    if (isBlockOutOfPage(pos)) return null;
+    if (isBlockOutOfPage(pos, pageDims)) return null;
 
     let rendered: React.ReactNode = null;
     if (blockId.startsWith("title_custom_") || blockId.startsWith("content_custom_")) {
@@ -145,7 +151,7 @@ const CVTemplate: React.FC<CVTemplateProps> = ({ data, originalData, variant = "
     if (!rendered) return null;
 
     return (
-      <View key={blockId} style={{ position: "absolute", left: pos.x, top: pos.y, width: pos.w }}>
+      <View key={blockId} style={{ position: "absolute", left: pos.x, top: pos.y, width: pos.w, textAlign: blockTextAlign(pos) }}>
         {rendered}
       </View>
     );
@@ -162,22 +168,22 @@ const CVTemplate: React.FC<CVTemplateProps> = ({ data, originalData, variant = "
     return (
       <>
         {/* Name */}
-        <View style={{ position: "absolute", left: namePos.x, top: namePos.y, width: namePos.w }}>
+        <View style={{ position: "absolute", left: namePos.x, top: namePos.y, width: namePos.w, textAlign: blockTextAlign(namePos) }}>
           <Text style={styles.h1}>{personalInfo.name}</Text>
         </View>
 
         {/* Role */}
-        <View style={{ position: "absolute", left: rolePos.x, top: rolePos.y, width: rolePos.w }}>
+        <View style={{ position: "absolute", left: rolePos.x, top: rolePos.y, width: rolePos.w, textAlign: blockTextAlign(rolePos) }}>
           <Text style={styles.role}>{personalInfo.role}</Text>
         </View>
 
         {/* Tech Line (classique/moderne) ou ligne de coordonnées (canadien) */}
         {isCanadian ? (
-          <View style={{ position: "absolute", left: contactPos.x, top: contactPos.y, width: contactPos.w }}>
+          <View style={{ position: "absolute", left: contactPos.x, top: contactPos.y, width: contactPos.w, textAlign: blockTextAlign(contactPos) }}>
             {renderCanadianContact()}
           </View>
         ) : (
-          <View style={{ position: "absolute", left: techPos.x, top: techPos.y, width: techPos.w }}>
+          <View style={{ position: "absolute", left: techPos.x, top: techPos.y, width: techPos.w, textAlign: blockTextAlign(techPos) }}>
             <DiffText
               oldText={originalData?.personalInfo.techLine}
               newText={personalInfo.techLine}
@@ -191,11 +197,7 @@ const CVTemplate: React.FC<CVTemplateProps> = ({ data, originalData, variant = "
 
   return (
     <PdfThemeProvider value={{ ...defaultPdfTheme, fontFamily: pdfFontFamily }}>
-    <Document
-      title={`${personalInfo.name} — ${personalInfo.role} (CV)`}
-      author={personalInfo.name}
-      subject={personalInfo.role}
-    >
+    <Document {...pdfMetadata(data, cvLanguage)}>
       {dedupePages(layout.pages).map((page, pageIndex) => {
         // Pas de section en colonne latérale → la colonne principale occupe
         // toute la largeur (équivalent du `fullWidth` de Reactive Resume).
@@ -215,7 +217,7 @@ const CVTemplate: React.FC<CVTemplateProps> = ({ data, originalData, variant = "
           };
 
           return (
-            <Page key={pageIndex} size="A4" style={[styles.page, { padding: 0 }]}>
+            <Page key={pageIndex} size={pageDims.id} style={[styles.page, { padding: 0 }]}>
               {hasSidebarAbs && styles.sidebar.backgroundColor !== "transparent" && <View style={sidebarBgStyle} />}
               {renderAbsoluteHeaderAndPhoto(pageIndex)}
               {sidebarBlocks.map((blockId) => renderAbsoluteBlock(blockId))}
@@ -225,7 +227,7 @@ const CVTemplate: React.FC<CVTemplateProps> = ({ data, originalData, variant = "
         }
 
         return (
-          <Page key={pageIndex} size="A4" style={styles.page}>
+          <Page key={pageIndex} size={pageDims.id} style={styles.page}>
             {/* Header (nom / rôle / techLine|coordonnées) : uniquement sur la 1re page. */}
             {pageIndex === 0 && (
               <View style={styles.header}>

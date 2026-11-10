@@ -17,7 +17,7 @@ import type { CVFontFamily } from "@/types/cv";
  */
 
 export interface PdfFontVariant {
-  /** URL .ttf (gstatic…) OU chemin local sous /public (ex: "/fonts/calibri.ttf"). */
+  /** Source .ttf résolue par `fontSrc()` (chemin disque côté serveur, URL /fonts/… côté navigateur). */
   src: string;
   fontWeight?: number | "normal" | "bold";
   fontStyle?: "normal" | "italic";
@@ -29,48 +29,54 @@ export interface PdfFontDefinition {
 }
 
 /**
+ * Source d'un .ttf hébergé dans `public/fonts/<rel>`.
+ *  • Serveur (route /api/render-pdf) : react-pdf lit un chemin disque. En
+ *    `output: "standalone"`, `public/` est copié dans l'image (cf. Dockerfile)
+ *    et `outputFileTracingIncludes` (next.config.ts) l'embarque dans la route.
+ *  • Navigateur (aperçu de la lettre) : URL servie par Next.
+ */
+export function fontSrc(rel: string): string {
+  if (typeof window === "undefined") {
+    return `${process.cwd()}/public/fonts/${rel}`;
+  }
+  return `/fonts/${rel}`;
+}
+
+/**
  * Registre des polices disponibles.
  *
- *  • Calibri  → fichiers locaux (/public/fonts) : 100 % fiable, hors-ligne.
- *  • Inter / Roboto / Carlito → .ttf Google Fonts (gstatic), fetchés async par
- *    react-pdf au rendu (gstatic renvoie `access-control-allow-origin: *`, donc
- *    OK côté navigateur). Pour une fiabilité maximale hors-ligne, télécharge ces
- *    .ttf dans /public/fonts et remplace l'URL par le chemin local.
+ *  • Toutes les polices sont des .ttf statiques hébergés dans `public/fonts`
+ *    (licence OFL, fichier OFL.txt dans chaque dossier) : aucun appel réseau
+ *    vers Google Fonts au rendu, le PDF fonctionne hors-ligne.
  *  • Carlito  → clone MÉTRIQUE-compatible de Calibri (substitut utilisé par RR) :
- *    rendu quasi identique à ton Calibri, mais servi par une URL stable.
+ *    rendu quasi identique à Calibri (police Microsoft non redistribuable,
+ *    donc absente du repo) ; les CV en « Calibri » sont rendus en Carlito.
  *
  * On n'enregistre que 400 (regular) et 700 (bold) — les seuls poids utilisés par
  * le template. PDF plus léger, rendu plus rapide (philosophie RR).
  */
 export const PDF_FONTS = {
-  Calibri: {
-    family: "Calibri",
-    fonts: [
-      { src: "/fonts/calibri.ttf", fontWeight: 400 },
-      { src: "/fonts/calibrib.ttf", fontWeight: 700 },
-    ],
-  },
   Inter: {
     family: "Inter",
     fonts: [
       {
-        src: "https://fonts.gstatic.com/s/inter/v20/UcCO3FwrK3iLTeHuS_nVMrMxCp50SjIw2boKoduKmMEVuLyfMZhrib2Bg-4.ttf",
+        src: fontSrc("inter/Inter-Regular.ttf"),
         fontWeight: 400,
       },
       {
-        src: "https://fonts.gstatic.com/s/inter/v20/UcCO3FwrK3iLTeHuS_nVMrMxCp50SjIw2boKoduKmMEVuFuYMZhrib2Bg-4.ttf",
+        src: fontSrc("inter/Inter-Bold.ttf"),
         fontWeight: 700,
       },
       // Italic variants — required so the user toggling italic on a selection
       // doesn't crash the render (react-pdf throws if a used variant is unregistered).
       // Inter ships a single variable italic file; we point both weights at it.
       {
-        src: "https://fonts.gstatic.com/s/inter/v20/UcCM3FwrK3iLTcvneQg7Ca725JhhKnNqk4j1ebLhAm8SrXTc2dtRipWA.ttf",
+        src: fontSrc("inter/Inter-Italic.ttf"),
         fontWeight: 400,
         fontStyle: "italic",
       },
       {
-        src: "https://fonts.gstatic.com/s/inter/v20/UcCM3FwrK3iLTcvneQg7Ca725JhhKnNqk4j1ebLhAm8SrXTc2dtRipWA.ttf",
+        src: fontSrc("inter/Inter-Italic.ttf"),
         fontWeight: 700,
         fontStyle: "italic",
       },
@@ -80,20 +86,20 @@ export const PDF_FONTS = {
     family: "Roboto",
     fonts: [
       {
-        src: "https://fonts.gstatic.com/s/roboto/v51/KFOMCnqEu92Fr1ME7kSn66aGLdTylUAMQXC89YmC2DPNWubEbWmTggvWl0Qn.ttf",
+        src: fontSrc("roboto/Roboto-Regular.ttf"),
         fontWeight: 400,
       },
       {
-        src: "https://fonts.gstatic.com/s/roboto/v51/KFOMCnqEu92Fr1ME7kSn66aGLdTylUAMQXC89YmC2DPNWuYjammTggvWl0Qn.ttf",
+        src: fontSrc("roboto/Roboto-Bold.ttf"),
         fontWeight: 700,
       },
       {
-        src: "https://fonts.gstatic.com/s/roboto/v51/KFOKCnqEu92Fr1Mu53ZEC9_Vu3r1gIhOszmOClHrs6ljXfMMLoHQiA8.ttf",
+        src: fontSrc("roboto/Roboto-Italic.ttf"),
         fontWeight: 400,
         fontStyle: "italic",
       },
       {
-        src: "https://fonts.gstatic.com/s/roboto/v51/KFOKCnqEu92Fr1Mu53ZEC9_Vu3r1gIhOszmOClHrs6ljXfMMLmbXiA8.ttf",
+        src: fontSrc("roboto/Roboto-BoldItalic.ttf"),
         fontWeight: 700,
         fontStyle: "italic",
       },
@@ -102,84 +108,84 @@ export const PDF_FONTS = {
   Carlito: {
     family: "Carlito",
     fonts: [
-      { src: "https://fonts.gstatic.com/s/carlito/v4/3Jn9SDPw3m-pk039DDeBSQ.ttf", fontWeight: 400 },
-      { src: "https://fonts.gstatic.com/s/carlito/v4/3Jn4SDPw3m-pk039BIykWXolVg.ttf", fontWeight: 700 },
-      { src: "https://fonts.gstatic.com/s/carlito/v4/3Jn_SDPw3m-pk039DDKBSQ.ttf", fontWeight: 400, fontStyle: "italic" },
-      { src: "https://fonts.gstatic.com/s/carlito/v4/3Jn6SDPw3m-pk039DDK59XglVg.ttf", fontWeight: 700, fontStyle: "italic" },
+      { src: fontSrc("carlito/Carlito-Regular.ttf"), fontWeight: 400 },
+      { src: fontSrc("carlito/Carlito-Bold.ttf"), fontWeight: 700 },
+      { src: fontSrc("carlito/Carlito-Italic.ttf"), fontWeight: 400, fontStyle: "italic" },
+      { src: fontSrc("carlito/Carlito-BoldItalic.ttf"), fontWeight: 700, fontStyle: "italic" },
     ],
   },
   // ── Pack pro (synchronisé avec next/font côté canvas, cf. layout.tsx) ──────
-  // Toutes en .ttf statiques gstatic (mêmes métriques que la webfont canvas).
+  // .ttf statiques (mêmes métriques que la webfont canvas).
   Lato: {
     family: "Lato",
     fonts: [
-      { src: "https://fonts.gstatic.com/s/lato/v25/S6uyw4BMUTPHvxk6WQev.ttf", fontWeight: 400 },
-      { src: "https://fonts.gstatic.com/s/lato/v25/S6u9w4BMUTPHh6UVew-FHi_o.ttf", fontWeight: 700 },
-      { src: "https://fonts.gstatic.com/s/lato/v25/S6u8w4BMUTPHjxswWyWtFCc.ttf", fontWeight: 400, fontStyle: "italic" },
-      { src: "https://fonts.gstatic.com/s/lato/v25/S6u_w4BMUTPHjxsI5wqPHA3q5d0.ttf", fontWeight: 700, fontStyle: "italic" },
+      { src: fontSrc("lato/Lato-Regular.ttf"), fontWeight: 400 },
+      { src: fontSrc("lato/Lato-Bold.ttf"), fontWeight: 700 },
+      { src: fontSrc("lato/Lato-Italic.ttf"), fontWeight: 400, fontStyle: "italic" },
+      { src: fontSrc("lato/Lato-BoldItalic.ttf"), fontWeight: 700, fontStyle: "italic" },
     ],
   },
   Montserrat: {
     family: "Montserrat",
     fonts: [
-      { src: "https://fonts.gstatic.com/s/montserrat/v31/JTUHjIg1_i6t8kCHKm4532VJOt5-QNFgpCtr6Ew-Y31cow.ttf", fontWeight: 400 },
-      { src: "https://fonts.gstatic.com/s/montserrat/v31/JTUHjIg1_i6t8kCHKm4532VJOt5-QNFgpCuM70w-Y31cow.ttf", fontWeight: 700 },
-      { src: "https://fonts.gstatic.com/s/montserrat/v31/JTUFjIg1_i6t8kCHKm459Wx7xQYXK0vOoz6jq6R9aX9-obK4.ttf", fontWeight: 400, fontStyle: "italic" },
-      { src: "https://fonts.gstatic.com/s/montserrat/v31/JTUFjIg1_i6t8kCHKm459Wx7xQYXK0vOoz6jq0N6aX9-obK4.ttf", fontWeight: 700, fontStyle: "italic" },
+      { src: fontSrc("montserrat/Montserrat-Regular.ttf"), fontWeight: 400 },
+      { src: fontSrc("montserrat/Montserrat-Bold.ttf"), fontWeight: 700 },
+      { src: fontSrc("montserrat/Montserrat-Italic.ttf"), fontWeight: 400, fontStyle: "italic" },
+      { src: fontSrc("montserrat/Montserrat-BoldItalic.ttf"), fontWeight: 700, fontStyle: "italic" },
     ],
   },
   Poppins: {
     family: "Poppins",
     fonts: [
-      { src: "https://fonts.gstatic.com/s/poppins/v24/pxiEyp8kv8JHgFVrFJDUdVNF.ttf", fontWeight: 400 },
-      { src: "https://fonts.gstatic.com/s/poppins/v24/pxiByp8kv8JHgFVrLCz7V1tvEv-L.ttf", fontWeight: 700 },
-      { src: "https://fonts.gstatic.com/s/poppins/v24/pxiGyp8kv8JHgFVrJJLed3FHGPc.ttf", fontWeight: 400, fontStyle: "italic" },
-      { src: "https://fonts.gstatic.com/s/poppins/v24/pxiDyp8kv8JHgFVrJJLmy15lEN2JQEk.ttf", fontWeight: 700, fontStyle: "italic" },
+      { src: fontSrc("poppins/Poppins-Regular.ttf"), fontWeight: 400 },
+      { src: fontSrc("poppins/Poppins-Bold.ttf"), fontWeight: 700 },
+      { src: fontSrc("poppins/Poppins-Italic.ttf"), fontWeight: 400, fontStyle: "italic" },
+      { src: fontSrc("poppins/Poppins-BoldItalic.ttf"), fontWeight: 700, fontStyle: "italic" },
     ],
   },
   "Open Sans": {
     family: "Open Sans",
     fonts: [
-      { src: "https://fonts.gstatic.com/s/opensans/v44/memSYaGs126MiZpBA-UvWbX2vVnXBbObj2OVZyOOSr4dVJWUgsjZ0C4nY1U2xQ.ttf", fontWeight: 400 },
-      { src: "https://fonts.gstatic.com/s/opensans/v44/memSYaGs126MiZpBA-UvWbX2vVnXBbObj2OVZyOOSr4dVJWUgsg-1y4nY1U2xQ.ttf", fontWeight: 700 },
-      { src: "https://fonts.gstatic.com/s/opensans/v44/memQYaGs126MiZpBA-UFUIcVXSCEkx2cmqvXlWq8tWZ0Pw86hd0Rk8ZkaVcUx6EQ.ttf", fontWeight: 400, fontStyle: "italic" },
-      { src: "https://fonts.gstatic.com/s/opensans/v44/memQYaGs126MiZpBA-UFUIcVXSCEkx2cmqvXlWq8tWZ0Pw86hd0RkyFjaVcUx6EQ.ttf", fontWeight: 700, fontStyle: "italic" },
+      { src: fontSrc("opensans/OpenSans-Regular.ttf"), fontWeight: 400 },
+      { src: fontSrc("opensans/OpenSans-Bold.ttf"), fontWeight: 700 },
+      { src: fontSrc("opensans/OpenSans-Italic.ttf"), fontWeight: 400, fontStyle: "italic" },
+      { src: fontSrc("opensans/OpenSans-BoldItalic.ttf"), fontWeight: 700, fontStyle: "italic" },
     ],
   },
   "Source Sans 3": {
     family: "Source Sans 3",
     fonts: [
-      { src: "https://fonts.gstatic.com/s/sourcesans3/v19/nwpBtKy2OAdR1K-IwhWudF-R9QMylBJAV3Bo8Ky461EN_iw6nw.ttf", fontWeight: 400 },
-      { src: "https://fonts.gstatic.com/s/sourcesans3/v19/nwpBtKy2OAdR1K-IwhWudF-R9QMylBJAV3Bo8Kxf7FEN_iw6nw.ttf", fontWeight: 700 },
-      { src: "https://fonts.gstatic.com/s/sourcesans3/v19/nwpDtKy2OAdR1K-IwhWudF-R3woAa8opPOrG97lwqLlO9C4YnYfA.ttf", fontWeight: 400, fontStyle: "italic" },
-      { src: "https://fonts.gstatic.com/s/sourcesans3/v19/nwpDtKy2OAdR1K-IwhWudF-R3woAa8opPOrG97lwqF5J9C4YnYfA.ttf", fontWeight: 700, fontStyle: "italic" },
+      { src: fontSrc("sourcesans3/SourceSans3-Regular.ttf"), fontWeight: 400 },
+      { src: fontSrc("sourcesans3/SourceSans3-Bold.ttf"), fontWeight: 700 },
+      { src: fontSrc("sourcesans3/SourceSans3-Italic.ttf"), fontWeight: 400, fontStyle: "italic" },
+      { src: fontSrc("sourcesans3/SourceSans3-BoldItalic.ttf"), fontWeight: 700, fontStyle: "italic" },
     ],
   },
   Merriweather: {
     family: "Merriweather",
     fonts: [
-      { src: "https://fonts.gstatic.com/s/merriweather/v33/u-4D0qyriQwlOrhSvowK_l5UcA6zuSYEqOzpPe3HOZJ5eX1WtLaQwmYiScCmDxhtNOKl8yDr3icqE1fyKvQ.ttf", fontWeight: 400 },
-      { src: "https://fonts.gstatic.com/s/merriweather/v33/u-4D0qyriQwlOrhSvowK_l5UcA6zuSYEqOzpPe3HOZJ5eX1WtLaQwmYiScCmDxhtNOKl8yDrOSAqE1fyKvQ.ttf", fontWeight: 700 },
-      { src: "https://fonts.gstatic.com/s/merriweather/v33/u-4B0qyriQwlOrhSvowK_l5-eTxCVx0ZbwLvKH2Gk9hLmp0v5yA-xXPqCzLvPee1XYk_XSf-FmTCUF3wCPbaYA.ttf", fontWeight: 400, fontStyle: "italic" },
-      { src: "https://fonts.gstatic.com/s/merriweather/v33/u-4B0qyriQwlOrhSvowK_l5-eTxCVx0ZbwLvKH2Gk9hLmp0v5yA-xXPqCzLvPee1XYk_XSf-FmQlV13wCPbaYA.ttf", fontWeight: 700, fontStyle: "italic" },
+      { src: fontSrc("merriweather/Merriweather-Regular.ttf"), fontWeight: 400 },
+      { src: fontSrc("merriweather/Merriweather-Bold.ttf"), fontWeight: 700 },
+      { src: fontSrc("merriweather/Merriweather-Italic.ttf"), fontWeight: 400, fontStyle: "italic" },
+      { src: fontSrc("merriweather/Merriweather-BoldItalic.ttf"), fontWeight: 700, fontStyle: "italic" },
     ],
   },
   "Playfair Display": {
     family: "Playfair Display",
     fonts: [
-      { src: "https://fonts.gstatic.com/s/playfairdisplay/v40/nuFvD-vYSZviVYUb_rj3ij__anPXJzDwcbmjWBN2PKdFvUDQZNTo_A.ttf", fontWeight: 400 },
-      { src: "https://fonts.gstatic.com/s/playfairdisplay/v40/nuFvD-vYSZviVYUb_rj3ij__anPXJzDwcbmjWBN2PKeiukDQZNTo_A.ttf", fontWeight: 700 },
-      { src: "https://fonts.gstatic.com/s/playfairdisplay/v40/nuFRD-vYSZviVYUb_rj3ij__anPXDTnCjmHKM4nYO7KN_qiTbtbK_l2q.ttf", fontWeight: 400, fontStyle: "italic" },
-      { src: "https://fonts.gstatic.com/s/playfairdisplay/v40/nuFRD-vYSZviVYUb_rj3ij__anPXDTnCjmHKM4nYO7KN_k-UbtbK_l2q.ttf", fontWeight: 700, fontStyle: "italic" },
+      { src: fontSrc("playfairdisplay/PlayfairDisplay-Regular.ttf"), fontWeight: 400 },
+      { src: fontSrc("playfairdisplay/PlayfairDisplay-Bold.ttf"), fontWeight: 700 },
+      { src: fontSrc("playfairdisplay/PlayfairDisplay-Italic.ttf"), fontWeight: 400, fontStyle: "italic" },
+      { src: fontSrc("playfairdisplay/PlayfairDisplay-BoldItalic.ttf"), fontWeight: 700, fontStyle: "italic" },
     ],
   },
   Gelasio: {
     family: "Gelasio",
     fonts: [
-      { src: "https://fonts.gstatic.com/s/gelasio/v14/cIfiMaFfvUQxTTqS3iKJkLGbI41wQL8Ilycs-TbO8Q.ttf", fontWeight: 400 },
-      { src: "https://fonts.gstatic.com/s/gelasio/v14/cIfiMaFfvUQxTTqS3iKJkLGbI41wQL_vkCcs-TbO8Q.ttf", fontWeight: 700 },
-      { src: "https://fonts.gstatic.com/s/gelasio/v14/cIfsMaFfvUQxTTqS9Cu7b2nySBfeR6rA1M9v8zTs8xbb.ttf", fontWeight: 400, fontStyle: "italic" },
-      { src: "https://fonts.gstatic.com/s/gelasio/v14/cIfsMaFfvUQxTTqS9Cu7b2nySBfeR6rA1Cho8zTs8xbb.ttf", fontWeight: 700, fontStyle: "italic" },
+      { src: fontSrc("gelasio/Gelasio-Regular.ttf"), fontWeight: 400 },
+      { src: fontSrc("gelasio/Gelasio-Bold.ttf"), fontWeight: 700 },
+      { src: fontSrc("gelasio/Gelasio-Italic.ttf"), fontWeight: 400, fontStyle: "italic" },
+      { src: fontSrc("gelasio/Gelasio-BoldItalic.ttf"), fontWeight: 700, fontStyle: "italic" },
     ],
   },
 } satisfies Record<string, PdfFontDefinition>;

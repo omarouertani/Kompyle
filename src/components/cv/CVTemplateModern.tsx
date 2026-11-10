@@ -26,7 +26,11 @@ import {
   renderCertifications,
   renderInterests,
 } from "./template/modern-renderers";
-import { isBlockOutOfPage } from "./template/shared";
+import { blockTextAlign, isBlockOutOfPage, pdfMetadata } from "./template/shared";
+import { getPageDims } from "@/lib/page-size";
+import { photoFrame } from "@/lib/photo-frame";
+import { detectJobLanguage } from "@/lib/detect-language";
+import { stripHtml } from "@/utils/strip-html";
 
 registerPdfFont(ACTIVE_PDF_FONT);
 
@@ -43,14 +47,18 @@ const CVTemplateModern: React.FC<CVTemplateModernProps> = ({ data, originalData 
   // Police du thème (canvas) → famille PDF enregistrée, injectée via le
   // contexte du thème PDF (toutes les primitives en héritent).
   const pdfFontFamily = resolvePdfFontFamily(layout.theme?.fontFamily);
+  // Format de page (A4 / Letter) et langue du document (métadonnées PDF).
+  const pageDims = getPageDims(layout);
+  // Cadre de la photo (forme + bordure), identique au canvas.
+  const avatarFrame = (size: number) => {
+    const f = photoFrame(layout.theme, size, layout.theme?.primaryColor || "#1a1a1a");
+    return { width: size, height: size, borderRadius: f.radius, borderWidth: f.borderWidth, borderColor: f.borderColor };
+  };
+  const cvLanguage = detectJobLanguage(stripHtml(`${data.personalInfo?.role ?? ""} ${data.personalInfo?.summary ?? ""}`));
 
   return (
     <PdfThemeProvider value={{ ...defaultPdfTheme, fontFamily: pdfFontFamily }}>
-    <Document
-      title={`${personalInfo.name} — ${personalInfo.role} (CV)`}
-      author={personalInfo.name}
-      subject={personalInfo.role}
-    >
+    <Document {...pdfMetadata(data, cvLanguage)}>
       {dedupePages(layout.pages).map((page, pageIndex) => {
         const hasSidebar = page.sidebar.some((id) => SECTION_RENDERERS[id]);
 
@@ -90,7 +98,7 @@ const CVTemplateModern: React.FC<CVTemplateModernProps> = ({ data, originalData 
             return (
               <>
                 <View style={{ position: "absolute", left: photoPos.x, top: photoPos.y, width: photoPos.w ?? 65, alignItems: "center" }}>
-                  <View style={[styles.avatarCircle, { width: photoPos.w ?? 65, height: photoPos.w ?? 65, borderRadius: (photoPos.w ?? 65) / 2 }]}>
+                  <View style={[styles.avatarCircle, avatarFrame(photoPos.w ?? 65)]}>
                     {personalInfo.photo ? (
                       <Image src={personalInfo.photo} style={styles.avatarImage} />
                     ) : (
@@ -105,14 +113,14 @@ const CVTemplateModern: React.FC<CVTemplateModernProps> = ({ data, originalData 
                     )}
                   </View>
                 </View>
-                <View style={{ position: "absolute", left: namePos.x, top: namePos.y, width: namePos.w }}>
+                <View style={{ position: "absolute", left: namePos.x, top: namePos.y, width: namePos.w, textAlign: blockTextAlign(namePos) }}>
                   <Text style={styles.h1}>{personalInfo.name}</Text>
                 </View>
-                <View style={{ position: "absolute", left: rolePos.x, top: rolePos.y, width: rolePos.w }}>
+                <View style={{ position: "absolute", left: rolePos.x, top: rolePos.y, width: rolePos.w, textAlign: blockTextAlign(rolePos) }}>
                   <Text style={styles.role}>{personalInfo.role}</Text>
                 </View>
                 {personalInfo.techLine && (
-                  <View style={{ position: "absolute", left: techPos.x, top: techPos.y, width: techPos.w }}>
+                  <View style={{ position: "absolute", left: techPos.x, top: techPos.y, width: techPos.w, textAlign: blockTextAlign(techPos) }}>
                     <DiffText
                       oldText={originalData?.personalInfo.techLine}
                       newText={personalInfo.techLine}
@@ -130,7 +138,7 @@ const CVTemplateModern: React.FC<CVTemplateModernProps> = ({ data, originalData 
             if (!pos) return null;
             // Position hors page A4 : on ignore le bloc plutôt que de casser le
             // rendu PDF (page blanche / boucle de pagination).
-            if (isBlockOutOfPage(pos)) return null;
+            if (isBlockOutOfPage(pos, pageDims)) return null;
 
             let rendered: React.ReactNode = null;
             // STEP: custom sections support
@@ -176,14 +184,14 @@ const CVTemplateModern: React.FC<CVTemplateModernProps> = ({ data, originalData 
             if (!rendered) return null;
 
             return (
-              <View key={blockId} style={{ position: "absolute", left: pos.x, top: pos.y, width: pos.w }}>
+              <View key={blockId} style={{ position: "absolute", left: pos.x, top: pos.y, width: pos.w, textAlign: blockTextAlign(pos) }}>
                 {rendered}
               </View>
             );
           };
 
           return (
-            <Page key={pageIndex} size="A4" style={[styles.page, { padding: 0 }]}>
+            <Page key={pageIndex} size={pageDims.id} style={[styles.page, { padding: 0 }]}>
               {hasSidebarAbs && <View style={sidebarBgStyle} />}
               {renderAbsoluteHeaderAndPhoto(pageIndex)}
               {sidebarBlocks.map((id) => renderAbsoluteBlock(id, true))}
@@ -193,13 +201,13 @@ const CVTemplateModern: React.FC<CVTemplateModernProps> = ({ data, originalData 
         }
 
         return (
-          <Page key={pageIndex} size="A4" style={styles.page}>
+          <Page key={pageIndex} size={pageDims.id} style={styles.page}>
             <View style={styles.body}>
               {hasSidebar && (
                 <View style={styles.sidebar}>
                   {pageIndex === 0 && (
                     <View style={styles.avatarContainer}>
-                      <View style={styles.avatarCircle}>
+                      <View style={[styles.avatarCircle, avatarFrame(65)]}>
                         {personalInfo.photo ? (
                           <Image src={personalInfo.photo} style={styles.avatarImage} />
                         ) : (

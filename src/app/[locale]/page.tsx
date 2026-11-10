@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import dynamic from "next/dynamic";
 import type { CoverLetterData } from "@/types/cv";
 import CVBuilder from "@/components/cv/CVBuilder";
@@ -111,10 +111,14 @@ export default function AdaptPage() {
 
   // L'historique des raffinages appartient à UN CV/version précis. On le vide dès
   // qu'on change de profil ou de version — sinon l'historique d'un autre CV
-  // resterait affiché comme s'il s'appliquait au CV courant.
-  useEffect(() => {
+  // resterait affiché comme s'il s'appliquait au CV courant. (Remis à zéro
+  // pendant le rendu quand la clé change, plutôt que dans un effet.)
+  const refineHistoryKey = `${profile.selectedProfile}::${profile.currentProfileId ?? ""}`;
+  const [refineHistoryOwner, setRefineHistoryOwner] = useState(refineHistoryKey);
+  if (refineHistoryOwner !== refineHistoryKey) {
+    setRefineHistoryOwner(refineHistoryKey);
     setRefineHistory([]);
-  }, [profile.selectedProfile, profile.currentProfileId]);
+  }
 
   /** Change d'onglet de droite ; en arrivant sur l'ATS, referme le sidebar s'il
    *  est ouvert (l'utilisateur reste libre de le rouvrir — on ne le bloque pas). */
@@ -621,6 +625,7 @@ export default function AdaptPage() {
               <CoverLetterPreview
                 data={profile.coverLetterData || initialCoverLetter}
                 personalInfo={profile.currentCV.personalInfo}
+                theme={profile.currentCV.layout?.theme}
                 isAdapting={profile.loadingType === "letter"}
               />
             )}

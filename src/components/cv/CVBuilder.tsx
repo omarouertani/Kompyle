@@ -2,6 +2,8 @@
 
 import React, { useState } from "react";
 import { useTranslations } from "next-intl";
+import { toast } from "sonner";
+import { PhotoCropDialog } from "./PhotoCropDialog";
 import {
   DndContext,
   closestCenter,
@@ -215,6 +217,8 @@ function SortableSection<T extends { id?: string }>({
 
 export default function CVBuilder({ data, onChange }: CVBuilderProps) {
   const t = useTranslations("Builder");
+  // Photo choisie, en attente de recadrage (dialogue ouvert tant que non nulle).
+  const [cropFile, setCropFile] = useState<File | null>(null);
   const setSection = <T,>(section: ListSection, items: T[]) =>
     onChange({ ...data, [section]: items });
 
@@ -313,12 +317,12 @@ export default function CVBuilder({ data, onChange }: CVBuilderProps) {
                   type="file"
                   accept="image/*"
                   onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) {
-                      const reader = new FileReader();
-                      reader.onloadend = () => updatePersonalInfo("photo", reader.result as string);
-                      reader.readAsDataURL(file);
-                    }
+                    const input = e.target;
+                    const file = input.files?.[0];
+                    // Ouvre le recadrage ; la photo n'est enregistrée qu'à la validation.
+                    if (file) setCropFile(file);
+                    // Permet de re-choisir le même fichier (sinon onChange ne se déclenche pas).
+                    input.value = "";
                   }}
                   className="hidden"
                   id="avatar-upload-input"
@@ -333,6 +337,18 @@ export default function CVBuilder({ data, onChange }: CVBuilderProps) {
                   {t("photo_choose")}
                 </Button>
                 <p className="text-[10px] text-muted-foreground">{t("photo_hint")}</p>
+                <PhotoCropDialog
+                  file={cropFile}
+                  onCancel={() => setCropFile(null)}
+                  onConfirm={(url) => {
+                    updatePersonalInfo("photo", url);
+                    setCropFile(null);
+                  }}
+                  onError={() => {
+                    setCropFile(null);
+                    toast.error(t("photo_error"));
+                  }}
+                />
               </div>
             </div>
           </div>

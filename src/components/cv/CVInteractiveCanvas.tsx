@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useEffect, useMemo } from "react";
+import React, { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { useTranslations } from "next-intl";
 import type { CVData } from "@/types/cv";
 import {
@@ -8,6 +8,7 @@ import {
   getDefaultPositions,
   getDefaultPhotoPosition,
   getParentSectionId,
+  getPageBlockIds,
   dedupePages,
   hasDuplicateSections,
   getSectionLabel,
@@ -15,12 +16,14 @@ import {
 } from "@/lib/cv-layout";
 import { Lock } from "lucide-react";
 import { stripHtml } from "@/utils/strip-html";
-import { SELECTION_COLOR } from "./cv-canvas-primitives";
+import { SELECTION_COLOR, PageDimsContext, PT_TO_PX } from "./cv-canvas-primitives";
+import { getPageDims } from "@/lib/page-size";
 import { type BlockTheme } from "./canvas/BlockContent";
 import { CanvasToolbar, type CanvasBackground } from "./canvas/CanvasToolbar";
 import { CanvasFormatProvider } from "./canvas/use-canvas-format";
 import { FONT_FAMILIES } from "./canvas/ThemePanel";
 import { ContextMenu } from "./canvas/ContextMenu";
+import { OverflowBanner } from "./canvas/OverflowBanner";
 import { MultiSelectToolbar } from "./canvas/MultiSelectToolbar";
 import { useCanvasInteractions, type GrabOffset, type DropMember } from "./canvas/use-canvas-interactions";
 import { useBlockActions } from "./canvas/use-block-actions";
@@ -53,10 +56,27 @@ export default function CVInteractiveCanvas({ data, onChange: onChangeProp, temp
   const t = useTranslations("Canvas");
 
   // ── Undo / Redo ───────────────────────────────────────────────────────────
-  const { onChange, undo, redo } = useUndoRedo(data, onChangeProp);
+  const { onChange, undo: undoData, redo: redoData, canUndo, canRedo } = useUndoRedo(data, onChangeProp);
+  // Historique unifié texte + blocs : avant d'annuler, on commite l'éditeur de
+  // texte actif (blur → onChange) pour que la frappe en cours soit un pas
+  // d'historique comme les autres, puis on annule.
+  const flushActiveEditor = () => {
+    const el = document.activeElement as HTMLElement | null;
+    if (el?.isContentEditable) el.blur();
+  };
+  const undo = useCallback(() => {
+    flushActiveEditor();
+    undoData();
+  }, [undoData]);
+  const redo = useCallback(() => {
+    flushActiveEditor();
+    redoData();
+  }, [redoData]);
 
   // ── Layout & thème dérivés ──────────────────────────────────────────────────
   const layout = data.layout ?? defaultLayout();
+  // Format de page actif (A4 / Letter) : partagé par la page, le zoom et la pagination.
+  const pageDims = getPageDims(layout);
   const theme = layout.theme ?? {};
   const isChaima = isModernTemplate(template);
 
@@ -76,6 +96,7 @@ export default function CVInteractiveCanvas({ data, onChange: onChangeProp, temp
     lineHeight: theme.lineHeight ?? 1.15,
     photoSize,
     skillMode: theme.skillMode,
+    cvTheme: theme,
   };
 
   const pagesKey = useMemo(
@@ -116,18 +137,27 @@ export default function CVInteractiveCanvas({ data, onChange: onChangeProp, temp
     startSidebarResize,
   } = useCanvasInteractions({ data, template, defaultPositions, onChange, resolveDropRef });
 
-  const { autoHeight, resetPosition, canDuplicate, duplicateItem, canDeleteBlock, deleteBlock, hideSectionOf } =
+  const { autoHeight, resetPosition, canDuplicate, duplicateItem, pasteItems, canDeleteBlock, deleteBlock, hideSectionOf } =
     useBlockActions({ data, defaultPositions, onChange });
 
   // Formatage au niveau bloc (sur la donnée, un seul onChange) : sélectionner un
   // bloc = styliser tout son texte. SET pour couleur/police, bascule pour gras…
-  const { applyStyles, toggleCommand } = useSelectionFormat({ data, onChange });
+  const { applyStyles, toggleCommand, clearFormat } = useSelectionFormat({ data, onChange });
   const canFormatSelection = selectedIds.some((id) => id !== "photo");
-  // Pont vers les barres d'outils : foreColor = SET couleur ; le reste = bascule.
-  const runBlockCommand = (command: string, value?: string) =>
-    command === "foreColor"
-      ? applyStyles(selectedIds, { color: value ?? "#000000" })
-      : toggleCommand(selectedIds, command);
+  // Pont vers les barres d'outils : foreColor / hiliteColor = SET couleur ;
+  // removeFormat = tout effacer ; le reste = bascule.
+  const runBlockCommand = (command: string, value?: string) => {
+    if (command === "foreColor") return applyStyles(selectedIds, { color: value ?? "#000000" });
+    if (command === "hiliteColor") {
+      return value && value !== "transparent"
+        ? applyStyles(selectedIds, { "background-color": value })
+        : clearBackground();
+    }
+    if (command === "removeFormat") return clearFormat(selectedIds);
+    return toggleCommand(selectedIds, command);
+  };
+  // Retirer le surlignage d'un bloc = retirer la déclaration background-color.
+  const clearBackground = () => applyStyles(selectedIds, { "background-color": "transparent" });
 
   const { marqueeRect, startMarquee } = useMarquee(setSelectedIds);
 
@@ -136,7 +166,7 @@ export default function CVInteractiveCanvas({ data, onChange: onChangeProp, temp
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   // ── Zoom / Pan / Pages ──────────────────────────────────────────────────────
-  const { zoom, setZoom, fitToScreen, onScaleChange } = useCanvasZoom({ scrollContainerRef, onScaleChange: handleScaleChange });
+  const { zoom, setZoom, fitToScreen, onScaleChange } = useCanvasZoom({ scrollContainerRef, onScaleChange: handleScaleChange, pageWidthPx: pageDims.widthPt * PT_TO_PX });
   const { activePageIndex, setActivePageIndex, addPage, removePage } = usePageManagement({ layout, data, onChange });
   const { spaceHeldRef, isSpaceHeld, isPanningActive, handlePanCapture } = useSpacePan({ scrollContainerRef });
 
@@ -160,7 +190,7 @@ export default function CVInteractiveCanvas({ data, onChange: onChangeProp, temp
   );
 
   // ── Pagination / reflow / débordement / thème ───────────────────────────────
-  const { measureHeightPt, realign, realignPreservingAfterRender, updateTheme, pageHeightPx } = useCanvasPagination({
+  const { measureHeightPt, realign, realignAfterRender, realignPreservingAfterRender, updateTheme, paginate, isOverflowing, pageHeightPx } = useCanvasPagination({
     data,
     layout,
     template,
@@ -169,9 +199,24 @@ export default function CVInteractiveCanvas({ data, onChange: onChangeProp, temp
     absolutePositions,
   });
 
+  // Bannière de débordement : « Réduire l'espacement » baisse d'un pas l'écart
+  // entre sections (−2 pt, min 2) et l'interligne (−0,05, min 1,0), puis ré-empile
+  // les blocs sur les hauteurs re-mesurées (le placement manuel qui débordait
+  // est abandonné ; une 2ᵉ page n'est créée que si ça ne tient toujours pas).
+  const curGap = theme.sectionMargin ?? 8;
+  const curLh = theme.lineHeight ?? 1.15;
+  const canTighten = curGap > 2 || curLh > 1.0;
+  const tightenSpacing = () => {
+    updateTheme({
+      sectionMargin: Math.max(2, curGap - 2),
+      lineHeight: Math.max(1.0, Math.round((curLh - 0.05) * 100) / 100),
+    });
+    realignAfterRender();
+  };
+
   // ── Groupement / alignement ─────────────────────────────────────────────────
   const { selectionHasGroup, groupSelected, ungroupSelected } = useGrouping({ selectedIds, layout, data, onChange, defaultPositions });
-  const { alignSelected } = useAlignment({ selectedIds, layout, data, onChange, defaultPositions, measureHeightPt });
+  const { alignSelected, setBlocksTextAlign, selectedTextAlign } = useAlignment({ selectedIds, layout, data, onChange, defaultPositions, measureHeightPt });
 
   // ── Routage inter-pages (déplacement de section, drop) ──────────────────────
   const { moveSectionToPage, pageOfSection, homePageOf } = usePageRouting({
@@ -185,6 +230,13 @@ export default function CVInteractiveCanvas({ data, onChange: onChangeProp, temp
   });
 
   // ── Raccourcis clavier ──────────────────────────────────────────────────────
+  // Ctrl+A : tous les blocs de la page active (en-tête compris sur la page 1),
+  // même liste que celle rendue par CanvasPage.
+  const getActivePageBlockIds = useCallback(() => {
+    const { sidebar, main } = getPageBlockIds(layout, data, activePageIndex);
+    return [...(activePageIndex === 0 ? getHeaderBlockIds(data, template) : []), ...sidebar, ...main];
+  }, [layout, data, activePageIndex, template]);
+
   useKeyboardShortcuts({
     selectedIds,
     layout,
@@ -195,6 +247,9 @@ export default function CVInteractiveCanvas({ data, onChange: onChangeProp, temp
     clearSelection,
     canDuplicate,
     duplicateItem,
+    pasteItems,
+    getActivePageBlockIds,
+    setSelectedIds,
     canDeleteBlock,
     deleteBlock,
     undo,
@@ -302,6 +357,7 @@ export default function CVInteractiveCanvas({ data, onChange: onChangeProp, temp
   };
 
   return (
+    <PageDimsContext.Provider value={pageDims}>
     <CanvasFormatProvider>
     <div
       ref={canvasContainerRef}
@@ -310,6 +366,10 @@ export default function CVInteractiveCanvas({ data, onChange: onChangeProp, temp
     >
       <CanvasToolbar
         pageCount={layout.pages.length}
+        canUndo={canUndo}
+        canRedo={canRedo}
+        onUndo={undo}
+        onRedo={redo}
         activePageIndex={activePageIndex}
         zoom={zoom}
         theme={theme}
@@ -325,7 +385,17 @@ export default function CVInteractiveCanvas({ data, onChange: onChangeProp, temp
         selectedIds={selectedIds}
         onBlockCommand={(cmd, val) => runBlockCommand(cmd, val)}
         onBlockStyles={(styles) => applyStyles(selectedIds, styles)}
+        onBlockAlign={setBlocksTextAlign}
+        selectedAlign={selectedTextAlign}
       />
+
+      {isOverflowing && (
+        <OverflowBanner
+          canTighten={canTighten}
+          onTighten={tightenSpacing}
+          onAddPage={paginate}
+        />
+      )}
 
       <MultiSelectToolbar
         count={isDragging || isResizing ? 0 : selectedIds.length}
@@ -412,5 +482,6 @@ export default function CVInteractiveCanvas({ data, onChange: onChangeProp, temp
       {menu && <ContextMenu x={menu.x} y={menu.y} items={menuItems()} onClose={() => setMenu(null)} />}
     </div>
     </CanvasFormatProvider>
+    </PageDimsContext.Provider>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useSyncExternalStore } from "react";
 import { Link } from "@/i18n/routing";
 import { useTranslations, useLocale } from "next-intl";
 import { useTheme } from "next-themes";
@@ -9,6 +9,8 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { ApiKeysDialog } from "@/components/ApiKeysDialog";
 import { Logo } from "@/components/Logo";
 import { cn } from "@/lib/utils";
+
+const emptySubscribe = () => () => {};
 
 interface HeaderProps {
   toggleSidebar?: () => void;
@@ -20,8 +22,8 @@ export default function Header({ toggleSidebar, isSidebarCollapsed }: HeaderProp
   const locale = useLocale();
   const { theme, setTheme } = useTheme();
   
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+  // true on the client only (the theme is unknown during SSR)
+  const mounted = useSyncExternalStore(emptySubscribe, () => true, () => false);
 
   const toggleTheme = (e: React.MouseEvent<HTMLButtonElement>) => {
     const next = theme === "dark" ? "light" : "dark";

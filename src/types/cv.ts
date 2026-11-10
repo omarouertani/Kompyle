@@ -2,6 +2,8 @@
 // Matches the exact structure of cv_data.json and the HTML CV layout.
 // Any change here must be reflected in cv_data.json and the system prompt.
 
+import type { PageSizeId } from "@/lib/page-size";
+
 export interface PersonalInfo {
   name: string;
   role: string;
@@ -87,6 +89,7 @@ export type CVFontFamily =
   | "playfair"
   | "georgia";
 export type SkillMode = "text" | "tags" | "bars";
+export type PhotoShape = "circle" | "rounded" | "square";
 
 export interface CVTheme {
   primaryColor?: string; // Couleur principale (titres, accents, puces)
@@ -99,10 +102,18 @@ export interface CVTheme {
   headingSize?: number;  // Taille des titres (pt)
   sectionMargin?: number;// Espacement entre les sections (pt)
   lineHeight?: number;   // Hauteur de ligne (interligne)
+  /** Forme de la photo de profil (rond par défaut). */
+  photoShape?: PhotoShape;
+  /** Épaisseur de la bordure de la photo, en pt (1.5 par défaut, 0 = aucune). */
+  photoBorderWidth?: number;
+  /** Couleur de la bordure de la photo (couleur d'accent par défaut). */
+  photoBorderColor?: string;
   /** Couleurs de marque épinglées par l'utilisateur (panneau « Identité visuelle »). */
   brandColors?: string[];
   /** Dernières couleurs utilisées (persistées pour survivre au rechargement). */
   recentColors?: string[];
+  /** Dernières polices utilisées dans la barre d’outils (5 max). */
+  recentFonts?: CVFontFamily[];
 }
 
 export interface ElementPosition {
@@ -114,9 +125,14 @@ export interface ElementPosition {
   fontScale?: number; // échelle de police (resize diagonal) — 1 par défaut
   locked?: boolean;   // bloc verrouillé : ni drag ni resize
   groupId?: string;   // identifiant de groupe : les blocs partageant un groupId se déplacent ensemble
+  align?: BlockTextAlign; // alignement du texte du bloc (toolbar, bloc sélectionné sans éditeur actif)
 }
 
+export type BlockTextAlign = "left" | "center" | "right" | "justify";
+
 export interface CVLayout {
+  /** Format de page (A4 par défaut ; Letter pour l'Amérique du Nord). */
+  pageSize?: PageSizeId;
   sidebarWidth?: number; // largeur de la colonne latérale, en points (défaut 165)
   pages: LayoutPage[];
   theme?: CVTheme;       // Thème de couleurs personnalisé
@@ -219,7 +235,14 @@ export interface CoverLetterData {
   salutation: string; // e.g., "Dear Hiring Manager,"
   paragraphs: string[];
   signOff: string; // e.g., "Sincerely,"
+  /** Image de signature (data URL PNG, transparente), ajoutée par l'utilisateur.
+   *  Jamais envoyée à l'IA. */
+  signature?: string;
+  /** Modèle visuel de la lettre (classique par défaut). */
+  template?: CoverLetterTemplateId;
 }
+
+export type CoverLetterTemplateId = "classic" | "modern";
 
 export interface GenerateCoverLetterRequest {
   jobDescription: string;

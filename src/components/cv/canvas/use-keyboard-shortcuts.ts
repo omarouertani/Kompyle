@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import type { CVData, CVLayout } from "@/types/cv";
 import type { BlockPos } from "./snap";
 import { isSectionBlock } from "./block-helpers";
@@ -15,6 +15,11 @@ interface UseKeyboardShortcutsArgs {
   clearSelection: () => void;
   canDuplicate: (blockId: string) => boolean;
   duplicateItem: (blockId: string) => void;
+  /** Colle (duplique, décalé) les éléments copiés ; renvoie les ids des copies. */
+  pasteItems: (blockIds: string[]) => string[];
+  /** Ids des blocs de la page active (Ctrl+A). */
+  getActivePageBlockIds: () => string[];
+  setSelectedIds: (ids: string[]) => void;
   /** Un bloc représente-t-il un ÉLÉMENT supprimable individuellement ? */
   canDeleteBlock: (blockId: string) => boolean;
   /** Supprime UNIQUEMENT l'élément (jamais la section entière). */
@@ -28,7 +33,8 @@ interface UseKeyboardShortcutsArgs {
 
 /** Raccourcis clavier : Ctrl+Z/Y (undo/redo), Ctrl+0 (ajuster), Ctrl+G /
  *  Ctrl+Shift+G (grouper/dégrouper), Échap, Suppr (masquer), Ctrl+D (dupliquer),
- *  flèches (déplacer la sélection). */
+ *  flèches (déplacer la sélection), Ctrl+A (tout sélectionner sur la page),
+ *  Ctrl+C / Ctrl+V (copier / coller des éléments, décalés de 12 pt). */
 export function useKeyboardShortcuts({
   selectedIds,
   layout,
@@ -39,6 +45,9 @@ export function useKeyboardShortcuts({
   clearSelection,
   canDuplicate,
   duplicateItem,
+  pasteItems,
+  getActivePageBlockIds,
+  setSelectedIds,
   canDeleteBlock,
   deleteBlock,
   undo,
@@ -47,22 +56,28 @@ export function useKeyboardShortcuts({
   groupSelected,
   ungroupSelected,
 }: UseKeyboardShortcutsArgs) {
+  // Presse-papiers interne : ids des éléments copiés (Ctrl+C).
+  const copiedRef = useRef<string[]>([]);
+
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement;
       const isEditingText = target.isContentEditable || target.tagName === "INPUT" || target.tagName === "TEXTAREA";
 
-      // Undo / Redo — actifs même sans sélection ; on laisse l'undo natif
-      // dans les champs texte en cours d'édition.
+      // Undo / Redo — actifs même sans sélection, et AUSSI dans un éditeur du
+      // canvas (contentEditable) : une seule pile pour le texte et les blocs.
+      // `undo`/`redo` commitent d'abord l'éditeur actif. Les <input>/<textarea>
+      // (champs de la barre d'outils, formulaires) gardent leur undo natif.
+      const isNativeField = target.tagName === "INPUT" || target.tagName === "TEXTAREA";
       if ((e.ctrlKey || e.metaKey) && (e.key === "z" || e.key === "Z")) {
-        if (isEditingText) return;
+        if (isNativeField) return;
         e.preventDefault();
         if (e.shiftKey) redo();
         else undo();
         return;
       }
       if ((e.ctrlKey || e.metaKey) && (e.key === "y" || e.key === "Y")) {
-        if (isEditingText) return;
+        if (isNativeField) return;
         e.preventDefault();
         redo();
         return;
@@ -74,6 +89,27 @@ export function useKeyboardShortcuts({
         e.preventDefault();
         fitToScreen();
         return;
+      }
+
+      // Ctrl/Cmd + A / C / V : dans un champ texte, on laisse le natif.
+      if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !isEditingText) {
+        const k = e.key.toLowerCase();
+        if (k === "a") {
+          e.preventDefault();
+          setSelectedIds(getActivePageBlockIds());
+          return;
+        }
+        if (k === "c" && selectedIds.length > 0) {
+          // Pas de preventDefault : une sélection de texte native reste copiable.
+          copiedRef.current = selectedIds.filter(canDuplicate);
+          return;
+        }
+        if (k === "v" && copiedRef.current.length > 0) {
+          e.preventDefault();
+          const pasted = pasteItems(copiedRef.current);
+          if (pasted.length > 0) setSelectedIds(pasted);
+          return;
+        }
       }
 
       if (selectedIds.length === 0) return;
@@ -145,7 +181,24 @@ export function useKeyboardShortcuts({
         layout: { ...layout, autoPaginated: false, absolutePositions: { ...positions, ...updates } },
       }, "move");
     };
+    // Annuler/Rétablir venus du menu du navigateur (clic droit, menu Édition)
+    // dans un éditeur : on remplace l'historique natif par le nôtre.
+    const onBeforeInput = (e: InputEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.isContentEditable) return;
+      if (e.inputType === "historyUndo") {
+        e.preventDefault();
+        undo();
+      } else if (e.inputType === "historyRedo") {
+        e.preventDefault();
+        redo();
+      }
+    };
     window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [selectedIds, layout, data, defaultPositions, onChange, hideSectionOf, clearSelection, canDuplicate, duplicateItem, canDeleteBlock, deleteBlock, undo, redo, fitToScreen, groupSelected, ungroupSelected]);
+    window.addEventListener("beforeinput", onBeforeInput);
+    return () => {
+      window.removeEventListener("keydown", handler);
+      window.removeEventListener("beforeinput", onBeforeInput);
+    };
+  }, [selectedIds, layout, data, defaultPositions, onChange, hideSectionOf, clearSelection, canDuplicate, duplicateItem, pasteItems, getActivePageBlockIds, setSelectedIds, canDeleteBlock, deleteBlock, undo, redo, fitToScreen, groupSelected, ungroupSelected]);
 }

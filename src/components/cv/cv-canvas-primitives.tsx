@@ -1,9 +1,11 @@
 "use client";
 
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import React, { useState, useRef, useEffect, useCallback, createContext, useContext } from "react";
+import { PAGE_SIZES, type PageDims } from "@/lib/page-size";
 import { cn } from "@/lib/utils";
 import { useCanvasFormat } from "./canvas/use-canvas-format";
 import { sanitizeRichHtml } from "@/utils/sanitize-html";
+import { TYPING_COMMIT_IDLE_MS } from "./canvas/constants";
 
 // Conversion EXACTE des points PDF (72 dpi) en pixels CSS (96 dpi) : 96/72.
 // Le rendu PDF (react-pdf) place les blocs en points ; le canvas applique ce
@@ -14,6 +16,11 @@ export const PT_TO_PX = 96 / 72;
 // que tu vois en édition correspond au rendu PDF final.
 export const A4_WIDTH_PX = 595.28 * PT_TO_PX;  // ≈ 793.7
 export const A4_HEIGHT_PX = 841.89 * PT_TO_PX; // ≈ 1122.5
+
+/** Format de page actif du canvas (A4 par défaut, Letter possible), fourni par
+ *  CVInteractiveCanvas à partir de `layout.pageSize`. */
+export const PageDimsContext = createContext<PageDims>(PAGE_SIZES.A4);
+export const usePageDims = () => useContext(PageDimsContext);
 
 /** Couleur de sélection du canvas (indigo) — indépendante du thème du CV,
  *  pour rester lisible quelle que soit la couleur d'accent choisie. */
@@ -45,6 +52,9 @@ export function CVPageScaleWrapper({
   minContentHeightPx,
 }: CVPageScaleWrapperProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const page = usePageDims();
+  const PAGE_WIDTH_PX = page.widthPt * PT_TO_PX;
+  const PAGE_HEIGHT_PX = page.heightPt * PT_TO_PX;
   const [baseScale, setBaseScale] = useState(1);
   const onScaleChangeRef = useRef(onScaleChange);
   useEffect(() => {
@@ -62,11 +72,11 @@ export function CVPageScaleWrapper({
     // l'iframe : ce qui dépasse en hauteur défile en scroll vertical natif.
     // Ajuster aussi sur la hauteur rapetissait la page par rapport au PDF
     // (perception de « page plus petite »).
-    const scaleW = parentWidth / A4_WIDTH_PX;
+    const scaleW = parentWidth / PAGE_WIDTH_PX;
     const nextBase = fitToContainer ? Math.min(1, scaleW) : 1;
     setBaseScale(nextBase);
     onScaleChangeRef.current?.(nextBase * zoom);
-  }, [zoom, fitToContainer]);
+  }, [zoom, fitToContainer, PAGE_WIDTH_PX]);
 
   useEffect(() => {
     updateScale();
@@ -81,7 +91,7 @@ export function CVPageScaleWrapper({
   }, [updateScale]);
 
   const finalScale = baseScale * zoom;
-  const pageHeightPx = Math.max(A4_HEIGHT_PX, minContentHeightPx ?? A4_HEIGHT_PX);
+  const pageHeightPx = Math.max(PAGE_HEIGHT_PX, minContentHeightPx ?? PAGE_HEIGHT_PX);
 
   return (
     <div
@@ -93,7 +103,7 @@ export function CVPageScaleWrapper({
         data-page-index={pageIndex}
         className="shadow-2xl border border-border/60 bg-white text-zinc-900 shrink-0 cv-a4-page relative mx-auto overflow-hidden"
         style={{
-          width: `${A4_WIDTH_PX * finalScale}px`,
+          width: `${PAGE_WIDTH_PX * finalScale}px`,
           height: `${pageHeightPx * finalScale}px`,
         }}
       >
@@ -102,7 +112,7 @@ export function CVPageScaleWrapper({
           style={{
             transform: `scale(${finalScale})`,
             transformOrigin: "top left",
-            width: `${A4_WIDTH_PX}px`,
+            width: `${PAGE_WIDTH_PX}px`,
             minHeight: `${pageHeightPx}px`,
             position: "absolute",
             left: 0,
@@ -112,11 +122,11 @@ export function CVPageScaleWrapper({
         >
           {children}
         </div>
-        {pageHeightPx > A4_HEIGHT_PX && (
+        {pageHeightPx > PAGE_HEIGHT_PX && (
           <div
             className="absolute left-0 right-0 border-t border-dashed border-amber-400/70 pointer-events-none z-50"
-            style={{ top: `${A4_HEIGHT_PX * finalScale}px` }}
-            title="Limite page A4"
+            style={{ top: `${PAGE_HEIGHT_PX * finalScale}px` }}
+            title={`Limite page ${page.id === "LETTER" ? "Letter" : "A4"}`}
           />
         )}
       </div>
@@ -192,7 +202,21 @@ export function EditableText({
     if (next !== value) onChange(next);
   }, [onChange, value]);
 
+  // Regroupement de frappe : un commit après TYPING_COMMIT_IDLE_MS d'inactivité
+  // → chaque rafale devient UN pas de l'historique unifié (Ctrl+Z du canvas).
+  const commitRef = useRef(commit);
+  useEffect(() => {
+    commitRef.current = commit;
+  }, [commit]);
+  const idleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const clearIdle = () => {
+    if (idleTimer.current) clearTimeout(idleTimer.current);
+    idleTimer.current = null;
+  };
+  useEffect(() => clearIdle, []);
+
   const handleBlur = () => {
+    clearIdle();
     setIsFocused(false);
     format.registerActiveEditor(null);
     commit();
@@ -220,6 +244,8 @@ export function EditableText({
         // Re-evaluate the toolbar's format state on every typed character so
         // active B/I/U highlights stay in sync as the caret moves.
         format.refresh();
+        clearIdle();
+        idleTimer.current = setTimeout(() => commitRef.current(), TYPING_COMMIT_IDLE_MS);
       }}
       onKeyDown={handleKeyDown}
       data-placeholder={placeholder}

@@ -3,10 +3,11 @@ import { View, Text, Link, KeepTogether } from "@/components/pdf-primitives";
 import type { CVData } from "@/types/cv";
 import { wrapText, formatUrl, displayUrl, DiffText, RichText, hasInlineHtml } from "@/utils/pdf-text-utils";
 import { sectionTitle } from "./shared";
+import type { ClassicStyles } from "./classic-styles";
 
 // ─── Section renderers ───────────────────────────────────────────────────────
 
-export type SectionRenderer = (data: CVData, styles: any, originalData?: CVData, part?: "title" | "content" | "item", itemIndex?: number) => React.ReactNode;
+export type SectionRenderer = (data: CVData, styles: ClassicStyles, originalData?: CVData, part?: "title" | "content" | "item", itemIndex?: number) => React.ReactNode;
 
 export const renderContact: SectionRenderer = (data, styles, originalData, part) => {
   const { personalInfo } = data;
@@ -441,7 +442,7 @@ export const SECTION_RENDERERS: Record<string, SectionRenderer> = {
 };
 
 // Rend une colonne (liste d'IDs de sections), en gérant la marge du dernier élément.
-export const renderColumn = (ids: string[], data: CVData, styles: any, originalData?: CVData) => {
+export const renderColumn = (ids: string[], data: CVData, styles: ClassicStyles, originalData?: CVData) => {
   const known = ids.filter((id) => SECTION_RENDERERS[id]);
   return known.map((id, i) => {
     const rendered = SECTION_RENDERERS[id](data, styles, originalData);

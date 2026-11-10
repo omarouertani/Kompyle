@@ -19,6 +19,8 @@ import {
   parseInlineHtml,
   toPdfRunStyle,
   inheritableTextStyle,
+  detectRichAlign,
+  detectRichLineHeight,
 } from "@/utils/inline-html";
 
 /**
@@ -35,16 +37,43 @@ import {
 type TextLikeProps = ComponentProps<typeof PdfText> & { children?: ReactNode };
 type LinkLikeProps = ComponentProps<typeof PdfLink> & { children?: ReactNode };
 
-function renderRichChildren(children: ReactNode, composedStyle: unknown): ReactNode {
+/** `insideLink`: the caller is already a <Link>, so runs carrying an `href`
+ *  stay plain text (a link can't be nested in a link). */
+function renderRichChildren(children: ReactNode, composedStyle: unknown, insideLink = false): ReactNode {
   if (typeof children !== "string" || !hasInlineHtml(children)) return children;
   const runs = parseInlineHtml(children);
   if (runs.length === 0) return null;
   const base = inheritableTextStyle(composedStyle);
-  return runs.map((run, i) => (
-    <PdfText key={i} style={{ ...base, ...(run.style ? toPdfRunStyle(run.style) : {}) } as never}>
-      {run.text}
-    </PdfText>
-  ));
+  return runs.map((run, i) => {
+    const style = { ...base, ...(run.style ? toPdfRunStyle(run.style) : {}) } as never;
+    const href = run.style?.href;
+    if (href && !insideLink) {
+      return (
+        <PdfLink key={i} src={href} style={style}>
+          {run.text}
+        </PdfLink>
+      );
+    }
+    return (
+      <PdfText key={i} style={style}>
+        {run.text}
+      </PdfText>
+    );
+  });
+}
+
+/** Paragraph alignment set in the editor (`<div style="text-align:…">`) has to
+ *  live on the outer <Text>: react-pdf ignores `textAlign` on nested runs.
+ *  Composed AFTER the caller's style so it beats a template's `justify`. */
+function richAlignStyle(children: ReactNode): StyleInput {
+  if (typeof children !== "string" || !hasInlineHtml(children)) return undefined;
+  const align = detectRichAlign(children);
+  const lineHeight = detectRichLineHeight(children);
+  if (!align && lineHeight === undefined) return undefined;
+  return {
+    ...(align ? { textAlign: align } : {}),
+    ...(lineHeight !== undefined ? { lineHeight } : {}),
+  };
 }
 
 /**
@@ -117,6 +146,7 @@ export const Text = ({ style, children, ...props }: TextLikeProps) => {
       color: theme.color,
     },
     style as StyleInput,
+    richAlignStyle(children),
     safeTextStyle,
   );
   return (
@@ -137,6 +167,7 @@ export const Heading = ({ style, children, ...props }: TextLikeProps) => {
       lineHeight: headingSafeLineHeight,
     },
     style as StyleInput,
+    richAlignStyle(children),
     safeTextStyle,
   );
   return (
@@ -158,6 +189,7 @@ export const Bold = ({ style, children, ...props }: TextLikeProps) => {
       color: theme.color,
     },
     style as StyleInput,
+    richAlignStyle(children),
     safeTextStyle,
   );
   return (
@@ -178,6 +210,7 @@ export const Small = ({ style, children, ...props }: TextLikeProps) => {
       color: theme.mutedColor,
     },
     style as StyleInput,
+    richAlignStyle(children),
     safeTextStyle,
   );
   return (
@@ -201,12 +234,13 @@ export const Link = ({ style, children, src, ...props }: LinkLikeProps) => {
       color: theme.color,
     },
     style as StyleInput,
+    richAlignStyle(children),
     safeTextStyle,
   );
   const cleanSrc = typeof src === "string" ? stripHtml(src) : src;
   return (
     <PdfLink src={cleanSrc} style={composed} {...props}>
-      {renderRichChildren(children, composed)}
+      {renderRichChildren(children, composed, true)}
     </PdfLink>
   );
 };

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 import {
@@ -22,16 +22,25 @@ import {
   Heading1,
   Heading2,
   ChevronDown,
+  Undo2,
+  Redo2,
+  MoreHorizontal,
 } from "lucide-react";
-import type { CVTheme, CVFontFamily } from "@/types/cv";
-import { FONT_FAMILIES, ThemePanel } from "./ThemePanel";
+import type { BlockTextAlign, CVTheme, CVFontFamily } from "@/types/cv";
+import { FONT_FAMILIES, ThemePanel, fontKeyFromStack } from "./ThemePanel";
 import { ColorDrawer } from "./ColorDrawer";
 import { useCanvasFormat } from "./use-canvas-format";
+import { TextExtrasGroup } from "./TextExtrasGroup";
 
 export type CanvasBackground = "neutral" | "dots" | "grid";
 
 interface CanvasToolbarProps {
   pageCount: number;
+  /** Historique unifié (texte + blocs). */
+  canUndo?: boolean;
+  canRedo?: boolean;
+  onUndo?: () => void;
+  onRedo?: () => void;
   activePageIndex: number;
   zoom: number;
   theme: CVTheme;
@@ -55,7 +64,15 @@ interface CanvasToolbarProps {
   onBlockCommand?: (command: string, value?: string, opts?: { toggle?: boolean }) => boolean;
   /** Enveloppe le texte des blocs sélectionnés dans un style (police/taille/titre). */
   onBlockStyles?: (styles: Record<string, string>) => boolean;
+  /** Aligne le texte des blocs sélectionnés (aucun éditeur actif). */
+  onBlockAlign?: (align: BlockTextAlign) => void;
+  /** Alignement commun des blocs sélectionnés (null si mixte / aucun). */
+  selectedAlign?: BlockTextAlign | null;
 }
+
+/** Largeurs (px) de la barre sous lesquelles on compacte / on autorise le retour à la ligne. */
+const TOOLBAR_COMPACT_PX = 1180;
+const TOOLBAR_NARROW_PX = 760;
 
 export const ZOOM_MIN = 0.3;
 export const ZOOM_MAX = 2.5;
@@ -69,6 +86,10 @@ export const ZOOM_MAX = 2.5;
  *  sliders — everything frequent enough to be one click away is exposed here. */
 export function CanvasToolbar({
   pageCount,
+  canUndo = false,
+  canRedo = false,
+  onUndo,
+  onRedo,
   activePageIndex,
   zoom,
   theme,
@@ -84,6 +105,8 @@ export function CanvasToolbar({
   selectedIds = [],
   onBlockCommand,
   onBlockStyles,
+  onBlockAlign,
+  selectedAlign = null,
 }: CanvasToolbarProps) {
   const t = useTranslations("Canvas");
   const fmt = useCanvasFormat();
@@ -103,7 +126,9 @@ export function CanvasToolbar({
     onCanvasBgChange(order[(order.indexOf(canvasBg) + 1) % order.length]);
   };
 
-  const activeFont: CVFontFamily = theme.fontFamily ?? "sans";
+  // Police / taille affichées = celles du texte au curseur (sinon le thème).
+  const activeFont: CVFontFamily =
+    (fmt.state.fontFamily && fontKeyFromStack(fmt.state.fontFamily)) || theme.fontFamily || "sans";
   const baseFontSize = theme.fontSize ?? 10;
   // Local UI state for the size stepper so each click bumps the displayed
   // number AND wraps the selection — but doesn't push to the global theme.
@@ -142,6 +167,20 @@ export function CanvasToolbar({
     return ok;
   };
 
+  // Alignement : éditeur focalisé → paragraphe courant (execCommand, HTML) ;
+  // sinon bloc(s) sélectionné(s) → alignement stocké dans la position du bloc.
+  const alignRun = (cmd: Parameters<typeof fmt.exec>[0], align: BlockTextAlign) => {
+    if (fmt.activeEditor) {
+      fmt.exec(cmd);
+      return;
+    }
+    if (selectedIds.length >= 1 && onBlockAlign) {
+      onBlockAlign(align);
+      onReflow?.();
+    }
+  };
+  const currentAlign = fmt.activeEditor ? fmt.state.align : selectedAlign;
+
   const handlePickColor = (color: string) => {
     const c = normalizeHex(color);
     if (applyFmt(() => fmt.exec("foreColor", color), () => onBlockCommand?.("foreColor", color) ?? false)) {
@@ -174,30 +213,128 @@ export function CanvasToolbar({
     applyFmt(() => fmt.applyInlineStyles(styles), () => onBlockStyles?.(styles) ?? false, true);
   };
 
+  // Largeur réelle de la barre : au-dessous de COMPACT_PX, les commandes de vue
+  // passent dans « … » ; au-dessous de NARROW_PX, on autorise le retour à la
+  // ligne en dernier recours (écran très étroit).
+  const rowRef = useRef<HTMLDivElement>(null);
+  const [rowWidth, setRowWidth] = useState<number>(Infinity);
+  useEffect(() => {
+    const el = rowRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver((entries) => setRowWidth(entries[0].contentRect.width));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  const compact = rowWidth < TOOLBAR_COMPACT_PX;
+  const narrow = rowWidth < TOOLBAR_NARROW_PX;
+
+  // Commandes de vue : en ligne sur une barre large, dans le menu « … » sinon.
+  const viewGroups = (
+    <>
+            {/* Page controls */}
+            <ToolGroup>
+              {Array.from({ length: pageCount }, (_, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => onSelectPage(idx)}
+                  onMouseDown={(e) => e.preventDefault()}
+                  className={cn(
+                    "px-2 h-7 text-[10px] font-semibold rounded-md transition-all",
+                    activePageIndex === idx
+                      ? "bg-card text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  P{idx + 1}
+                </button>
+              ))}
+              <ToolButton onClick={onAddPage} title={t("add_page")}>
+                <FilePlus size={12} />
+              </ToolButton>
+              {/* La suppression de page se fait via le menu contextuel (clic droit
+                  sur la page) — plus de bouton corbeille ici. */}
+            </ToolGroup>
+
+            {/* Canvas tools : bg + realign */}
+            <ToolGroup>
+              <ToolButton
+                onClick={cycleBg}
+                title={BG_LABELS[canvasBg]}
+                active={canvasBg !== "neutral"}
+              >
+                <Grid3x3 size={12} />
+              </ToolButton>
+              <ToolButton onClick={onRealign} title={t("realign_tooltip")}>
+                <RotateCcw size={12} />
+              </ToolButton>
+            </ToolGroup>
+
+            {/* Zoom — isolated on the far right, controls the global view */}
+            <ToolGroup>
+              <ToolButton onClick={() => onZoomChange(Math.max(ZOOM_MIN, zoom - 0.1))} title="−">
+                <Minus size={12} />
+              </ToolButton>
+              <span className="text-[10px] font-mono font-medium min-w-[34px] text-center text-foreground px-0.5">
+                {Math.round(zoom * 100)}%
+              </span>
+              <ToolButton onClick={() => onZoomChange(Math.min(ZOOM_MAX, zoom + 0.1))} title="+">
+                <Plus size={12} />
+              </ToolButton>
+              <button
+                type="button"
+                onClick={onZoomFit}
+                onMouseDown={(e) => e.preventDefault()}
+                className="px-2 h-7 text-[10px] font-semibold rounded-md transition-all bg-background hover:bg-muted/80 text-foreground"
+                title={t("zoom_fit_tooltip")}
+              >
+                {t("zoom_fit")}
+              </button>
+            </ToolGroup>
+
+            {/* Info / shortcuts — single icon, tooltip on hover instead of the
+                long help-text strip that used to swallow horizontal space. */}
+            <Divider />
+            <ShortcutsHelpButton />
+    </>
+  );
+
   return (
     <>
       <div
         data-canvas-toolbar
         className="border-b border-border/45 bg-background/95 backdrop-blur-md z-20 shrink-0 w-full shadow-sm"
       >
-        <div className="px-3 py-2 flex items-center gap-2 flex-wrap">
+        <div ref={rowRef} className={cn("px-3 py-2 flex items-center gap-2", narrow ? "flex-wrap" : "flex-nowrap")}>
           {/* Thème & dimensions (palettes, couleurs, sidebar, compétences,
               tailles). Compact : police/taille restent inline ci-dessous. */}
+          <ToolGroup>
+            <ToolButton title={t("undo")} disabled={!canUndo} onClick={() => onUndo?.()}>
+              <Undo2 size={13} strokeWidth={2.25} />
+            </ToolButton>
+            <ToolButton title={t("redo")} disabled={!canRedo} onClick={() => onRedo?.()}>
+              <Redo2 size={13} strokeWidth={2.25} />
+            </ToolButton>
+          </ToolGroup>
+
           <ThemePanel theme={theme} onThemeChange={onThemeChange} compact />
 
           {/* ── Format group : font · size · A · B I U S · align · lists · H1 H2 ── */}
           <ToolGroup>
             <FontFamilyPicker
               value={activeFont}
+              recent={theme.recentFonts ?? []}
               onChange={(f) => {
                 // Sélection de texte → applique au texte ; sinon, au(x) bloc(s)
                 // sélectionné(s). Reflow car la hauteur peut changer.
                 const stack = FONT_FAMILIES[f].stack;
-                applyFmt(() => fmt.applyInlineStyle("font-family", stack), () => onBlockStyles?.({ "font-family": stack }) ?? false, true);
+                if (applyFmt(() => fmt.applyInlineStyle("font-family", stack), () => onBlockStyles?.({ "font-family": stack }) ?? false, true)) {
+                  onThemeChange({ recentFonts: [f, ...(theme.recentFonts ?? []).filter((x) => x !== f)].slice(0, 5) });
+                }
               }}
             />
             <FontSizeStepper
-              size={pendingSize}
+              size={fmt.state.fontSize ?? pendingSize}
               onChange={(v) => {
                 setPendingSize(v);
                 // Un changement de taille modifie la hauteur du bloc → re-stack.
@@ -257,29 +394,29 @@ export function CanvasToolbar({
           <ToolGroup>
             <ToolButton
               title={t("format_align_left")}
-              active={fmt.state.align === "left"}
-              onClick={() => fmt.exec("justifyLeft")}
+              active={currentAlign === "left"}
+              onClick={() => alignRun("justifyLeft", "left")}
             >
               <AlignLeft size={13} />
             </ToolButton>
             <ToolButton
               title={t("format_align_center")}
-              active={fmt.state.align === "center"}
-              onClick={() => fmt.exec("justifyCenter")}
+              active={currentAlign === "center"}
+              onClick={() => alignRun("justifyCenter", "center")}
             >
               <AlignCenter size={13} />
             </ToolButton>
             <ToolButton
               title={t("format_align_right")}
-              active={fmt.state.align === "right"}
-              onClick={() => fmt.exec("justifyRight")}
+              active={currentAlign === "right"}
+              onClick={() => alignRun("justifyRight", "right")}
             >
               <AlignRight size={13} />
             </ToolButton>
             <ToolButton
               title={t("format_align_justify")}
-              active={fmt.state.align === "justify"}
-              onClick={() => fmt.exec("justifyFull")}
+              active={currentAlign === "justify"}
+              onClick={() => alignRun("justifyFull", "justify")}
             >
               <AlignJustify size={13} />
             </ToolButton>
@@ -289,6 +426,14 @@ export function CanvasToolbar({
             >
               <List size={13} />
             </ToolButton>
+            <TextExtrasGroup
+              fmt={fmt}
+              applyFmt={applyFmt}
+              onBlockCommand={onBlockCommand}
+              onBlockStyles={onBlockStyles}
+              onReflow={onReflow}
+              ToolButton={ToolButton}
+            />
           </ToolGroup>
 
           <ToolGroup>
@@ -303,71 +448,13 @@ export function CanvasToolbar({
           {/* Push the layout/zoom controls to the right edge */}
           <div className="flex-1" />
 
-          {/* Page controls */}
-          <ToolGroup>
-            {Array.from({ length: pageCount }, (_, idx) => (
-              <button
-                key={idx}
-                type="button"
-                onClick={() => onSelectPage(idx)}
-                onMouseDown={(e) => e.preventDefault()}
-                className={cn(
-                  "px-2 h-7 text-[10px] font-semibold rounded-md transition-all",
-                  activePageIndex === idx
-                    ? "bg-card text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground"
-                )}
-              >
-                P{idx + 1}
-              </button>
-            ))}
-            <ToolButton onClick={onAddPage} title={t("add_page")}>
-              <FilePlus size={12} />
-            </ToolButton>
-            {/* La suppression de page se fait via le menu contextuel (clic droit
-                sur la page) — plus de bouton corbeille ici. */}
-          </ToolGroup>
-
-          {/* Canvas tools : bg + realign */}
-          <ToolGroup>
-            <ToolButton
-              onClick={cycleBg}
-              title={BG_LABELS[canvasBg]}
-              active={canvasBg !== "neutral"}
-            >
-              <Grid3x3 size={12} />
-            </ToolButton>
-            <ToolButton onClick={onRealign} title={t("realign_tooltip")}>
-              <RotateCcw size={12} />
-            </ToolButton>
-          </ToolGroup>
-
-          {/* Zoom — isolated on the far right, controls the global view */}
-          <ToolGroup>
-            <ToolButton onClick={() => onZoomChange(Math.max(ZOOM_MIN, zoom - 0.1))} title="−">
-              <Minus size={12} />
-            </ToolButton>
-            <span className="text-[10px] font-mono font-medium min-w-[34px] text-center text-foreground px-0.5">
-              {Math.round(zoom * 100)}%
-            </span>
-            <ToolButton onClick={() => onZoomChange(Math.min(ZOOM_MAX, zoom + 0.1))} title="+">
-              <Plus size={12} />
-            </ToolButton>
-            <button
-              type="button"
-              onClick={onZoomFit}
-              onMouseDown={(e) => e.preventDefault()}
-              className="px-2 h-7 text-[10px] font-semibold rounded-md transition-all bg-background hover:bg-muted/80 text-foreground"
-              title={t("zoom_fit_tooltip")}
-            >
-              {t("zoom_fit")}
-            </button>
-          </ToolGroup>
-
-          {/* Info / shortcuts — single icon, tooltip on hover instead of the
-              long help-text strip that used to swallow horizontal space. */}
-          <Divider />
-          <ShortcutsHelpButton />
+          {/* Sur une barre étroite, les commandes de vue (pages, fond, zoom, aide)
+              passent dans un menu « … » pour garder une seule ligne. */}
+          {compact ? (
+            <MoreMenu title={t("toolbar_more")}>{viewGroups}</MoreMenu>
+          ) : (
+            viewGroups
+          )}
         </div>
       </div>
 
@@ -387,6 +474,28 @@ export function CanvasToolbar({
 
 /* ── Toolbar primitives ─────────────────────────────────────────────────── */
 
+/** Bouton « … » qui ouvre un panneau contenant des groupes d'outils. */
+function MoreMenu({ title, children }: { title: string; children: React.ReactNode }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="relative shrink-0">
+      <ToolGroup>
+        <ToolButton title={title} active={open} onClick={() => setOpen((o) => !o)}>
+          <MoreHorizontal size={14} />
+        </ToolButton>
+      </ToolGroup>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-30" onClick={() => setOpen(false)} />
+          <div className="absolute right-0 top-9 z-40 rounded-xl border border-border/70 bg-popover shadow-xl p-2 flex flex-wrap items-center gap-2 w-max max-w-[min(92vw,420px)]">
+            {children}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 function Divider() {
   return <div className="w-px h-5 bg-border/60 mx-0.5 shrink-0" />;
 }
@@ -404,15 +513,17 @@ interface ToolButtonProps {
   onClick?: () => void;
   active?: boolean;
   destructive?: boolean;
+  disabled?: boolean;
   title?: string;
   className?: string;
 }
 
-function ToolButton({ children, onClick, active, destructive, title, className }: ToolButtonProps) {
+function ToolButton({ children, onClick, active, destructive, disabled, title, className }: ToolButtonProps) {
   return (
     <button
       type="button"
       onClick={onClick}
+      disabled={disabled}
       // CRITICAL: mousedown must not steal focus from the contentEditable
       // EditableText — otherwise the browser focuses this button and the
       // user's selection collapses, leaving execCommand nothing to act on.
@@ -420,6 +531,7 @@ function ToolButton({ children, onClick, active, destructive, title, className }
       title={title}
       className={cn(
         "h-7 min-w-[28px] px-1.5 flex items-center justify-center rounded-md transition-colors text-[10px] font-medium",
+        "disabled:opacity-35 disabled:pointer-events-none",
         active
           ? "bg-card text-primary shadow-sm ring-1 ring-primary/20"
           : destructive
@@ -433,17 +545,54 @@ function ToolButton({ children, onClick, active, destructive, title, className }
   );
 }
 
-function FontFamilyPicker({ value, onChange }: { value: CVFontFamily; onChange: (f: CVFontFamily) => void }) {
+function FontFamilyPicker({
+  value,
+  recent,
+  onChange,
+}: {
+  value: CVFontFamily;
+  /** Polices récemment utilisées (affichées en tête). */
+  recent: CVFontFamily[];
+  onChange: (f: CVFontFamily) => void;
+}) {
   const t = useTranslations("Canvas");
   const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
   const stack = FONT_FAMILIES[value].stack;
   const label = FONT_FAMILIES[value].label;
+
+  const all = Object.keys(FONT_FAMILIES) as CVFontFamily[];
+  const q = query.trim().toLowerCase();
+  const matches = q ? all.filter((k) => FONT_FAMILIES[k].label.toLowerCase().includes(q) || k.includes(q)) : all;
+  // Récentes en tête (hors recherche) ; jamais en double dans la liste complète.
+  const recentKeys = q ? [] : recent.filter((k) => k in FONT_FAMILIES);
+  const rest = matches.filter((k) => !recentKeys.includes(k));
+
+  const close = () => { setOpen(false); setQuery(""); };
+  const pick = (k: CVFontFamily) => { onChange(k); close(); };
+
+  const renderItem = (key: CVFontFamily) => (
+    <button
+      key={key}
+      type="button"
+      onClick={() => pick(key)}
+      onMouseDown={(e) => e.preventDefault()}
+      className={cn(
+        "w-full px-2 py-1.5 rounded-md text-left text-xs transition-colors flex items-center justify-between",
+        value === key ? "bg-primary/10 text-foreground font-semibold" : "text-foreground hover:bg-muted/60",
+      )}
+      style={{ fontFamily: FONT_FAMILIES[key].stack }}
+    >
+      <span>{FONT_FAMILIES[key].label}</span>
+      <span className="text-muted-foreground text-[10px]">Aa</span>
+    </button>
+  );
 
   return (
     <div className="relative">
       <button
         type="button"
-        onClick={() => setOpen((o) => !o)}
+        onClick={() => (open ? close() : setOpen(true))}
         onMouseDown={(e) => e.preventDefault()}
         title={t("format_font")}
         className="h-7 px-2 flex items-center gap-1.5 rounded-md hover:bg-background/80 text-foreground text-[11px] min-w-[88px]"
@@ -454,24 +603,33 @@ function FontFamilyPicker({ value, onChange }: { value: CVFontFamily; onChange: 
       </button>
       {open && (
         <>
-          <div className="fixed inset-0 z-30" onClick={() => setOpen(false)} />
-          <div className="absolute left-0 top-8 z-40 w-44 rounded-xl border border-border/70 bg-popover shadow-xl p-1">
-            {(Object.entries(FONT_FAMILIES) as Array<[CVFontFamily, { label: string; stack: string }]>).map(([key, font]) => (
-              <button
-                key={key}
-                type="button"
-                onClick={() => { onChange(key); setOpen(false); }}
-                onMouseDown={(e) => e.preventDefault()}
-                className={cn(
-                  "w-full px-2 py-1.5 rounded-md text-left text-xs transition-colors flex items-center justify-between",
-                  value === key ? "bg-primary/10 text-foreground font-semibold" : "text-foreground hover:bg-muted/60",
-                )}
-                style={{ fontFamily: font.stack }}
-              >
-                <span>{font.label}</span>
-                <span className="text-muted-foreground text-[10px]">Aa</span>
-              </button>
-            ))}
+          <div className="fixed inset-0 z-30" onClick={close} />
+          <div className="absolute left-0 top-8 z-40 w-48 rounded-xl border border-border/70 bg-popover shadow-xl p-1">
+            <input
+              autoFocus
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Escape") close();
+                if (e.key === "Enter" && matches[0]) pick(matches[0]);
+              }}
+              placeholder={t("font_search")}
+              className="mb-1 h-7 w-full px-2 rounded-md border border-border/70 bg-background text-xs outline-none focus:ring-2 focus:ring-primary/30"
+            />
+            <div className="max-h-72 overflow-y-auto">
+              {recentKeys.length > 0 && (
+                <>
+                  <div className="px-2 pt-1 pb-0.5 text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">{t("font_recent")}</div>
+                  {recentKeys.map(renderItem)}
+                  <div className="my-1 h-px bg-border/60" />
+                </>
+              )}
+              {rest.map(renderItem)}
+              {matches.length === 0 && (
+                <div className="px-2 py-2 text-[11px] text-muted-foreground">{t("font_none")}</div>
+              )}
+            </div>
           </div>
         </>
       )}

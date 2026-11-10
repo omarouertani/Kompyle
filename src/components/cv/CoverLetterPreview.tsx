@@ -1,15 +1,17 @@
 "use client";
 
 import React, { useState, useMemo, useCallback, useSyncExternalStore } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { AlertTriangle } from "lucide-react";
 import { PDFViewer, pdf } from "@react-pdf/renderer";
-import CoverLetterTemplate from "./CoverLetterTemplate";
+import CoverLetterTemplate, { type CoverLetterLabels } from "./CoverLetterTemplate";
 import AIProgressOverlay from "./AIProgressOverlay";
-import type { CoverLetterData, PersonalInfo } from "@/types/cv";
+import type { CoverLetterData, CVTheme, PersonalInfo } from "@/types/cv";
 import { Download, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { safeFileName } from "@/utils/strip-html";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
 
 const emptySubscribe = () => () => {};
 
@@ -17,14 +19,18 @@ interface CoverLetterPreviewProps {
   data: CoverLetterData;
   personalInfo: PersonalInfo;
   isAdapting?: boolean;
+  /** Theme of the current CV (font, colours): the letter matches it. */
+  theme?: CVTheme;
 }
 
 export default function CoverLetterPreview({
   data,
   personalInfo,
   isAdapting = false,
+  theme,
 }: CoverLetterPreviewProps) {
   const t = useTranslations("LetterPreview");
+  const locale = useLocale();
   const tAdapt = useTranslations("AIAdapt");
   const [isDownloading, setIsDownloading] = useState(false);
   const [downloadError, setDownloadError] = useState(false);
@@ -33,9 +39,19 @@ export default function CoverLetterPreview({
 
   // Document mémoïsé : un élément stable évite que react-pdf régénère le PDF
   // à chaque render du parent (source de freezes).
+  const labels = useMemo<CoverLetterLabels>(
+    () => ({ subjectPrefix: t("subject_prefix"), documentTitle: t("document_title"), locale }),
+    [t, locale]
+  );
+  // The on-screen preview re-renders the whole PDF: wait for a pause in
+  // typing (600 ms) instead of regenerating on every keystroke. The download
+  // below uses the live values.
+  const previewData = useDebouncedValue(data);
+  const previewInfo = useDebouncedValue(personalInfo);
+  const previewTheme = useDebouncedValue(theme);
   const letterDoc = useMemo(
-    () => <CoverLetterTemplate data={data} personalInfo={personalInfo} />,
-    [data, personalInfo]
+    () => <CoverLetterTemplate data={previewData} personalInfo={previewInfo} labels={labels} theme={previewTheme} />,
+    [previewData, previewInfo, labels, previewTheme]
   );
 
   // Génération à la demande (au clic) au lieu d'un PDFDownloadLink qui
@@ -44,11 +60,11 @@ export default function CoverLetterPreview({
     setIsDownloading(true);
     setDownloadError(false);
     try {
-      const blob = await pdf(<CoverLetterTemplate data={data} personalInfo={personalInfo} />).toBlob();
+      const blob = await pdf(<CoverLetterTemplate data={data} personalInfo={personalInfo} labels={labels} theme={theme} />).toBlob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `Lettre_de_motivation_${personalInfo.role.replace(/\s+/g, "_")}.pdf`;
+      a.download = `${safeFileName([t("file_prefix"), personalInfo.role])}.pdf`;
       a.click();
       URL.revokeObjectURL(url);
     } catch (err) {
@@ -57,7 +73,7 @@ export default function CoverLetterPreview({
     } finally {
       setIsDownloading(false);
     }
-  }, [data, personalInfo]);
+  }, [data, personalInfo, labels, theme, t]);
 
   return (
     <div className="flex flex-col flex-1 h-full w-full gap-3">
