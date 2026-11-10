@@ -1,5 +1,5 @@
 import { resolvePdfFontFromCss } from "./pdf-fonts";
-import { stripHtml, hasInlineHtml } from "./strip-html";
+import { stripHtml, hasInlineHtml, decodeEntities } from "./strip-html";
 
 // Pure (JSX-free) inline-HTML parsing shared by the PDF primitives and the
 // rich-text helpers. Kept in its own module so the <Text>/<Link> primitives can
@@ -25,7 +25,12 @@ export interface InlineStyle {
   letterSpacing?: number;
   fontSize?: number;
   backgroundColor?: string;
+  /** Link target (`<a href>`), kept only for http(s)/mailto/tel. Rendered as a
+   *  react-pdf <Link> by the primitives, never passed as a style. */
+  href?: string;
 }
+
+const SAFE_HREF_RE = /^(https?:|mailto:|tel:)/i;
 
 export interface RichTextRun {
   text: string;
@@ -89,17 +94,13 @@ export function parseInlineHtml(html: string): RichTextRun[] {
 
   const push = (text: string) => {
     if (!text) return;
-    const decoded = text
-      .replace(/&nbsp;/gi, " ")
-      .replace(/&amp;/gi, "&")
-      .replace(/&lt;/gi, "<")
-      .replace(/&gt;/gi, ">")
-      .replace(/&quot;/gi, "\"")
-      .replace(/&#39;/gi, "'");
-    runs.push({ text: decoded, style: mergeStyle() });
+    runs.push({ text: decodeEntities(text), style: mergeStyle() });
   };
 
-  const tagRe = /<\/?(b|strong|i|em|u|s|strike|span|div|p|font|br|ul|ol|li)(?:\s+([^>]*))?\s*\/?>/gi;
+  // Open lists, innermost last: <ol> numbers its items, <ul> uses bullets.
+  const lists: { ordered: boolean; n: number }[] = [];
+
+  const tagRe = /<\/?(a|b|strong|i|em|u|s|strike|span|div|p|font|br|ul|ol|li)(?:\s+([^>]*))?\s*\/?>/gi;
   let lastIndex = 0;
   let m: RegExpExecArray | null;
   while ((m = tagRe.exec(html)) !== null) {
@@ -112,8 +113,13 @@ export function parseInlineHtml(html: string): RichTextRun[] {
     } else if (tag === "ul" || tag === "ol") {
       // Conteneurs de liste : aucun style propre, mais on pousse/dépile pour
       // garder la pile équilibrée avec les <span> internes.
-      if (isClose) { if (stack.length > 1) stack.pop(); }
-      else stack.push({});
+      if (isClose) {
+        lists.pop();
+        if (stack.length > 1) stack.pop();
+      } else {
+        lists.push({ ordered: tag === "ol", n: 0 });
+        stack.push({});
+      }
     } else if (tag === "li") {
       // Puce avant chaque item, saut de ligne à la fermeture → rendu PDF
       // identique au canvas (où <li> s'affiche comme une liste à puces).
@@ -122,7 +128,9 @@ export function parseInlineHtml(html: string): RichTextRun[] {
         if (stack.length > 1) stack.pop();
       } else {
         stack.push({});
-        runs.push({ text: "• ", style: mergeStyle() });
+        const list = lists[lists.length - 1];
+        const marker = list?.ordered ? `${++list.n}. ` : "• ";
+        runs.push({ text: marker, style: mergeStyle() });
       }
     } else if (isClose) {
       if (stack.length > 1) stack.pop();
@@ -139,6 +147,11 @@ export function parseInlineHtml(html: string): RichTextRun[] {
       if (tag === "i" || tag === "em") style.fontStyle = "italic";
       if (tag === "u") style.textDecoration = "underline";
       if (tag === "s" || tag === "strike") style.textDecoration = "line-through";
+      if (tag === "a") {
+        const hrefAttr = /(?:^|\s)href\s*=\s*(?:"([^"]*)"|'([^']*)')/i.exec(attrs);
+        const href = hrefAttr ? decodeEntities(hrefAttr[1] ?? hrefAttr[2] ?? "").trim() : "";
+        if (SAFE_HREF_RE.test(href)) style.href = href;
+      }
       // Legacy <font color="…" face="…">.
       if (tag === "font") {
         const colorAttr = /color\s*=\s*"?([^"\s>]+)/i.exec(attrs);

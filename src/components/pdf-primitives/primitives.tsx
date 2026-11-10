@@ -36,16 +36,29 @@ import {
 type TextLikeProps = ComponentProps<typeof PdfText> & { children?: ReactNode };
 type LinkLikeProps = ComponentProps<typeof PdfLink> & { children?: ReactNode };
 
-function renderRichChildren(children: ReactNode, composedStyle: unknown): ReactNode {
+/** `insideLink`: the caller is already a <Link>, so runs carrying an `href`
+ *  stay plain text (a link can't be nested in a link). */
+function renderRichChildren(children: ReactNode, composedStyle: unknown, insideLink = false): ReactNode {
   if (typeof children !== "string" || !hasInlineHtml(children)) return children;
   const runs = parseInlineHtml(children);
   if (runs.length === 0) return null;
   const base = inheritableTextStyle(composedStyle);
-  return runs.map((run, i) => (
-    <PdfText key={i} style={{ ...base, ...(run.style ? toPdfRunStyle(run.style) : {}) } as never}>
-      {run.text}
-    </PdfText>
-  ));
+  return runs.map((run, i) => {
+    const style = { ...base, ...(run.style ? toPdfRunStyle(run.style) : {}) } as never;
+    const href = run.style?.href;
+    if (href && !insideLink) {
+      return (
+        <PdfLink key={i} src={href} style={style}>
+          {run.text}
+        </PdfLink>
+      );
+    }
+    return (
+      <PdfText key={i} style={style}>
+        {run.text}
+      </PdfText>
+    );
+  });
 }
 
 /** Paragraph alignment set in the editor (`<div style="text-align:…">`) has to
@@ -221,7 +234,7 @@ export const Link = ({ style, children, src, ...props }: LinkLikeProps) => {
   const cleanSrc = typeof src === "string" ? stripHtml(src) : src;
   return (
     <PdfLink src={cleanSrc} style={composed} {...props}>
-      {renderRichChildren(children, composed)}
+      {renderRichChildren(children, composed, true)}
     </PdfLink>
   );
 };
