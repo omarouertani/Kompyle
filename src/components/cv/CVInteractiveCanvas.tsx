@@ -96,6 +96,7 @@ export default function CVInteractiveCanvas({ data, onChange: onChangeProp, temp
     lineHeight: theme.lineHeight ?? 1.15,
     photoSize,
     skillMode: theme.skillMode,
+    cvTheme: theme,
   };
 
   const pagesKey = useMemo(

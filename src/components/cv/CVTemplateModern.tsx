@@ -28,6 +28,7 @@ import {
 } from "./template/modern-renderers";
 import { blockTextAlign, isBlockOutOfPage, pdfMetadata } from "./template/shared";
 import { getPageDims } from "@/lib/page-size";
+import { photoFrame } from "@/lib/photo-frame";
 import { detectJobLanguage } from "@/lib/detect-language";
 import { stripHtml } from "@/utils/strip-html";
 
@@ -48,6 +49,11 @@ const CVTemplateModern: React.FC<CVTemplateModernProps> = ({ data, originalData 
   const pdfFontFamily = resolvePdfFontFamily(layout.theme?.fontFamily);
   // Format de page (A4 / Letter) et langue du document (métadonnées PDF).
   const pageDims = getPageDims(layout);
+  // Cadre de la photo (forme + bordure), identique au canvas.
+  const avatarFrame = (size: number) => {
+    const f = photoFrame(layout.theme, size, layout.theme?.primaryColor || "#1a1a1a");
+    return { width: size, height: size, borderRadius: f.radius, borderWidth: f.borderWidth, borderColor: f.borderColor };
+  };
   const cvLanguage = detectJobLanguage(stripHtml(`${data.personalInfo?.role ?? ""} ${data.personalInfo?.summary ?? ""}`));
 
   return (
@@ -92,7 +98,7 @@ const CVTemplateModern: React.FC<CVTemplateModernProps> = ({ data, originalData 
             return (
               <>
                 <View style={{ position: "absolute", left: photoPos.x, top: photoPos.y, width: photoPos.w ?? 65, alignItems: "center" }}>
-                  <View style={[styles.avatarCircle, { width: photoPos.w ?? 65, height: photoPos.w ?? 65, borderRadius: (photoPos.w ?? 65) / 2 }]}>
+                  <View style={[styles.avatarCircle, avatarFrame(photoPos.w ?? 65)]}>
                     {personalInfo.photo ? (
                       <Image src={personalInfo.photo} style={styles.avatarImage} />
                     ) : (
@@ -201,7 +207,7 @@ const CVTemplateModern: React.FC<CVTemplateModernProps> = ({ data, originalData 
                 <View style={styles.sidebar}>
                   {pageIndex === 0 && (
                     <View style={styles.avatarContainer}>
-                      <View style={styles.avatarCircle}>
+                      <View style={[styles.avatarCircle, avatarFrame(65)]}>
                         {personalInfo.photo ? (
                           <Image src={personalInfo.photo} style={styles.avatarImage} />
                         ) : (

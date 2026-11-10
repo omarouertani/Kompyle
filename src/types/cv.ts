@@ -89,6 +89,7 @@ export type CVFontFamily =
   | "playfair"
   | "georgia";
 export type SkillMode = "text" | "tags" | "bars";
+export type PhotoShape = "circle" | "rounded" | "square";
 
 export interface CVTheme {
   primaryColor?: string; // Couleur principale (titres, accents, puces)
@@ -101,6 +102,12 @@ export interface CVTheme {
   headingSize?: number;  // Taille des titres (pt)
   sectionMargin?: number;// Espacement entre les sections (pt)
   lineHeight?: number;   // Hauteur de ligne (interligne)
+  /** Forme de la photo de profil (rond par défaut). */
+  photoShape?: PhotoShape;
+  /** Épaisseur de la bordure de la photo, en pt (1.5 par défaut, 0 = aucune). */
+  photoBorderWidth?: number;
+  /** Couleur de la bordure de la photo (couleur d'accent par défaut). */
+  photoBorderColor?: string;
   /** Couleurs de marque épinglées par l'utilisateur (panneau « Identité visuelle »). */
   brandColors?: string[];
   /** Dernières couleurs utilisées (persistées pour survivre au rechargement). */

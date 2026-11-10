@@ -8,6 +8,7 @@ import { EditableText, ptsToPx } from "../cv-canvas-primitives";
 import { ExperienceDatePicker } from "../ExperienceDatePicker";
 import { CanvasSectionHeading } from "../canvas-section-heading";
 import { getSectionLabel, renameSection } from "@/lib/cv-layout";
+import { photoFrame } from "@/lib/photo-frame";
 
 export interface BlockTheme {
   isChaima: boolean;
@@ -17,6 +18,8 @@ export interface BlockTheme {
   lineHeight: number;
   photoSize: number;
   skillMode?: SkillMode;
+  /** Thème complet : forme / bordure de la photo (cf. photoFrame). */
+  cvTheme?: CVTheme;
 }
 
 interface BlockContentProps {
@@ -33,7 +36,7 @@ interface BlockContentProps {
  *  (title_*, content_*, skill_N, experience_N, project_N, education_N,
  *  name, role, techLine, photo). Retourne null si l'id est inconnu. */
 export function BlockContent({ blockId, data, theme, onChange, onThemeReflow }: BlockContentProps) {
-  const { isChaima, primaryColor, baseFontSize, headingFontSize, lineHeight: lh, photoSize, skillMode } = theme;
+  const { isChaima, primaryColor, baseFontSize, headingFontSize, lineHeight: lh, photoSize, skillMode, cvTheme } = theme;
   const { personalInfo } = data;
   const toPx = ptsToPx;
 
@@ -110,11 +113,19 @@ export function BlockContent({ blockId, data, theme, onChange, onThemeReflow }: 
   }
 
   if (blockId === "photo") {
+    const frame = photoFrame(cvTheme, photoSize, isChaima ? primaryColor : "#d4d4d8");
     return (
       <div className="flex justify-center items-center">
         <div
-          className={cn("rounded-full overflow-hidden border bg-zinc-200 flex items-center justify-center shadow-sm", isChaima && "border-2")}
-          style={{ width: toPx(photoSize), height: toPx(photoSize), borderColor: isChaima ? primaryColor : "#d4d4d8" }}
+          className="overflow-hidden bg-zinc-200 flex items-center justify-center shadow-sm"
+          style={{
+            width: toPx(photoSize),
+            height: toPx(photoSize),
+            borderRadius: toPx(frame.radius),
+            borderStyle: "solid",
+            borderWidth: toPx(frame.borderWidth),
+            borderColor: frame.borderColor,
+          }}
         >
           {personalInfo.photo ? (
             // eslint-disable-next-line @next/next/no-img-element -- data URL / source dynamique, next/image inadapté

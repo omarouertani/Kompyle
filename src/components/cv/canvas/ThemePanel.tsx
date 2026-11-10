@@ -1,9 +1,10 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
-import type { CVTheme, CVFontFamily, SkillMode } from "@/types/cv";
+import type { CVTheme, CVFontFamily, PhotoShape, SkillMode } from "@/types/cv";
 import { Palette, Check, AlignLeft, Tags, BarChart3 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { PHOTO_BORDER_WIDTHS, DEFAULT_PHOTO_BORDER_WIDTH } from "@/lib/photo-frame";
 
 const PRESETS = [
   { name: "Ambre Doré", primary: "#fbbf24", sidebarBg: "#f4f4f5", textColor: "#27272a" },
@@ -76,6 +77,13 @@ const SKILL_MODES: Array<{ value: SkillMode; label: string; icon: React.ElementT
   { value: "text", label: "Texte", icon: AlignLeft },
   { value: "tags", label: "Tags", icon: Tags },
   { value: "bars", label: "Barres", icon: BarChart3 },
+];
+
+/** Formes de photo proposées (vignette = carré aux coins arrondis en CSS). */
+const PHOTO_SHAPE_OPTIONS: Array<{ value: PhotoShape; label: string; radius: string }> = [
+  { value: "circle", label: "Rond", radius: "9999px" },
+  { value: "rounded", label: "Arrondi", radius: "6px" },
+  { value: "square", label: "Carré", radius: "0" },
 ];
 
 const HEX_RE = /^#?([0-9a-fA-F]{6})$/;
@@ -450,6 +458,59 @@ export function ThemePanel({ theme, onThemeChange, compact = false }: ThemePanel
                   </button>
                 );
               })}
+            </div>
+          </Section>
+
+          {/* Photo de profil (template Moderne) : forme + bordure */}
+          <Section title="Photo">
+            <div className="flex flex-col gap-3">
+              <div className="grid grid-cols-3 gap-2">
+                {PHOTO_SHAPE_OPTIONS.map(({ value, label, radius }) => {
+                  const active = (theme.photoShape ?? "circle") === value;
+                  return (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => onThemeChange({ photoShape: value })}
+                      className={cn(
+                        "flex flex-col items-center gap-1.5 px-1 py-2.5 rounded-xl border transition-all",
+                        active ? "border-primary bg-primary/5 text-foreground shadow-sm" : "border-border/60 bg-card hover:border-border hover:bg-muted/40 text-muted-foreground"
+                      )}
+                      title={label}
+                    >
+                      <span className={cn("size-6 border-2", active ? "border-primary bg-primary/10" : "border-muted-foreground/50 bg-muted/60")} style={{ borderRadius: radius }} />
+                      <span className="text-[9px] font-medium">{label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Bordure</span>
+                <div className="flex gap-1">
+                  {PHOTO_BORDER_WIDTHS.map((w) => {
+                    const active = (theme.photoBorderWidth ?? DEFAULT_PHOTO_BORDER_WIDTH) === w;
+                    return (
+                      <button
+                        key={w}
+                        type="button"
+                        onClick={() => onThemeChange({ photoBorderWidth: w })}
+                        className={cn(
+                          "h-7 flex-1 rounded-md border text-[10px] font-mono transition-colors",
+                          active ? "border-primary bg-primary/10 text-foreground" : "border-border/60 hover:bg-muted/60 text-muted-foreground"
+                        )}
+                      >
+                        {w === 0 ? "Aucune" : `${w} pt`}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <ColorField
+                label="Couleur de la bordure"
+                value={theme.photoBorderColor || theme.primaryColor || "#1a1a1a"}
+                swatches={QUICK_SWATCHES.accent}
+                onChange={(v) => onThemeChange({ photoBorderColor: v })}
+              />
             </div>
           </Section>
 
