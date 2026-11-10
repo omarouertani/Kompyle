@@ -2,6 +2,8 @@
 
 import React, { useState } from "react";
 import { useTranslations } from "next-intl";
+import { toast } from "sonner";
+import { resizeImageToDataUrl } from "@/utils/resize-image";
 import {
   DndContext,
   closestCenter,
@@ -313,12 +315,15 @@ export default function CVBuilder({ data, onChange }: CVBuilderProps) {
                   type="file"
                   accept="image/*"
                   onChange={(e) => {
-                    const file = e.target.files?.[0];
+                    const input = e.target;
+                    const file = input.files?.[0];
                     if (file) {
-                      const reader = new FileReader();
-                      reader.onloadend = () => updatePersonalInfo("photo", reader.result as string);
-                      reader.readAsDataURL(file);
+                      resizeImageToDataUrl(file)
+                        .then((url) => updatePersonalInfo("photo", url))
+                        .catch(() => toast.error(t("photo_error")));
                     }
+                    // Permet de re-choisir le même fichier (sinon onChange ne se déclenche pas).
+                    input.value = "";
                   }}
                   className="hidden"
                   id="avatar-upload-input"

@@ -314,6 +314,7 @@
     "block_contactline": "Coordonnées"
   },
   "Builder": {
+    "photo_error": "Impossible de lire cette image. Essayez un fichier JPEG ou PNG de moins de 15 Mo.",
     "section_personal": "Informations Personnelles",
     "field_name": "Nom complet",
     "field_role": "Titre",

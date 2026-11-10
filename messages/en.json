@@ -314,6 +314,7 @@
     "block_contactline": "Contact details"
   },
   "Builder": {
+    "photo_error": "This image could not be read. Try a JPEG or PNG file under 15 MB.",
     "section_personal": "Personal Information",
     "field_name": "Full name",
     "field_role": "Title",
