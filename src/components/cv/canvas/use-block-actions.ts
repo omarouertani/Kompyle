@@ -5,6 +5,7 @@ import { v4 as uuidv4 } from "uuid";
 import type { CVData } from "@/types/cv";
 import { defaultLayout, removeCustomSection, getParentSectionId } from "@/lib/cv-layout";
 import type { BlockPos } from "./snap";
+import { isFreeElementId } from "@/lib/free-elements";
 
 const DUPLICABLE = /^(skill|experience|project|education)_(\d+)$/;
 
@@ -175,6 +176,7 @@ export function useBlockActions({ data, defaultPositions, onChange }: UseBlockAc
   /** Un bloc représente-t-il un ÉLÉMENT supprimable individuellement (sans
    *  toucher au reste de sa section) ? */
   const canDeleteBlock = useCallback((blockId: string) => {
+    if (isFreeElementId(blockId)) return true;
     if (DUPLICABLE.test(blockId)) return true; // skill/experience/project/education item
     return [
       "content_summary",
@@ -191,6 +193,19 @@ export function useBlockActions({ data, defaultPositions, onChange }: UseBlockAc
    *  aussi de l'export PDF et de l'envoi IA (tout reste synchronisé). */
   const deleteBlock = useCallback(
     (blockId: string) => {
+      if (isFreeElementId(blockId)) {
+        const nextSaved = { ...saved };
+        delete nextSaved[blockId];
+        onChange({
+          ...data,
+          layout: {
+            ...layout,
+            freeElements: (layout.freeElements ?? []).filter((f) => f.id !== blockId),
+            ...(layout.absolutePositions ? { absolutePositions: nextSaved } : {}),
+          },
+        });
+        return;
+      }
       const m = blockId.match(DUPLICABLE);
       if (m) {
         const key = SECTION_KEYS[m[1] as keyof typeof SECTION_KEYS];

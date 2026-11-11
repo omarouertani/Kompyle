@@ -4,6 +4,7 @@ import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import type { CVData, CoverLetterData } from "@/types/cv";
 import { defaultLayout, normalizeTemplate, migrateLayoutForTemplate } from "@/lib/cv-layout";
 import { applyTemplateTheme } from "@/lib/cv-templates";
+import { bakeFreeElementPositions } from "@/lib/free-elements";
 import { mockCV } from "@/lib/mock-cv";
 import { getModelName, DEFAULT_MODEL } from "@/lib/ai-models";
 import { v4 as uuidv4 } from "uuid";
@@ -390,6 +391,8 @@ export function useProfileManager(locale: string, t: (key: string, values?: Reco
           // Les modèles du registre portent leur thème (police, couleurs) : on
           // l'applique en gardant les réglages propres à l'utilisateur.
           theme: applyTemplateTheme(migrated.layout.theme, from, template),
+          // Les éléments libres gardent leur place malgré l'effacement des positions.
+          freeElements: bakeFreeElementPositions(migrated.layout),
           absolutePositions: undefined,
           autoPaginated: false,
         },

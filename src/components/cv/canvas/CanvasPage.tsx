@@ -32,6 +32,8 @@ interface CanvasPageProps {
   onSidebarResize: (e: React.MouseEvent, startWidth: number) => void;
   /** Rendu d'un bloc par son id (délégué à l'orchestrateur). */
   renderBlock: (id: string) => React.ReactNode;
+  /** Éléments libres de la page, rendus après (donc au-dessus) des sections. */
+  freeElementIds?: string[];
 }
 
 /** Une page A4 du canvas : fond de sidebar, poignée de redimensionnement de
@@ -57,6 +59,7 @@ export function CanvasPage({
   homePageOf,
   onSidebarResize,
   renderBlock,
+  freeElementIds = [],
 }: CanvasPageProps) {
   const { sidebar: sidebarBlocks, main: mainBlocks } = getPageBlockIds(layout, data, pageIndex);
   const hasSidebar = sidebarBlocks.length > 0;
@@ -64,6 +67,7 @@ export function CanvasPage({
     ...(pageIndex === 0 ? headerBlockIds : []),
     ...sidebarBlocks,
     ...mainBlocks,
+    ...freeElementIds,
   ];
 
   return (

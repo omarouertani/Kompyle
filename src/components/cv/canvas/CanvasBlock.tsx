@@ -3,7 +3,10 @@
 import React from "react";
 import type { CVData } from "@/types/cv";
 import { AbsoluteBlock } from "./AbsoluteBlock";
+import { useTranslations } from "next-intl";
 import { BlockContent, type BlockTheme } from "./BlockContent";
+import { FreeElementContent } from "./FreeElementContent";
+import { isFreeElementId } from "@/lib/free-elements";
 import type { BlockPos } from "./snap";
 import type { ResizeEdge } from "./use-canvas-interactions";
 
@@ -44,6 +47,7 @@ export function CanvasBlock({
   onContextMenu,
   onThemeReflow,
 }: CanvasBlockProps) {
+  const t = useTranslations("Canvas");
   // Resize diagonal : le texte du bloc suit l'échelle sauvegardée
   const fs = pos.fontScale ?? 1;
   let themeForBlock: BlockTheme =
@@ -70,7 +74,22 @@ export function CanvasBlock({
       onResetHeight={(blockId) => autoHeight([blockId])}
       onContextMenu={onContextMenu}
     >
-      <BlockContent blockId={id} data={data} theme={themeForBlock} onChange={onChange} onThemeReflow={onThemeReflow} />
+      {isFreeElementId(id) ? (() => {
+        const el = data.layout?.freeElements?.find((f) => f.id === id);
+        return el ? (
+          <FreeElementContent
+            el={el}
+            pos={pos}
+            data={data}
+            baseFontSize={blockTheme.baseFontSize}
+            lineHeight={blockTheme.lineHeight}
+            placeholder={t("free_text_placeholder")}
+            onChange={onChange}
+          />
+        ) : null;
+      })() : (
+        <BlockContent blockId={id} data={data} theme={themeForBlock} onChange={onChange} onThemeReflow={onThemeReflow} />
+      )}
     </AbsoluteBlock>
   );
 }

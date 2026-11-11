@@ -26,8 +26,9 @@ import {
   Redo2,
   MoreHorizontal,
 } from "lucide-react";
-import type { BlockTextAlign, CVTheme, CVFontFamily } from "@/types/cv";
+import type { BlockTextAlign, CVTheme, CVFontFamily, FreeElementKind } from "@/types/cv";
 import { FONT_FAMILIES, ThemePanel, fontKeyFromStack } from "./ThemePanel";
+import { InsertMenu } from "./InsertMenu";
 import { ColorDrawer } from "./ColorDrawer";
 import { useCanvasFormat } from "./use-canvas-format";
 import { TextExtrasGroup } from "./TextExtrasGroup";
@@ -68,6 +69,8 @@ interface CanvasToolbarProps {
   onBlockAlign?: (align: BlockTextAlign) => void;
   /** Alignement commun des blocs sélectionnés (null si mixte / aucun). */
   selectedAlign?: BlockTextAlign | null;
+  /** Insère un élément libre (texte, ligne, rectangle) sur la page active. */
+  onInsert?: (kind: FreeElementKind) => void;
 }
 
 /** Largeurs (px) de la barre sous lesquelles on compacte / on autorise le retour à la ligne. */
@@ -107,6 +110,7 @@ export function CanvasToolbar({
   onBlockStyles,
   onBlockAlign,
   selectedAlign = null,
+  onInsert,
 }: CanvasToolbarProps) {
   const t = useTranslations("Canvas");
   const fmt = useCanvasFormat();
@@ -318,6 +322,8 @@ export function CanvasToolbar({
           </ToolGroup>
 
           <ThemePanel theme={theme} onThemeChange={onThemeChange} compact />
+
+          {onInsert && <InsertMenu onInsert={onInsert} />}
 
           {/* ── Format group : font · size · A · B I U S · align · lists · H1 H2 ── */}
           <ToolGroup>

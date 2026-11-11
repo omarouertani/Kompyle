@@ -13,6 +13,7 @@ import {
 import { PT_TO_PX } from "../cv-canvas-primitives";
 import { getPageDims, PAGE_BOTTOM_MARGIN_PT } from "@/lib/page-size";
 import type { BlockPos } from "./snap";
+import { freePositionsOf } from "@/lib/free-elements";
 
 // ─── Auto-ajustement « tenir sur une page » ──────────────────────────────────
 // Bornes de lisibilité : on ne réduit jamais en deçà de ces seuils, même si le
@@ -73,7 +74,8 @@ export function useCanvasPagination({
           getSectionBlockIds(s, d).some((b) => (positions[b]?.page ?? 0) === p)
         ),
       }));
-      return { ...l, useAbsolutePositioning: true, autoPaginated: true, absolutePositions: positions, pages };
+      // Les éléments libres gardent leur place : la pagination ne range que les sections.
+      return { ...l, useAbsolutePositioning: true, autoPaginated: true, absolutePositions: { ...positions, ...freePositionsOf(l) }, pages };
     },
     [measureHeightPt]
   );

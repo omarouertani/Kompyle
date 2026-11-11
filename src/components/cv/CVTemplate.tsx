@@ -27,6 +27,7 @@ import {
   renderInterests,
 } from "./template/classic-renderers";
 import { blockTextAlign, isBlockOutOfPage, pdfMetadata } from "./template/shared";
+import { renderFreeElementsPdf } from "./template/free-elements-pdf";
 import { getPageDims } from "@/lib/page-size";
 import { detectJobLanguage } from "@/lib/detect-language";
 import { stripHtml } from "@/utils/strip-html";
@@ -222,6 +223,7 @@ const CVTemplate: React.FC<CVTemplateProps> = ({ data, originalData, variant = "
               {renderAbsoluteHeaderAndPhoto(pageIndex)}
               {sidebarBlocks.map((blockId) => renderAbsoluteBlock(blockId))}
               {mainBlocks.map((blockId) => renderAbsoluteBlock(blockId))}
+              {renderFreeElementsPdf(layout, pageIndex)}
             </Page>
           );
         }
@@ -253,6 +255,7 @@ const CVTemplate: React.FC<CVTemplateProps> = ({ data, originalData, variant = "
               )}
               <View style={styles.main}>{renderColumn(page.main, data, styles, originalData)}</View>
             </View>
+            {renderFreeElementsPdf(layout, pageIndex)}
           </Page>
         );
       })}

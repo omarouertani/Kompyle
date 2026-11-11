@@ -2,7 +2,8 @@
 
 import React, { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { useTranslations } from "next-intl";
-import type { CVData } from "@/types/cv";
+import type { CVData, FreeElement, FreeElementKind } from "@/types/cv";
+import { createFreeElement, freeElementPos, freeElementsOnPage, isFreeElementId } from "@/lib/free-elements";
 import {
   defaultLayout,
   getDefaultPositions,
@@ -43,6 +44,7 @@ import { useContextMenu } from "./canvas/use-context-menu";
 import { getHeaderBlockIds } from "./canvas/block-helpers";
 import { CanvasPage } from "./canvas/CanvasPage";
 import { CanvasBlock } from "./canvas/CanvasBlock";
+import { FreeElementStyleBar } from "./canvas/FreeElementStyleBar";
 
 interface CVInteractiveCanvasProps {
   data: CVData;
@@ -294,6 +296,10 @@ export default function CVInteractiveCanvas({ data, onChange: onChangeProp, temp
       const pos = absolutePositions[id] ?? { x: 50, y: 100, w: photoSize };
       return { ...pos, w: pos.w ?? photoSize, h: undefined };
     }
+    if (isFreeElementId(id)) {
+      const el = layout.freeElements?.find((f) => f.id === id);
+      if (el) return freeElementPos(el, savedPositions);
+    }
     if (savedPositions[id]) return savedPositions[id];
 
     // Nouveau bloc (ajout via sidebar) : si la section a déjà des blocs
@@ -320,12 +326,48 @@ export default function CVInteractiveCanvas({ data, onChange: onChangeProp, temp
       contactLine: t("block_contactline"),
     };
     if (HEADER_LABELS[id]) return HEADER_LABELS[id];
+    if (isFreeElementId(id)) {
+      const kind = layout.freeElements?.find((f) => f.id === id)?.kind ?? "text";
+      return t(kind === "line" ? "free_line" : kind === "rect" ? "free_rect" : "free_text");
+    }
     // Le titre peut contenir du balisage de mise en forme (gras/couleur/…) —
     // on l'affiche en texte brut dans l'étiquette de survol / la barre d'info.
     return stripHtml(getSectionLabel(getParentSectionId(id), data));
   };
 
   const headerBlockIds = getHeaderBlockIds(data, template);
+
+  // ── Éléments libres (texte, ligne, rectangle) ───────────────────────────────
+  // Ajoutés sur la page active ; leur position vit dans absolutePositions (on
+  // part des positions par défaut si rien n'est encore sauvegardé, comme
+  // commitPositions, pour ne pas « perdre » les sections côté PDF).
+  const insertFreeElement = (kind: FreeElementKind) => {
+    const el = createFreeElement(kind, activePageIndex, pageDims.widthPt, 120, primaryColor);
+    onChange({
+      ...data,
+      layout: {
+        ...layout,
+        freeElements: [...(layout.freeElements ?? []), el],
+        absolutePositions: {
+          ...(layout.absolutePositions ?? defaultPositions),
+          [el.id]: { x: el.x, y: el.y, w: el.w, h: el.h, page: el.page },
+        },
+      },
+    });
+    setSelectedIds([el.id]);
+  };
+  const patchFreeElement = (id: string, patch: Partial<FreeElement>) =>
+    onChange({
+      ...data,
+      layout: {
+        ...layout,
+        freeElements: (layout.freeElements ?? []).map((f) => (f.id === id ? { ...f, ...patch } : f)),
+      },
+    });
+  const selectedFree =
+    selectedIds.length === 1 && isFreeElementId(selectedIds[0])
+      ? layout.freeElements?.find((f) => f.id === selectedIds[0])
+      : undefined;
 
   const renderBlock = (id: string) => (
     <CanvasBlock
@@ -387,6 +429,7 @@ export default function CVInteractiveCanvas({ data, onChange: onChangeProp, temp
         onBlockStyles={(styles) => applyStyles(selectedIds, styles)}
         onBlockAlign={setBlocksTextAlign}
         selectedAlign={selectedTextAlign}
+        onInsert={insertFreeElement}
       />
 
       {isOverflowing && (
@@ -446,6 +489,7 @@ export default function CVInteractiveCanvas({ data, onChange: onChangeProp, temp
             homePageOf={homePageOf}
             onSidebarResize={startSidebarResize}
             renderBlock={renderBlock}
+            freeElementIds={freeElementsOnPage(layout, pageIndex).map(({ el }) => el.id)}
           />
         ))}
       </div>
@@ -469,6 +513,14 @@ export default function CVInteractiveCanvas({ data, onChange: onChangeProp, temp
           </div>
         );
       })()}
+
+      {selectedFree && !isDragging && !isResizing && (
+        <FreeElementStyleBar
+          el={selectedFree}
+          defaultTextColor={textColor}
+          onPatch={(patch) => patchFreeElement(selectedFree.id, patch)}
+        />
+      )}
 
       {/* Lasso de sélection */}
       {marqueeRect && (

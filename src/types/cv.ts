@@ -141,6 +141,37 @@ export interface CVLayout {
   /** Renommage des sections built-in (id → titre affiché). Vide = libellé par défaut. */
   sectionTitles?: Record<string, string>;
   autoPaginated?: boolean; // les blocs sont répartis sur plusieurs pages via ElementPosition.page
+  /** Éléments libres posés sur les pages (texte, ligne, rectangle). */
+  freeElements?: FreeElement[];
+}
+
+export type FreeElementKind = "text" | "line" | "rect";
+
+/**
+ * Élément libre du canvas, indépendant des sections. Son id (`free_<uuid>`)
+ * sert de clé dans `absolutePositions`, qui porte la position courante (le
+ * glisser, le redimensionnement, l'alignement et le verrou fonctionnent donc
+ * comme pour les blocs). `page/x/y/w/h` sont la position de création, reprise
+ * si `absolutePositions` est vidé (changement de modèle, adaptation IA).
+ */
+export interface FreeElement {
+  id: string;
+  kind: FreeElementKind;
+  page: number;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  /** Texte (HTML inline, même format que les autres champs). */
+  html?: string;
+  /** Couleur du texte, ou du trait (ligne, bord du rectangle). */
+  color?: string;
+  /** Remplissage du rectangle ("transparent" = aucun). */
+  fill?: string;
+  /** Épaisseur du trait en pt (0 = sans bord pour un rectangle). */
+  strokeWidth?: number;
+  /** Rayon des coins du rectangle, en pt. */
+  radius?: number;
 }
 
 /** Section libre créée par l'utilisateur (titre + texte).
