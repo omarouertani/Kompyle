@@ -1,7 +1,8 @@
 import React from "react";
-import { View, Text } from "@/components/pdf-primitives";
+import { View, Text, Image } from "@/components/pdf-primitives";
+import { Svg, Ellipse } from "@react-pdf/renderer";
 import type { CVLayout, ElementPosition, FreeElement } from "@/types/cv";
-import { freeElementsOnPage, isVerticalLine } from "@/lib/free-elements";
+import { freeElementsOnPage, isSafeImageSrc, isVerticalLine } from "@/lib/free-elements";
 import { sortByZ } from "@/lib/z-order";
 
 type TextStyle = { fontSize: number; color: string; lineHeight: number };
@@ -32,6 +33,37 @@ function renderFreeElementPdf(el: FreeElement, pos: ElementPosition, textStyle: 
     ) : (
       <View key={el.id} style={{ ...box, height: h }}>
         <View style={{ position: "absolute", left: 0, top: (h - t) / 2, width: w, height: t, backgroundColor: color }} />
+      </View>
+    );
+  }
+
+  if (el.kind === "image") {
+    // Data URL uniquement : jamais de téléchargement côté serveur.
+    if (!isSafeImageSrc(el.src)) return null;
+    return (
+      <View key={el.id} style={{ ...box, height: h }}>
+        {/* eslint-disable-next-line jsx-a11y/alt-text -- Image react-pdf : pas d'attribut alt */}
+        <Image src={el.src} style={{ width: w, height: h, objectFit: "contain" }} />
+      </View>
+    );
+  }
+
+  if (el.kind === "ellipse") {
+    const sw = el.strokeWidth ?? 0;
+    const fill = el.fill && el.fill !== "transparent" ? el.fill : "none";
+    // Trait à l'intérieur de la boîte, comme le border-box du canvas.
+    return (
+      <View key={el.id} style={{ ...box, height: h }}>
+        <Svg width={w} height={h} viewBox={`0 0 ${w} ${h}`}>
+          <Ellipse
+            cx={w / 2}
+            cy={h / 2}
+            rx={Math.max(0, (w - sw) / 2)}
+            ry={Math.max(0, (h - sw) / 2)}
+            fill={fill}
+            {...(sw > 0 ? { stroke: el.color ?? "#1a1a1a", strokeWidth: sw } : {})}
+          />
+        </Svg>
       </View>
     );
   }

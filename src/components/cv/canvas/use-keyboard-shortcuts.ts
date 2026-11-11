@@ -14,7 +14,7 @@ interface UseKeyboardShortcutsArgs {
   hideSectionOf: (blockId: string) => void;
   clearSelection: () => void;
   canDuplicate: (blockId: string) => boolean;
-  duplicateItem: (blockId: string) => void;
+  duplicateItem: (blockId: string) => string | undefined;
   /** Colle (duplique, décalé) les éléments copiés ; renvoie les ids des copies. */
   pasteItems: (blockIds: string[]) => string[];
   /** Ids des blocs de la page active (Ctrl+A). */
@@ -152,7 +152,8 @@ export function useKeyboardShortcuts({
         const duplicable = selectedIds.find(canDuplicate);
         if (duplicable) {
           e.preventDefault();
-          duplicateItem(duplicable);
+          const copyId = duplicateItem(duplicable);
+          if (copyId) setSelectedIds([copyId]);
         }
         return;
       }

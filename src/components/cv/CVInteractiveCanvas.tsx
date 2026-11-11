@@ -3,7 +3,9 @@
 import React, { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { useTranslations } from "next-intl";
 import type { CVData, FreeElement, FreeElementKind } from "@/types/cv";
-import { createFreeElement, freeElementPos, freeElementsOnPage, isFreeElementId } from "@/lib/free-elements";
+import { createFreeElement, freeElementPos, freeElementsOnPage, freeImagesSize, isFreeElementId, MAX_FREE_IMAGES_TOTAL_CHARS } from "@/lib/free-elements";
+import { toast } from "sonner";
+import type { InsertedImage } from "./canvas/InsertMenu";
 import {
   defaultLayout,
   getDefaultPositions,
@@ -336,7 +338,8 @@ export default function CVInteractiveCanvas({ data, onChange: onChangeProp, temp
     if (HEADER_LABELS[id]) return HEADER_LABELS[id];
     if (isFreeElementId(id)) {
       const kind = layout.freeElements?.find((f) => f.id === id)?.kind ?? "text";
-      return t(kind === "line" ? "free_line" : kind === "rect" ? "free_rect" : "free_text");
+      const FREE_LABELS = { text: "free_text", line: "free_line", rect: "free_rect", ellipse: "free_ellipse", image: "free_image" } as const;
+      return t(FREE_LABELS[kind]);
     }
     // Le titre peut contenir du balisage de mise en forme (gras/couleur/…) —
     // on l'affiche en texte brut dans l'étiquette de survol / la barre d'info.
@@ -348,8 +351,20 @@ export default function CVInteractiveCanvas({ data, onChange: onChangeProp, temp
   // Ajoutés sur la page active ; leur position vit dans absolutePositions (on
   // part des positions par défaut si rien n'est encore sauvegardé, comme
   // commitPositions, pour ne pas « perdre » les sections côté PDF).
-  const insertFreeElement = (kind: FreeElementKind) => {
-    const el = createFreeElement(kind, activePageIndex, pageDims.widthPt, 120, primaryColor);
+  const insertFreeElement = (kind: FreeElementKind, image?: InsertedImage) => {
+    let el = createFreeElement(kind, activePageIndex, pageDims.widthPt, 120, primaryColor);
+    if (kind === "image") {
+      if (!image) return;
+      // Limite du corps de /api/render-pdf : on refuse au-delà d'un total d'images.
+      if (freeImagesSize(layout) + image.src.length > MAX_FREE_IMAGES_TOTAL_CHARS) {
+        toast.error(t("insert_image_total_error"));
+        return;
+      }
+      // Garde les proportions : largeur 160 pt max (et 1/2 page), hauteur déduite.
+      const w = Math.min(160, pageDims.widthPt / 2, image.width * 0.75);
+      const h = Math.max(8, Math.round((w * image.height) / Math.max(1, image.width)));
+      el = { ...el, src: image.src, w: Math.round(w), h, x: Math.round((pageDims.widthPt - w) / 2) };
+    }
     onChange({
       ...data,
       layout: {

@@ -5,7 +5,7 @@ import { v4 as uuidv4 } from "uuid";
 import type { CVData } from "@/types/cv";
 import { defaultLayout, removeCustomSection, getParentSectionId } from "@/lib/cv-layout";
 import type { BlockPos } from "./snap";
-import { isFreeElementId } from "@/lib/free-elements";
+import { cloneFreeElement, freeElementPos, isFreeElementId } from "@/lib/free-elements";
 
 const DUPLICABLE = /^(skill|experience|project|education)_(\d+)$/;
 
@@ -98,11 +98,42 @@ export function useBlockActions({ data, defaultPositions, onChange }: UseBlockAc
     [defaultPositions, updatePositions]
   );
 
-  const canDuplicate = useCallback((blockId: string) => DUPLICABLE.test(blockId), []);
+  const canDuplicate = useCallback(
+    (blockId: string) => DUPLICABLE.test(blockId) || (isFreeElementId(blockId) && !!layout.freeElements?.some((f) => f.id === blockId)),
+    [layout.freeElements]
+  );
 
-  /** Duplique l'élément de données (expérience, projet, compétence, formation). */
+  /** Copies des éléments libres `ids`, décalées de `offset` pt, ajoutées au
+   *  layout donné (positions partant des positions par défaut si rien n'est
+   *  encore sauvegardé, comme à l'insertion). */
+  const cloneFree = useCallback(
+    (ids: string[], base: typeof layout, offset: number) => {
+      const positions = { ...(base.absolutePositions ?? defaultPositions) };
+      const added = [];
+      for (const id of ids) {
+        const el = base.freeElements?.find((f) => f.id === id);
+        if (!el) continue;
+        const copy = cloneFreeElement(el, freeElementPos(el, base.absolutePositions), offset);
+        positions[copy.el.id] = copy.pos;
+        added.push(copy.el);
+      }
+      return {
+        layout: { ...base, freeElements: [...(base.freeElements ?? []), ...added], absolutePositions: positions },
+        ids: added.map((e) => e.id),
+      };
+    },
+    [defaultPositions]
+  );
+
+  /** Duplique l'élément de données (expérience, projet, compétence, formation)
+   *  ou un élément libre. Renvoie l'id de la copie d'un élément libre. */
   const duplicateItem = useCallback(
-    (blockId: string) => {
+    (blockId: string): string | undefined => {
+      if (isFreeElementId(blockId)) {
+        const res = cloneFree([blockId], layout, 12);
+        if (res.ids.length) onChange({ ...data, layout: res.layout });
+        return res.ids[0];
+      }
       const m = blockId.match(DUPLICABLE);
       if (!m) return;
       const key = SECTION_KEYS[m[1] as keyof typeof SECTION_KEYS];
@@ -122,8 +153,9 @@ export function useBlockActions({ data, defaultPositions, onChange }: UseBlockAc
         [key]: [...list.slice(0, idx + 1), copy, ...list.slice(idx + 1)],
         layout: { ...layout, absolutePositions: nextSaved },
       });
+      return undefined;
     },
-    [data, layout, saved, onChange]
+    [data, layout, saved, onChange, cloneFree]
   );
 
   /** Colle (duplique) plusieurs éléments en une seule modification. Chaque copie
@@ -141,7 +173,8 @@ export function useBlockActions({ data, defaultPositions, onChange }: UseBlockAc
         if (!list.includes(idx)) list.push(idx);
         byFamily.set(m[1], list);
       }
-      if (byFamily.size === 0) return [];
+      const freeIds = blockIds.filter(isFreeElementId);
+      if (byFamily.size === 0 && freeIds.length === 0) return [];
 
       const next: CVData = { ...data };
       let nextSaved = saved;
@@ -167,10 +200,17 @@ export function useBlockActions({ data, defaultPositions, onChange }: UseBlockAc
         // Index final de la copie du k-ième original (ordre croissant) = i_k + k.
         asc.forEach((idx, k) => pastedIds.push(`${family}_${idx + k + 1}`));
       }
-      onChange({ ...next, layout: { ...layout, autoPaginated: false, absolutePositions: nextSaved } });
+      let nextLayout = { ...layout, autoPaginated: false, absolutePositions: nextSaved };
+      if (freeIds.length) {
+        // Les sections déjà collées ont des positions sauvegardées : on part de celles-ci.
+        const res = cloneFree(freeIds, { ...nextLayout, absolutePositions: byFamily.size ? nextSaved : layout.absolutePositions }, offset);
+        nextLayout = { ...res.layout, autoPaginated: false };
+        pastedIds.push(...res.ids);
+      }
+      onChange({ ...next, layout: nextLayout });
       return pastedIds;
     },
-    [data, layout, saved, defaultPositions, onChange]
+    [data, layout, saved, defaultPositions, onChange, cloneFree]
   );
 
   /** Un bloc représente-t-il un ÉLÉMENT supprimable individuellement (sans

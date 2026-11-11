@@ -10,7 +10,25 @@ const DEFAULTS: Record<FreeElementKind, Omit<FreeElement, "id" | "kind" | "page"
   text: { w: 180, h: 20, html: "" },
   line: { w: 200, h: 6, strokeWidth: 1.5 },
   rect: { w: 140, h: 70, fill: "#f4f4f5", strokeWidth: 1, radius: 4 },
+  ellipse: { w: 100, h: 70, fill: "#f4f4f5", strokeWidth: 1 },
+  image: { w: 160, h: 120 },
 };
+
+/** Seules sources d'image acceptées (canvas et PDF) : data URL PNG/JPEG.
+ *  Une URL distante ferait télécharger le serveur de rendu PDF. */
+const SAFE_IMAGE_SRC = /^data:image\/(png|jpe?g);base64,[a-z0-9+/=]+$/i;
+export const isSafeImageSrc = (src?: string): src is string => !!src && SAFE_IMAGE_SRC.test(src);
+
+/** Taille max d'une image libre en data URL (caractères ≈ octets). Le corps
+ *  de /api/render-pdf est limité à 4 Mo, photo et autres images comprises. */
+export const MAX_FREE_IMAGE_CHARS = 900_000;
+/** Total des images libres d'un CV (data URL), sous la limite du corps. */
+export const MAX_FREE_IMAGES_TOTAL_CHARS = 2_500_000;
+
+/** Poids total (caractères) des images libres d'un layout. */
+export function freeImagesSize(layout: CVLayout): number {
+  return (layout.freeElements ?? []).reduce((n, el) => n + (el.kind === "image" ? (el.src?.length ?? 0) : 0), 0);
+}
 
 /** Nouvel élément centré horizontalement sur la page, en haut de la zone
  *  visible (`y`). `accent` colore le trait / le texte. */
@@ -30,7 +48,18 @@ export function createFreeElement(
     x: Math.round((pageWidthPt - base.w) / 2),
     y: Math.round(y),
     ...base,
-    color: kind === "text" ? undefined : accent,
+    color: kind === "text" || kind === "image" ? undefined : accent,
+  };
+}
+
+/** Copie d'un élément libre (nouvel id), décalée de `offset` pt, sans verrou ni
+ *  masquage ni groupe. `pos` est sa position courante. */
+export function cloneFreeElement(el: FreeElement, pos: ElementPosition, offset = 12): { el: FreeElement; pos: ElementPosition } {
+  const id = `${FREE_PREFIX}${globalThis.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2)}`;
+  const next: ElementPosition = { ...pos, x: pos.x + offset, y: pos.y + offset, locked: undefined, hidden: undefined, groupId: undefined };
+  return {
+    el: { ...el, id, x: next.x, y: next.y, w: next.w ?? el.w, h: next.h ?? el.h, page: next.page ?? 0, hidden: undefined },
+    pos: next,
   };
 }
 

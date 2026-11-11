@@ -147,7 +147,7 @@ export interface CVLayout {
   freeElements?: FreeElement[];
 }
 
-export type FreeElementKind = "text" | "line" | "rect";
+export type FreeElementKind = "text" | "line" | "rect" | "ellipse" | "image";
 
 /**
  * Élément libre du canvas, indépendant des sections. Son id (`free_<uuid>`)
@@ -174,6 +174,8 @@ export interface FreeElement {
   strokeWidth?: number;
   /** Rayon des coins du rectangle, en pt. */
   radius?: number;
+  /** Image : data URL PNG/JPEG redimensionnée (jamais une URL distante). */
+  src?: string;
   /** Ordre de superposition et masquage recopiés de la position (voir `bakeFreeElementPositions`). */
   z?: number;
   hidden?: boolean;

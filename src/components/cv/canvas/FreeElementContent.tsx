@@ -3,7 +3,7 @@
 import React from "react";
 import type { CVData, FreeElement } from "@/types/cv";
 import { EditableText, ptsToPx } from "../cv-canvas-primitives";
-import { isVerticalLine } from "@/lib/free-elements";
+import { isSafeImageSrc, isVerticalLine } from "@/lib/free-elements";
 import type { BlockPos } from "./snap";
 
 interface FreeElementContentProps {
@@ -39,14 +39,23 @@ export function FreeElementContent({ el, pos, data, baseFontSize, lineHeight, pl
     );
   }
 
-  if (el.kind === "rect") {
+  if (el.kind === "image") {
+    return isSafeImageSrc(el.src) ? (
+      // eslint-disable-next-line @next/next/no-img-element -- data URL locale, pas d'optimisation Next possible
+      <img src={el.src} alt="" draggable={false} style={{ display: "block", width: "100%", height: ptsToPx(h), objectFit: "contain" }} />
+    ) : (
+      <div style={{ height: ptsToPx(h) }} className="bg-muted/40" />
+    );
+  }
+
+  if (el.kind === "rect" || el.kind === "ellipse") {
     const sw = el.strokeWidth ?? 0;
     return (
       <div
         style={{
           height: ptsToPx(h),
           backgroundColor: el.fill && el.fill !== "transparent" ? el.fill : undefined,
-          borderRadius: ptsToPx(el.radius ?? 0),
+          borderRadius: el.kind === "ellipse" ? "50%" : ptsToPx(el.radius ?? 0),
           border: sw > 0 ? `${ptsToPx(sw)} solid ${el.color ?? "#1a1a1a"}` : undefined,
           boxSizing: "border-box",
         }}
