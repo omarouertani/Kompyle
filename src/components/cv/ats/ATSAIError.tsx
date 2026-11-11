@@ -1,10 +1,10 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { AlertTriangle, KeyRound, Clock, ShieldX, ServerCrash, Wifi, RotateCcw, PackageX } from "lucide-react";
+import { AlertTriangle, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import type { ProviderFailure, ProviderFailureReason } from "@/lib/ai-orchestrator";
+import type { ProviderFailure } from "@/lib/ai-orchestrator";
 import { PROVIDER_META, getModelName, providerForModel } from "@/hooks/use-ai-provider-config";
 
 interface ATSAIErrorProps {
@@ -13,19 +13,6 @@ interface ATSAIErrorProps {
   failures: ProviderFailure[] | null;
   onRetry: () => void;
 }
-
-const REASON_ICON: Record<ProviderFailureReason, React.ReactNode> = {
-  missing_key: <KeyRound size={14} />,
-  auth: <ShieldX size={14} />,
-  rate_limit: <Clock size={14} />,
-  quota: <ShieldX size={14} />,
-  model_unavailable: <PackageX size={14} />,
-  timeout: <Clock size={14} />,
-  network: <Wifi size={14} />,
-  server: <ServerCrash size={14} />,
-  empty: <ServerCrash size={14} />,
-  unknown: <AlertTriangle size={14} />,
-};
 
 export function ATSAIError({ message, details, failures, onRetry }: ATSAIErrorProps) {
   const t = useTranslations("ATS");
@@ -75,7 +62,6 @@ export function ATSAIError({ message, details, failures, onRetry }: ATSAIErrorPr
                   <div className="flex items-center gap-1.5 flex-wrap">
                     <span className="font-semibold text-foreground">{getModelName(f.model)}</span>
                     <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-semibold uppercase tracking-wide bg-muted text-muted-foreground">
-                      {REASON_ICON[f.reason]}
                       {t(`error_reason_${f.reason}` as const)}
                     </span>
                   </div>
@@ -93,8 +79,8 @@ export function ATSAIError({ message, details, failures, onRetry }: ATSAIErrorPr
         </div>
       )}
 
-      <Button variant="outline" className="h-9 px-4 text-sm gap-1.5" onClick={onRetry}>
-        <RotateCcw size={14} />
+      <Button variant="outline" onClick={onRetry}>
+        <RotateCcw />
         {t("btn_retry")}
       </Button>
     </div>

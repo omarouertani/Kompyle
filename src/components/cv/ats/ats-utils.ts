@@ -27,12 +27,7 @@ export function cssVarForTone(tone: ScoreTone): string {
   return "var(--ats-poor)";
 }
 
-/** Style en ligne prêt à appliquer (background-tint + ring) pour un badge de section. */
-export function sectionStatusStyle(status: ATSSectionStatus): React.CSSProperties {
-  const color = cssVarForTone(status === "good" ? "excellent" : status === "warning" ? "warning" : "poor");
-  return {
-    color,
-    backgroundColor: `color-mix(in oklab, ${color} 12%, transparent)`,
-    boxShadow: `inset 0 0 0 1px color-mix(in oklab, ${color} 30%, transparent)`,
-  };
+/** Couleur d'un statut de section (OK / partiel / manquant). */
+export function cssVarForStatus(status: ATSSectionStatus): string {
+  return cssVarForTone(status === "good" ? "excellent" : status === "warning" ? "warning" : "poor");
 }
