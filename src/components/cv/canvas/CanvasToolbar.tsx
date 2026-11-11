@@ -3,6 +3,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
+import { toolbarPill } from "./toolbar-styles";
 import {
   Minus,
   Plus,
@@ -244,20 +245,9 @@ export function CanvasToolbar({
             {/* Page controls */}
             <ToolGroup>
               {Array.from({ length: pageCount }, (_, idx) => (
-                <button
-                  key={idx}
-                  type="button"
-                  onClick={() => onSelectPage(idx)}
-                  onMouseDown={(e) => e.preventDefault()}
-                  className={cn(
-                    "px-2 h-7 text-[10px] font-semibold rounded-md transition-all",
-                    activePageIndex === idx
-                      ? "bg-card text-foreground shadow-sm"
-                      : "text-muted-foreground hover:text-foreground"
-                  )}
-                >
+                <ToolButton key={idx} onClick={() => onSelectPage(idx)} active={activePageIndex === idx} className="px-2 font-semibold">
                   P{idx + 1}
-                </button>
+                </ToolButton>
               ))}
               <ToolButton onClick={onAddPage} title={t("add_page")}>
                 <FilePlus size={12} />
@@ -291,15 +281,9 @@ export function CanvasToolbar({
               <ToolButton onClick={() => onZoomChange(Math.min(ZOOM_MAX, zoom + 0.1))} title="+">
                 <Plus size={12} />
               </ToolButton>
-              <button
-                type="button"
-                onClick={onZoomFit}
-                onMouseDown={(e) => e.preventDefault()}
-                className="px-2 h-7 text-[10px] font-semibold rounded-md transition-all bg-background hover:bg-muted/80 text-foreground"
-                title={t("zoom_fit_tooltip")}
-              >
+              <ToolButton onClick={onZoomFit} title={t("zoom_fit_tooltip")} className="px-2 font-semibold text-foreground">
                 {t("zoom_fit")}
-              </button>
+              </ToolButton>
             </ToolGroup>
 
             {/* Info / shortcuts — single icon, tooltip on hover instead of the
@@ -335,10 +319,7 @@ export function CanvasToolbar({
             <button
               type="button"
               onClick={onToggleLayers}
-              className={cn(
-                "flex items-center gap-1 px-2 py-0.5 text-[9px] font-bold rounded-md transition-all shadow-sm h-6",
-                layersOpen ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted/80 text-foreground"
-              )}
+              className={toolbarPill(layersOpen)}
               title={t("layers")}
               aria-pressed={layersOpen}
             >

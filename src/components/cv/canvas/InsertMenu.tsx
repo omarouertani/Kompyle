@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { Plus, Type, Minus, Square, Circle, ImagePlus, Shapes, ChevronLeft, Icon } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { toolbarPill } from "./toolbar-styles";
 import type { FreeElementKind } from "@/types/cv";
 import { resizeImageToDataUrl } from "@/utils/resize-image";
 import { MAX_FREE_IMAGE_CHARS } from "@/lib/free-elements";
@@ -95,10 +96,7 @@ export function InsertMenu({ onInsert }: { onInsert: InsertHandler }) {
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className={cn(
-          "flex items-center gap-1 px-2 py-0.5 text-[9px] font-bold rounded-md transition-all shadow-sm h-6",
-          open ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted/80 text-foreground"
-        )}
+        className={toolbarPill(open)}
         title={t("insert")}
         aria-haspopup="menu"
         aria-expanded={open}

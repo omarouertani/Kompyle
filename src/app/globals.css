@@ -58,8 +58,8 @@
 
 	/* Échelle de scoring ATS — dérivée du thème courant. */
 	--ats-excellent: var(--primary);
-	--ats-good: color-mix(in oklab, var(--primary) 55%, var(--accent-foreground) 45%);
-	--ats-warning: color-mix(in oklab, var(--chart-1) 70%, var(--destructive) 30%);
+	--ats-good: color-mix(in oklab, var(--primary) 60%, var(--muted-foreground) 40%);
+	--ats-warning: oklch(0.68 0.13 75);
 	--ats-poor: oklch(0.58 0.22 27.33);
 }
 
@@ -99,8 +99,8 @@
 	--sidebar-ring: oklch(0.77 0 0);
 
 	--ats-excellent: var(--primary);
-	--ats-good: color-mix(in oklab, var(--primary) 55%, var(--accent-foreground) 45%);
-	--ats-warning: color-mix(in oklab, var(--chart-1) 70%, var(--destructive) 30%);
+	--ats-good: color-mix(in oklab, var(--primary) 60%, var(--muted-foreground) 40%);
+	--ats-warning: oklch(0.78 0.12 80);
 	--ats-poor: var(--destructive);
 }
 

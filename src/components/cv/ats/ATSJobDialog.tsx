@@ -12,6 +12,7 @@ import {
   AlertDialogFooter,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { PromptInput, PromptInputTextarea } from "@/components/ui/prompt-input";
 import { Separator } from "@/components/ui/separator";
 import { ModelSelect } from "@/components/ai/ModelSelect";
@@ -101,19 +102,19 @@ function ATSJobDialogBody({ existingJobDescription, hasExisting, model, onModelC
               <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                 {t("dialog_existing_label")}
               </span>
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-0.5 rounded-lg border border-border/50 bg-muted/50 p-0.5">
                 <Button
                   size="xs"
-                  variant={mode === "reuse" ? "default" : "ghost"}
-                  className="h-6 px-2 text-[11px]"
+                  variant="ghost"
+                  className={cn(mode === "reuse" ? "bg-card text-foreground shadow-sm hover:bg-card" : "text-muted-foreground")}
                   onClick={() => { setMode("reuse"); setText(existingJobDescription); }}
                 >
                   {t("dialog_use_existing")}
                 </Button>
                 <Button
                   size="xs"
-                  variant={mode === "new" ? "default" : "ghost"}
-                  className="h-6 px-2 text-[11px]"
+                  variant="ghost"
+                  className={cn(mode === "new" ? "bg-card text-foreground shadow-sm hover:bg-card" : "text-muted-foreground")}
                   onClick={() => { setMode("new"); setText(""); }}
                 >
                   {t("dialog_use_new")}
