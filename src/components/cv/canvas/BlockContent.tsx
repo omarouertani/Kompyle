@@ -310,7 +310,7 @@ export function BlockContent({ blockId, data, theme, onChange, onThemeReflow }: 
 
   if (blockId === "content_summary") {
     return (
-      <EditableText value={personalInfo.summary} onChange={(v) => updatePersonalInfo("summary", v)} className="text-justify text-zinc-700 font-sans w-full" style={{ fontSize: toPx(baseFontSize), lineHeight: lh }} multiline placeholder="Rédigez votre résumé professionnel ici..." />
+      <EditableText value={personalInfo.summary} onChange={(v) => updatePersonalInfo("summary", v)} className="text-justify text-zinc-700 font-sans w-full" style={{ fontSize: toPx(baseFontSize), lineHeight: lh }} multiline tiptap placeholder="Rédigez votre résumé professionnel ici..." />
     );
   }
 

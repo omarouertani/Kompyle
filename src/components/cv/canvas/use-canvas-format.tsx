@@ -2,46 +2,20 @@
 
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 
-/** Snapshot of the current text selection's format state. Drives toolbar UI
- *  (active B/I/U highlights). Recomputed via `selectionchange` whenever the
- *  user's cursor or selection moves inside any registered EditableText. */
-export interface FormatState {
-  bold: boolean;
-  /** Computed font-weight at the caret is 500-600 (semi-bold face). */
-  semibold: boolean;
-  italic: boolean;
-  underline: boolean;
-  strike: boolean;
-  align: "left" | "center" | "right" | "justify" | null;
-  textColor: string | null;
-  /** Computed CSS font-family of the text at the caret (raw stack). */
-  fontFamily: string | null;
-  /** Computed font size at the caret, in pt (rounded to 0.5). */
-  fontSize: number | null;
-  hasSelection: boolean;
-  hasActiveEditor: boolean;
-}
+import { DEFAULT_FORMAT_STATE as DEFAULT_STATE, type FormatCommand, type FormatState, type RichEditorHandle } from "./format-types";
 
-const DEFAULT_STATE: FormatState = {
-  bold: false,
-  semibold: false,
-  italic: false,
-  underline: false,
-  strike: false,
-  align: null,
-  textColor: null,
-  fontFamily: null,
-  fontSize: null,
-  hasSelection: false,
-  hasActiveEditor: false,
-};
+export type { FormatState, FormatCommand, RichEditorHandle };
 
 interface FormatApi {
   state: FormatState;
-  /** Called by EditableText on focus to register itself as the active editor. */
-  registerActiveEditor: (el: HTMLElement | null) => void;
+  /** Called by EditableText on focus to register itself as the active editor
+   *  (with its TipTap command handle), and with `null` on blur. Registering a
+   *  NEW editor deactivates the previous TipTap one (one live editor at most). */
+  registerActiveEditor: (el: HTMLElement | null, handle?: RichEditorHandle | null) => void;
+  /** Called when a TipTap field editor is torn down. */
+  releaseEditor: (handle: RichEditorHandle) => void;
   /** Apply a format command. Returns true if applied to an active editor. */
-  exec: (command: "bold" | "italic" | "underline" | "strikeThrough" | "foreColor" | "hiliteColor" | "createLink" | "unlink" | "justifyLeft" | "justifyCenter" | "justifyRight" | "justifyFull" | "removeFormat" | "insertUnorderedList" | "insertOrderedList", value?: string) => boolean;
+  exec: (command: FormatCommand, value?: string) => boolean;
   /** Wrap the current selection in a `<span style="prop: value">` so font /
    *  size / family changes apply ONLY to the selected substring, not to the
    *  whole block. If the selection is collapsed, expands to the entire editor
@@ -69,8 +43,14 @@ export function CanvasFormatProvider({ children }: { children: React.ReactNode }
   // longer in the live Selection is still valid as long as its nodes remain mounted).
   const savedRangeRef = useRef<Range | null>(null);
   const [activeEditor, setActiveEditor] = useState<HTMLElement | null>(null);
+  // TipTap command handle of the anchored editor (D2) — when set, every format
+  // call goes through it instead of execCommand.
+  const handleRef = useRef<RichEditorHandle | null>(null);
 
   const computeState = useCallback((): FormatState => {
+    if (handleRef.current) {
+      try { return handleRef.current.readState(); } catch { return { ...DEFAULT_STATE, hasActiveEditor: true }; }
+    }
     // Use the anchored editor (last focused) so the toolbar keeps reflecting the
     // selection state even after focus moves out to a toolbar button.
     const el = activeEditorRef.current ?? anchoredEditorRef.current;
@@ -129,12 +109,24 @@ export function CanvasFormatProvider({ children }: { children: React.ReactNode }
     setState(computeState());
   }, [computeState]);
 
-  const registerActiveEditor = useCallback((el: HTMLElement | null) => {
+  const registerActiveEditor = useCallback((el: HTMLElement | null, handle?: RichEditorHandle | null) => {
     activeEditorRef.current = el;
     if (el) {
       anchoredEditorRef.current = el;
+      const prev = handleRef.current;
+      handleRef.current = handle ?? null;
+      if (prev && prev !== handle) prev.deactivate();
     }
     setActiveEditor(el);
+    setState(computeState());
+  }, [computeState]);
+
+  const releaseEditor = useCallback((handle: RichEditorHandle) => {
+    if (handleRef.current !== handle) return;
+    handleRef.current = null;
+    if (anchoredEditorRef.current === handle.dom) anchoredEditorRef.current = null;
+    if (activeEditorRef.current === handle.dom) activeEditorRef.current = null;
+    setActiveEditor((cur) => (cur === handle.dom ? null : cur));
     setState(computeState());
   }, [computeState]);
 
@@ -162,6 +154,11 @@ export function CanvasFormatProvider({ children }: { children: React.ReactNode }
   }, [computeState]);
 
   const exec = useCallback<FormatApi["exec"]>((command, value) => {
+    if (handleRef.current) {
+      const ok = handleRef.current.exec(command, value);
+      setState(computeState());
+      return ok;
+    }
     const el = activeEditorRef.current ?? anchoredEditorRef.current;
     if (!el || !el.isContentEditable) return false;
     // Re-focus the anchored editor and restore its saved selection. We must do
@@ -268,17 +265,22 @@ export function CanvasFormatProvider({ children }: { children: React.ReactNode }
     return true;
   }, [computeState]);
 
-  const applyInlineStyle = useCallback((prop: string, val: string): boolean =>
-    wrapSelectionWithStyle((span) => span.style.setProperty(prop, val)),
-  [wrapSelectionWithStyle]);
-
-  const applyInlineStyles = useCallback((styles: Record<string, string>): boolean =>
-    wrapSelectionWithStyle((span) => {
+  const applyInlineStyles = useCallback((styles: Record<string, string>): boolean => {
+    if (handleRef.current) {
+      const ok = handleRef.current.applyStyles(styles);
+      setState(computeState());
+      return ok;
+    }
+    return wrapSelectionWithStyle((span) => {
       for (const [prop, val] of Object.entries(styles)) span.style.setProperty(prop, val);
-    }),
-  [wrapSelectionWithStyle]);
+    });
+  }, [wrapSelectionWithStyle, computeState]);
 
-  const value = useMemo<FormatApi>(() => ({ state, registerActiveEditor, exec, applyInlineStyle, applyInlineStyles, refresh, activeEditor }), [state, registerActiveEditor, exec, applyInlineStyle, applyInlineStyles, refresh, activeEditor]);
+  const applyInlineStyle = useCallback((prop: string, val: string): boolean =>
+    applyInlineStyles({ [prop]: val }),
+  [applyInlineStyles]);
+
+  const value = useMemo<FormatApi>(() => ({ state, registerActiveEditor, releaseEditor, exec, applyInlineStyle, applyInlineStyles, refresh, activeEditor }), [state, registerActiveEditor, releaseEditor, exec, applyInlineStyle, applyInlineStyles, refresh, activeEditor]);
 
   return <FormatContext.Provider value={value}>{children}</FormatContext.Provider>;
 }
@@ -292,6 +294,7 @@ export function useCanvasFormat(): FormatApi {
   return {
     state: DEFAULT_STATE,
     registerActiveEditor: () => {},
+    releaseEditor: () => {},
     exec: () => false,
     applyInlineStyle: () => false,
     applyInlineStyles: () => false,
