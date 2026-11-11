@@ -25,6 +25,10 @@ interface AbsoluteBlockProps {
   pos: BlockPos;
   isSelected: boolean;
   isInteracting: boolean;
+  /** Rang de superposition sur la page (0 = au fond). */
+  rank?: number;
+  /** Type d'élément libre (attribut data-free-kind), pour le clic traversant. */
+  freeKind?: string;
   /** Nom de section affiché au survol du bloc. */
   label?: string;
   onDragStart: (e: React.MouseEvent, id: string, pos: BlockPos) => void;
@@ -42,6 +46,8 @@ export function AbsoluteBlock({
   pos,
   isSelected,
   isInteracting,
+  rank = 0,
+  freeKind,
   label,
   onDragStart,
   onResizeStart,
@@ -53,6 +59,7 @@ export function AbsoluteBlock({
   return (
     <div
       data-block-id={id}
+      data-free-kind={freeKind}
       style={{
         position: "absolute",
         left: ptsToPx(pos.x),
@@ -60,7 +67,12 @@ export function AbsoluteBlock({
         width: pos.w ? ptsToPx(pos.w) : undefined,
         // minHeight (et non height) : le contenu n'est jamais coupé
         minHeight: pos.h ? ptsToPx(pos.h) : undefined,
-        zIndex: isSelected ? 30 : 10,
+        // L'ordre de superposition est respecté même sélectionné ; seul le
+        // bloc déplacé passe devant pendant le glisser.
+        zIndex: isSelected && isInteracting ? 900 : 10 + rank,
+        // Masqué (panneau de calques) : garde sa place pour les mesures, mais
+        // n'est ni visible ni cliquable.
+        visibility: pos.hidden ? "hidden" : undefined,
         // Contour fin et net (1px) — remplace l'ancien ring épais near-black
         boxShadow: isSelected ? `0 0 0 1px ${SELECTION_COLOR}` : undefined,
       }}

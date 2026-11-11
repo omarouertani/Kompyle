@@ -159,7 +159,7 @@ export function useBlockActions({ data, defaultPositions, onChange }: UseBlockAc
           if (src) {
             nextSaved = {
               ...nextSaved,
-              [`${family}_${idx + 1}`]: { ...src, x: src.x + offset, y: src.y + offset, locked: undefined, groupId: undefined },
+              [`${family}_${idx + 1}`]: { ...src, x: src.x + offset, y: src.y + offset, locked: undefined, groupId: undefined, hidden: undefined },
             };
           }
         }

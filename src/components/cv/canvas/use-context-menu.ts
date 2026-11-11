@@ -4,7 +4,8 @@ import { useState, useCallback, useMemo } from "react";
 import { useTranslations } from "next-intl";
 import type { CVData, CVLayout } from "@/types/cv";
 import { addCustomSection, getParentSectionId } from "@/lib/cv-layout";
-import { Maximize2, MoveUpRight, MoveRight, Copy, EyeOff, RotateCcw, SquarePlus, Lock, LockOpen, Group, Ungroup, Trash2, FilePlus } from "lucide-react";
+import { Maximize2, MoveUpRight, MoveRight, Copy, EyeOff, RotateCcw, SquarePlus, Lock, LockOpen, Group, Ungroup, Trash2, FilePlus, BringToFront, SendToBack, ArrowUp, ArrowDown } from "lucide-react";
+import type { ZAction } from "@/lib/z-order";
 import type { ContextMenuItem } from "./ContextMenu";
 import type { BlockPos } from "./snap";
 import { isSectionBlock } from "./block-helpers";
@@ -32,6 +33,8 @@ interface UseContextMenuArgs {
   ungroupSelected: () => void;
   pageOfSection: (blockId: string) => number;
   moveSectionToPage: (blockId: string, targetPage: number) => void;
+  /** Ordre de superposition (premier plan, avancer, reculer, arrière-plan). */
+  reorderZ: (ids: string[], action: ZAction) => void;
 }
 
 type Menu = { x: number; y: number; blockId: string | null; pageIndex: number | null } | null;
@@ -61,6 +64,7 @@ export function useContextMenu({
   moveSectionToPage,
   addPage,
   removePage,
+  reorderZ,
 }: UseContextMenuArgs) {
   const t = useTranslations("Canvas");
   const [menu, setMenu] = useState<Menu>(null);
@@ -152,6 +156,13 @@ export function useContextMenu({
       const blockId = menu.blockId;
       items.push({ label: t("menu_duplicate"), icon: Copy, onClick: () => duplicateItem(blockId) });
     }
+    // Ordre de superposition
+    items.push(
+      { label: t("menu_bring_front"), icon: BringToFront, separator: true, onClick: () => reorderZ(targets, "front") },
+      { label: t("menu_bring_forward"), icon: ArrowUp, onClick: () => reorderZ(targets, "forward") },
+      { label: t("menu_send_backward"), icon: ArrowDown, onClick: () => reorderZ(targets, "backward") },
+      { label: t("menu_send_back"), icon: SendToBack, onClick: () => reorderZ(targets, "back") },
+    );
     // Grouper / dégrouper la multi-sélection
     if (selectionHasGroup) {
       items.push({ label: t("menu_ungroup"), icon: Ungroup, onClick: ungroupSelected });
@@ -201,7 +212,7 @@ export function useContextMenu({
     }
     items.push({ label: t("menu_realign"), icon: RotateCcw, separator: true, onClick: realign });
     return items;
-  }, [menu, selectedIds, t, onChange, data, realign, savedPositions, defaultPositions, autoHeight, resetPosition, toggleLock, canDuplicate, duplicateItem, canDeleteBlock, deleteBlock, selectionHasGroup, ungroupSelected, groupSelected, layout.pages, pageOfSection, moveSectionToPage, hideSectionOf, clearSelection, addPage, removePage]);
+  }, [menu, selectedIds, t, onChange, data, realign, savedPositions, defaultPositions, autoHeight, resetPosition, toggleLock, canDuplicate, duplicateItem, canDeleteBlock, deleteBlock, selectionHasGroup, ungroupSelected, groupSelected, layout.pages, pageOfSection, moveSectionToPage, hideSectionOf, clearSelection, addPage, removePage, reorderZ]);
 
   return { menu, setMenu, openBlockMenu, openCanvasMenu, menuItems };
 }

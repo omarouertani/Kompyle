@@ -25,6 +25,7 @@ import {
   Undo2,
   Redo2,
   MoreHorizontal,
+  Layers,
 } from "lucide-react";
 import type { BlockTextAlign, CVTheme, CVFontFamily, FreeElementKind } from "@/types/cv";
 import { FONT_FAMILIES, ThemePanel, fontKeyFromStack } from "./ThemePanel";
@@ -71,6 +72,9 @@ interface CanvasToolbarProps {
   selectedAlign?: BlockTextAlign | null;
   /** Insère un élément libre (texte, ligne, rectangle) sur la page active. */
   onInsert?: (kind: FreeElementKind) => void;
+  /** Panneau de calques ouvert / bascule. */
+  layersOpen?: boolean;
+  onToggleLayers?: () => void;
 }
 
 /** Largeurs (px) de la barre sous lesquelles on compacte / on autorise le retour à la ligne. */
@@ -111,6 +115,8 @@ export function CanvasToolbar({
   onBlockAlign,
   selectedAlign = null,
   onInsert,
+  layersOpen = false,
+  onToggleLayers,
 }: CanvasToolbarProps) {
   const t = useTranslations("Canvas");
   const fmt = useCanvasFormat();
@@ -324,6 +330,22 @@ export function CanvasToolbar({
           <ThemePanel theme={theme} onThemeChange={onThemeChange} compact />
 
           {onInsert && <InsertMenu onInsert={onInsert} />}
+
+          {onToggleLayers && (
+            <button
+              type="button"
+              onClick={onToggleLayers}
+              className={cn(
+                "flex items-center gap-1 px-2 py-0.5 text-[9px] font-bold rounded-md transition-all shadow-sm h-6",
+                layersOpen ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted/80 text-foreground"
+              )}
+              title={t("layers")}
+              aria-pressed={layersOpen}
+            >
+              <Layers size={10} />
+              <span className="hidden sm:inline">{t("layers")}</span>
+            </button>
+          )}
 
           {/* ── Format group : font · size · A · B I U S · align · lists · H1 H2 ── */}
           <ToolGroup>

@@ -3,6 +3,8 @@
 import React from "react";
 import type { CVData, CVLayout } from "@/types/cv";
 import { getPageBlockIds } from "@/lib/cv-layout";
+import { freeElementsOnPage } from "@/lib/free-elements";
+import { sortByZ } from "@/lib/z-order";
 import { cn } from "@/lib/utils";
 import { CVPageScaleWrapper, ptsToPx, SELECTION_COLOR } from "../cv-canvas-primitives";
 import { SnapGuides } from "./SnapGuides";
@@ -30,8 +32,8 @@ interface CanvasPageProps {
   /** Page logique d'un bloc (pour n'afficher les guides que sur la bonne page). */
   homePageOf: (id: string) => number;
   onSidebarResize: (e: React.MouseEvent, startWidth: number) => void;
-  /** Rendu d'un bloc par son id (délégué à l'orchestrateur). */
-  renderBlock: (id: string) => React.ReactNode;
+  /** Rendu d'un bloc par son id et son rang de superposition (0 = au fond). */
+  renderBlock: (id: string, rank: number) => React.ReactNode;
   /** Éléments libres de la page, rendus après (donc au-dessus) des sections. */
   freeElementIds?: string[];
 }
@@ -63,12 +65,7 @@ export function CanvasPage({
 }: CanvasPageProps) {
   const { sidebar: sidebarBlocks, main: mainBlocks } = getPageBlockIds(layout, data, pageIndex);
   const hasSidebar = sidebarBlocks.length > 0;
-  const pageBlockIds = [
-    ...(pageIndex === 0 ? headerBlockIds : []),
-    ...sidebarBlocks,
-    ...mainBlocks,
-    ...freeElementIds,
-  ];
+  const pageBlockIds = pageStack(layout, pageIndex, headerBlockIds, [...sidebarBlocks, ...mainBlocks], freeElementIds);
 
   return (
     <CVPageScaleWrapper
@@ -107,7 +104,7 @@ export function CanvasPage({
 
         {hasSidebar && (
           <div
-            className="absolute hover:bg-primary/40 hover:opacity-100 bg-transparent opacity-0 cursor-col-resize h-full transition-all duration-100 z-30"
+            className="absolute hover:bg-primary/40 hover:opacity-100 bg-transparent opacity-0 cursor-col-resize h-full transition-all duration-100 z-[500]"
             style={{ left: ptsToPx(sidebarWidth), width: "6px" }}
             title="Ajuster largeur sidebar"
             onMouseDown={(e) => {
@@ -129,8 +126,24 @@ export function CanvasPage({
           />
         )}
 
-        {pageBlockIds.map(renderBlock)}
+        {pageBlockIds.map((id, rank) => renderBlock(id, rank))}
       </div>
     </CVPageScaleWrapper>
+  );
+}
+
+/** Blocs d'une page du fond vers l'avant (même ordre que le PDF). */
+export function pageStack(
+  layout: CVLayout,
+  pageIndex: number,
+  headerBlockIds: string[],
+  sectionBlockIds: string[],
+  freeElementIds: string[],
+): string[] {
+  const saved = layout.absolutePositions ?? {};
+  const freePos = Object.fromEntries(freeElementsOnPage(layout, pageIndex).map(({ el, pos }) => [el.id, pos]));
+  return sortByZ(
+    [...(pageIndex === 0 ? headerBlockIds : []), ...sectionBlockIds, ...freeElementIds],
+    (id) => freePos[id] ?? saved[id],
   );
 }

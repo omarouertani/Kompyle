@@ -27,7 +27,7 @@ import {
   renderInterests,
 } from "./template/modern-renderers";
 import { blockTextAlign, isBlockOutOfPage, pdfMetadata } from "./template/shared";
-import { renderFreeElementsPdf } from "./template/free-elements-pdf";
+import { renderFreeElementsPdf, renderStackedPdf } from "./template/free-elements-pdf";
 import { getPageDims } from "@/lib/page-size";
 import { photoFrame } from "@/lib/photo-frame";
 import { detectJobLanguage } from "@/lib/detect-language";
@@ -90,15 +90,13 @@ const CVTemplateModern: React.FC<CVTemplateModernProps> = ({ data, originalData 
           };
 
           // STEP: header + photo in absolute mode
-          const renderAbsoluteHeaderAndPhoto = (pi: number) => {
-            if (pi !== 0) return null;
+          const renderAbsoluteHeaderBlock = (id: string): React.ReactNode => {
             const photoPos = absolutePositions.photo || getDefaultPhotoPosition("modern", sidebarWidth);
             const namePos = absolutePositions.name || { x: 200, y: 20, w: 370 };
             const rolePos = absolutePositions.role || { x: 200, y: 48, w: 370 };
             const techPos = absolutePositions.techLine || { x: 200, y: 66, w: 370 };
-            return (
-              <>
-                <View style={{ position: "absolute", left: photoPos.x, top: photoPos.y, width: photoPos.w ?? 65, alignItems: "center" }}>
+            if (id === "photo") return (
+                <View key="photo" style={{ position: "absolute", left: photoPos.x, top: photoPos.y, width: photoPos.w ?? 65, alignItems: "center" }}>
                   <View style={[styles.avatarCircle, avatarFrame(photoPos.w ?? 65)]}>
                     {personalInfo.photo ? (
                       <Image src={personalInfo.photo} style={styles.avatarImage} />
@@ -114,24 +112,29 @@ const CVTemplateModern: React.FC<CVTemplateModernProps> = ({ data, originalData 
                     )}
                   </View>
                 </View>
-                <View style={{ position: "absolute", left: namePos.x, top: namePos.y, width: namePos.w, textAlign: blockTextAlign(namePos) }}>
+            );
+            if (id === "name") return (
+                <View key="name" style={{ position: "absolute", left: namePos.x, top: namePos.y, width: namePos.w, textAlign: blockTextAlign(namePos) }}>
                   <Text style={styles.h1}>{personalInfo.name}</Text>
                 </View>
-                <View style={{ position: "absolute", left: rolePos.x, top: rolePos.y, width: rolePos.w, textAlign: blockTextAlign(rolePos) }}>
+            );
+            if (id === "role") return (
+                <View key="role" style={{ position: "absolute", left: rolePos.x, top: rolePos.y, width: rolePos.w, textAlign: blockTextAlign(rolePos) }}>
                   <Text style={styles.role}>{personalInfo.role}</Text>
                 </View>
-                {personalInfo.techLine && (
-                  <View style={{ position: "absolute", left: techPos.x, top: techPos.y, width: techPos.w, textAlign: blockTextAlign(techPos) }}>
+            );
+            if (id === "techLine" && personalInfo.techLine) return (
+                  <View key="techLine" style={{ position: "absolute", left: techPos.x, top: techPos.y, width: techPos.w, textAlign: blockTextAlign(techPos) }}>
                     <DiffText
                       oldText={originalData?.personalInfo.techLine}
                       newText={personalInfo.techLine}
                       style={styles.techLine}
                     />
                   </View>
-                )}
-              </>
             );
+            return null;
           };
+          const absoluteHeaderIds = ["photo", "name", "role", "techLine"];
 
           const renderAbsoluteBlock = (blockId: string, isSidebar: boolean) => {
             const defaultPositions = getDefaultPositions("modern", data);
@@ -194,10 +197,16 @@ const CVTemplateModern: React.FC<CVTemplateModernProps> = ({ data, originalData 
           return (
             <Page key={pageIndex} size={pageDims.id} style={[styles.page, { padding: 0 }]}>
               {hasSidebarAbs && <View style={sidebarBgStyle} />}
-              {renderAbsoluteHeaderAndPhoto(pageIndex)}
-              {sidebarBlocks.map((id) => renderAbsoluteBlock(id, true))}
-              {mainBlocks.map((id) => renderAbsoluteBlock(id, false))}
-              {renderFreeElementsPdf(layout, pageIndex, 9.5)}
+              {renderStackedPdf(
+                layout,
+                pageIndex,
+                [...(pageIndex === 0 ? absoluteHeaderIds : []), ...sidebarBlocks, ...mainBlocks],
+                (id) =>
+                  absoluteHeaderIds.includes(id)
+                    ? renderAbsoluteHeaderBlock(id)
+                    : renderAbsoluteBlock(id, sidebarBlocks.includes(id)),
+                9.5,
+              )}
             </Page>
           );
         }

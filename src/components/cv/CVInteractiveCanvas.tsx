@@ -41,6 +41,8 @@ import { useCanvasPagination } from "./canvas/use-canvas-pagination";
 import { usePageRouting } from "./canvas/use-page-routing";
 import { useKeyboardShortcuts } from "./canvas/use-keyboard-shortcuts";
 import { useContextMenu } from "./canvas/use-context-menu";
+import { useLayers } from "./canvas/use-layers";
+import { LayersPanel } from "./canvas/LayersPanel";
 import { getHeaderBlockIds } from "./canvas/block-helpers";
 import { CanvasPage } from "./canvas/CanvasPage";
 import { CanvasBlock } from "./canvas/CanvasBlock";
@@ -261,6 +263,11 @@ export default function CVInteractiveCanvas({ data, onChange: onChangeProp, temp
     ungroupSelected,
   });
 
+  // ── Calques (ordre de superposition, masquer, verrouiller) ─────────────────
+  const headerBlockIds = useMemo(() => getHeaderBlockIds(data, template), [data, template]);
+  const layers = useLayers({ data, layout, headerBlockIds, defaultPositions, onChange, homePageOf });
+  const [layersOpen, setLayersOpen] = useState(false);
+
   // ── Menu contextuel ─────────────────────────────────────────────────────────
   const { menu, setMenu, openBlockMenu, openCanvasMenu, menuItems } = useContextMenu({
     data,
@@ -285,6 +292,7 @@ export default function CVInteractiveCanvas({ data, onChange: onChangeProp, temp
     moveSectionToPage,
     addPage,
     removePage,
+    reorderZ: layers.reorder,
   });
 
   /** Résout la position d'un bloc : cas photo, position sauvegardée, ou
@@ -335,7 +343,6 @@ export default function CVInteractiveCanvas({ data, onChange: onChangeProp, temp
     return stripHtml(getSectionLabel(getParentSectionId(id), data));
   };
 
-  const headerBlockIds = getHeaderBlockIds(data, template);
 
   // ── Éléments libres (texte, ligne, rectangle) ───────────────────────────────
   // Ajoutés sur la page active ; leur position vit dans absolutePositions (on
@@ -369,10 +376,11 @@ export default function CVInteractiveCanvas({ data, onChange: onChangeProp, temp
       ? layout.freeElements?.find((f) => f.id === selectedIds[0])
       : undefined;
 
-  const renderBlock = (id: string) => (
+  const renderBlock = (id: string, rank: number) => (
     <CanvasBlock
       key={id}
       id={id}
+      rank={rank}
       pos={resolvePos(id)}
       isSelected={selectedIds.includes(id)}
       isInteracting={isDragging || isResizing}
@@ -430,7 +438,30 @@ export default function CVInteractiveCanvas({ data, onChange: onChangeProp, temp
         onBlockAlign={setBlocksTextAlign}
         selectedAlign={selectedTextAlign}
         onInsert={insertFreeElement}
+        layersOpen={layersOpen}
+        onToggleLayers={() => setLayersOpen((o) => !o)}
       />
+
+      {layersOpen && (
+        <LayersPanel
+          pageIndex={activePageIndex}
+          stack={layers.stackOf(activePageIndex)}
+          selectedIds={selectedIds}
+          labelOf={(id) => {
+            const base = blockLabel(id);
+            if (id.startsWith("title_")) return `${base} · ${t("layer_heading")}`;
+            const n = id.match(/_(\d+)$/);
+            return n && !isFreeElementId(id) ? `${base} ${Number(n[1]) + 1}` : base;
+          }}
+          isHidden={(id) => layers.isFlagged(id, "hidden")}
+          isLocked={(id) => layers.isFlagged(id, "locked")}
+          onSelect={(id) => setSelectedIds([id])}
+          onMove={(id, to) => layers.moveTo(activePageIndex, id, to)}
+          onToggleHidden={(id) => layers.toggleFlag([id], "hidden")}
+          onToggleLocked={(id) => layers.toggleFlag([id], "locked")}
+          onClose={() => setLayersOpen(false)}
+        />
+      )}
 
       {isOverflowing && (
         <OverflowBanner

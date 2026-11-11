@@ -38,7 +38,9 @@ export function createFreeElement(
  *  sinon sa position de création. */
 export function freeElementPos(el: FreeElement, saved?: Record<string, ElementPosition>): ElementPosition {
   const p = saved?.[el.id];
-  return p ? { ...p, page: p.page ?? 0 } : { x: el.x, y: el.y, w: el.w, h: el.h, page: el.page };
+  return p
+    ? { ...p, page: p.page ?? 0 }
+    : { x: el.x, y: el.y, w: el.w, h: el.h, page: el.page, z: el.z, hidden: el.hidden };
 }
 
 /** Éléments libres d'une page, avec leur position courante. */
@@ -65,6 +67,6 @@ export function bakeFreeElementPositions(layout: CVLayout): FreeElement[] | unde
   if (!layout.freeElements?.length) return layout.freeElements;
   return layout.freeElements.map((el) => {
     const p = freeElementPos(el, layout.absolutePositions);
-    return { ...el, x: p.x, y: p.y, w: p.w ?? el.w, h: p.h ?? el.h, page: p.page ?? 0 };
+    return { ...el, x: p.x, y: p.y, w: p.w ?? el.w, h: p.h ?? el.h, page: p.page ?? 0, z: p.z, hidden: p.hidden };
   });
 }

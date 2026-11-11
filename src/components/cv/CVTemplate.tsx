@@ -27,7 +27,7 @@ import {
   renderInterests,
 } from "./template/classic-renderers";
 import { blockTextAlign, isBlockOutOfPage, pdfMetadata } from "./template/shared";
-import { renderFreeElementsPdf } from "./template/free-elements-pdf";
+import { renderFreeElementsPdf, renderStackedPdf } from "./template/free-elements-pdf";
 import { getPageDims } from "@/lib/page-size";
 import { detectJobLanguage } from "@/lib/detect-language";
 import { stripHtml } from "@/utils/strip-html";
@@ -158,43 +158,37 @@ const CVTemplate: React.FC<CVTemplateProps> = ({ data, originalData, variant = "
     );
   };
 
-  const renderAbsoluteHeaderAndPhoto = (pageIndex: number) => {
-    if (pageIndex !== 0) return null;
-
-    const namePos = absolutePositions.name || { x: 24, y: 16, w: 450 };
-    const rolePos = absolutePositions.role || { x: 24, y: 46, w: 450 };
-    const techPos = absolutePositions.techLine || { x: 24, y: 64, w: 450 };
-    const contactPos = absolutePositions.contactLine || { x: 24, y: 64, w: 547 };
-
+  /** Bloc d'en-tête en mode absolu (page 1) : nom, rôle, ligne technique ou
+   *  coordonnées (canadien). Un id par bloc pour l'ordre de superposition. */
+  const renderAbsoluteHeaderBlock = (id: string): React.ReactNode => {
+    const fallback: Record<string, { x: number; y: number; w: number }> = {
+      name: { x: 24, y: 16, w: 450 },
+      role: { x: 24, y: 46, w: 450 },
+      techLine: { x: 24, y: 64, w: 450 },
+      contactLine: { x: 24, y: 64, w: 547 },
+    };
+    const pos = absolutePositions[id] || fallback[id];
+    if (!pos) return null;
+    let content: React.ReactNode = null;
+    if (id === "name") content = <Text style={styles.h1}>{personalInfo.name}</Text>;
+    else if (id === "role") content = <Text style={styles.role}>{personalInfo.role}</Text>;
+    else if (id === "contactLine") content = renderCanadianContact();
+    else if (id === "techLine") {
+      content = (
+        <DiffText
+          oldText={originalData?.personalInfo.techLine}
+          newText={personalInfo.techLine}
+          style={styles.techLine}
+        />
+      );
+    }
     return (
-      <>
-        {/* Name */}
-        <View style={{ position: "absolute", left: namePos.x, top: namePos.y, width: namePos.w, textAlign: blockTextAlign(namePos) }}>
-          <Text style={styles.h1}>{personalInfo.name}</Text>
-        </View>
-
-        {/* Role */}
-        <View style={{ position: "absolute", left: rolePos.x, top: rolePos.y, width: rolePos.w, textAlign: blockTextAlign(rolePos) }}>
-          <Text style={styles.role}>{personalInfo.role}</Text>
-        </View>
-
-        {/* Tech Line (classique/moderne) ou ligne de coordonnées (canadien) */}
-        {isCanadian ? (
-          <View style={{ position: "absolute", left: contactPos.x, top: contactPos.y, width: contactPos.w, textAlign: blockTextAlign(contactPos) }}>
-            {renderCanadianContact()}
-          </View>
-        ) : (
-          <View style={{ position: "absolute", left: techPos.x, top: techPos.y, width: techPos.w, textAlign: blockTextAlign(techPos) }}>
-            <DiffText
-              oldText={originalData?.personalInfo.techLine}
-              newText={personalInfo.techLine}
-              style={styles.techLine}
-            />
-          </View>
-        )}
-      </>
+      <View key={id} style={{ position: "absolute", left: pos.x, top: pos.y, width: pos.w, textAlign: blockTextAlign(pos) }}>
+        {content}
+      </View>
     );
   };
+  const absoluteHeaderIds = isCanadian ? ["name", "role", "contactLine"] : ["name", "role", "techLine"];
 
   return (
     <PdfThemeProvider value={{ ...defaultPdfTheme, fontFamily: pdfFontFamily }}>
@@ -220,10 +214,12 @@ const CVTemplate: React.FC<CVTemplateProps> = ({ data, originalData, variant = "
           return (
             <Page key={pageIndex} size={pageDims.id} style={[styles.page, { padding: 0 }]}>
               {hasSidebarAbs && styles.sidebar.backgroundColor !== "transparent" && <View style={sidebarBgStyle} />}
-              {renderAbsoluteHeaderAndPhoto(pageIndex)}
-              {sidebarBlocks.map((blockId) => renderAbsoluteBlock(blockId))}
-              {mainBlocks.map((blockId) => renderAbsoluteBlock(blockId))}
-              {renderFreeElementsPdf(layout, pageIndex)}
+              {renderStackedPdf(
+                layout,
+                pageIndex,
+                [...(pageIndex === 0 ? absoluteHeaderIds : []), ...sidebarBlocks, ...mainBlocks],
+                (id) => (absoluteHeaderIds.includes(id) ? renderAbsoluteHeaderBlock(id) : renderAbsoluteBlock(id)),
+              )}
             </Page>
           );
         }

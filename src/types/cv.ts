@@ -126,6 +126,8 @@ export interface ElementPosition {
   locked?: boolean;   // bloc verrouillé : ni drag ni resize
   groupId?: string;   // identifiant de groupe : les blocs partageant un groupId se déplacent ensemble
   align?: BlockTextAlign; // alignement du texte du bloc (toolbar, bloc sélectionné sans éditeur actif)
+  z?: number;         // ordre de superposition sur la page (plus grand = devant) ; défaut : sections 0, éléments libres 1
+  hidden?: boolean;   // masqué (panneau de calques) : invisible dans le canvas, absent du PDF
 }
 
 export type BlockTextAlign = "left" | "center" | "right" | "justify";
@@ -172,6 +174,9 @@ export interface FreeElement {
   strokeWidth?: number;
   /** Rayon des coins du rectangle, en pt. */
   radius?: number;
+  /** Ordre de superposition et masquage recopiés de la position (voir `bakeFreeElementPositions`). */
+  z?: number;
+  hidden?: boolean;
 }
 
 /** Section libre créée par l'utilisateur (titre + texte).
