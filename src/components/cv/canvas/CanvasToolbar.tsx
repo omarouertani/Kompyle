@@ -507,7 +507,7 @@ function MoreMenu({ title, children }: { title: string; children: React.ReactNod
       {open && (
         <>
           <div className="fixed inset-0 z-30" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 top-9 z-40 rounded-xl border border-border/70 bg-popover shadow-xl p-2 flex flex-wrap items-center gap-2 w-max max-w-[min(92vw,420px)]">
+          <div className="absolute right-0 top-9 z-40 rounded-lg border border-border bg-popover shadow-lg motion-pop p-2 flex flex-wrap items-center gap-2 w-max max-w-[min(92vw,420px)]">
             {children}
           </div>
         </>
@@ -624,7 +624,7 @@ function FontFamilyPicker({
       {open && (
         <>
           <div className="fixed inset-0 z-30" onClick={close} />
-          <div className="absolute left-0 top-8 z-40 w-48 rounded-xl border border-border/70 bg-popover shadow-xl p-1">
+          <div className="absolute left-0 top-8 z-40 w-48 rounded-lg border border-border bg-popover shadow-lg motion-pop p-1">
             <input
               autoFocus
               type="text"
@@ -712,7 +712,7 @@ function ShortcutsHelpButton() {
       {open && (
         <>
           <div className="fixed inset-0 z-30" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 top-9 z-40 w-72 rounded-xl border border-border/70 bg-popover shadow-xl p-3 text-[11px] text-foreground/90 leading-relaxed">
+          <div className="absolute right-0 top-9 z-40 w-72 rounded-lg border border-border bg-popover shadow-lg motion-pop p-3 text-[11px] text-foreground/90 leading-relaxed">
             <div className="font-semibold text-xs text-foreground mb-1.5">{t("shortcuts_title")}</div>
             <div className="text-muted-foreground">{t("hint")}</div>
           </div>

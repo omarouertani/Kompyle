@@ -75,6 +75,10 @@ function ATSJobDialogBody({ existingJobDescription, hasExisting, model, onModelC
   const [text, setText] = useState(existingJobDescription);
   const [mode, setMode] = useState<"reuse" | "new">(hasExisting ? "reuse" : "new");
 
+  // Le menu des modèles est porté DANS le dialogue : rendu hors de celui-ci, le
+  // verrou de défilement du dialogue bloquait la molette sur la liste.
+  const [dialogEl, setDialogEl] = useState<HTMLElement | null>(null);
+
   const hasKey = !!keys[providerForModel(model)];
   const canSubmit = text.trim().length >= 20 && hasKey;
 
@@ -84,7 +88,7 @@ function ATSJobDialogBody({ existingJobDescription, hasExisting, model, onModelC
   };
 
   return (
-    <AlertDialogContent className="max-w-lg gap-3">
+    <AlertDialogContent ref={setDialogEl} className="max-w-lg gap-3">
       <AlertDialogHeader>
         <AlertDialogTitle className="flex items-center gap-2 text-base">
           <FileSearch size={16} className="text-primary" />
@@ -163,7 +167,7 @@ function ATSJobDialogBody({ existingJobDescription, hasExisting, model, onModelC
           <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground shrink-0">
             {t("dialog_model_label")}
           </span>
-          <ModelSelect compact elevated model={model} onModelChange={onModelChange} />
+          <ModelSelect compact elevated menuContainer={dialogEl} model={model} onModelChange={onModelChange} />
         </div>
         {!hasKey && (
           <span className="text-[10px] text-amber-600 dark:text-amber-400 text-right leading-tight">

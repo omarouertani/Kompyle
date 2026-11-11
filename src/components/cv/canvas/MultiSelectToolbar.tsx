@@ -125,7 +125,7 @@ function SelectionFontPicker({ onPick, title }: { onPick: (stack: string) => voi
       {open && (
         <>
           <div className="fixed inset-0 z-30" onClick={() => setOpen(false)} />
-          <div className="absolute left-0 top-7 z-40 w-40 max-h-60 overflow-y-auto rounded-xl border border-border/70 bg-popover shadow-xl p-1 scrollbar-thin">
+          <div className="absolute left-0 top-7 z-40 w-40 max-h-60 overflow-y-auto rounded-lg border border-border bg-popover shadow-lg motion-pop p-1 scrollbar-thin">
             {(Object.entries(FONT_FAMILIES) as Array<[CVFontFamily, { label: string; stack: string }]>).map(([key, font]) => (
               <button
                 key={key}

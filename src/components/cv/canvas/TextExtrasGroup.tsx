@@ -113,7 +113,7 @@ export function TextExtrasGroup({ fmt, applyFmt, onBlockCommand, onBlockStyles, 
         <>
           <div className="fixed inset-0 z-30" onClick={() => setOpen(null)} />
           <div
-            className="absolute left-0 top-8 z-40 rounded-xl border border-border/70 bg-popover shadow-xl p-2 text-[11px] text-foreground"
+            className="absolute left-0 top-8 z-40 rounded-lg border border-border bg-popover shadow-lg motion-pop p-2 text-[11px] text-foreground"
             onMouseDown={(e) => {
               // Ne pas voler le focus de l'éditeur, sauf pour le champ du lien.
               if (!(e.target instanceof HTMLInputElement)) e.preventDefault();
