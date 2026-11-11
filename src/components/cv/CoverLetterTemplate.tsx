@@ -10,7 +10,7 @@ import {
 } from "@react-pdf/renderer";
 import type { CoverLetterData, CoverLetterTemplateId, CVTheme, PersonalInfo } from "@/types/cv";
 import { resolvePdfFontFamily } from "@/utils/pdf-fonts";
-import { stripHtml } from "@/utils/strip-html";
+import { stripHtml, normalizeSpaces } from "@/utils/strip-html";
 
 /** Styles matching the CV theme: same font family (registered on demand,
  *  idempotent), text colour, page background and accent colour for the
@@ -186,7 +186,26 @@ function linkHref(url: string): string | undefined {
 const isEmbeddableImage = (src?: string): src is string =>
   !!src && /^data:image\/(png|jpe?g);base64,/i.test(src);
 
-const CoverLetterTemplate: React.FC<CoverLetterTemplateProps> = ({ data, personalInfo, labels, theme }) => {
+/** Copie de la lettre dont chaque texte est sans espace insécable. */
+function normalizeLetter(d: CoverLetterData): CoverLetterData {
+  const n = (s: string | undefined) => (s ? normalizeSpaces(s) : s ?? "");
+  return {
+    ...d,
+    recipientName: n(d.recipientName),
+    recipientCompany: n(d.recipientCompany),
+    recipientAddress: n(d.recipientAddress),
+    date: n(d.date),
+    subject: n(d.subject),
+    salutation: n(d.salutation),
+    paragraphs: (d.paragraphs ?? []).map((p) => n(p)),
+    signOff: n(d.signOff),
+  };
+}
+
+const CoverLetterTemplate: React.FC<CoverLetterTemplateProps> = ({ data: rawData, personalInfo, labels, theme }) => {
+  // Les champs de la lettre vont au <Text> brut de react-pdf : on retire
+  // l’espace insécable (U+00A0), qui fait planter le rendu PDF.
+  const data = normalizeLetter(rawData);
   const variant: CoverLetterTemplateId = data.template === "modern" ? "modern" : "classic";
   const styles = makeStyles(theme, variant);
   // Les champs du CV peuvent porter du HTML inline (mise en forme appliquée sur

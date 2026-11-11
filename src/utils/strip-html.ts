@@ -26,6 +26,15 @@ export function decodeEntities(text: string): string {
   });
 }
 
+/** Remplace l'espace insécable (U+00A0) par une espace normale.
+ *  Le caractère U+00A0 fait planter le rendu PDF (fontkit : « Offset is outside
+ *  the bounds of the DataView ») ; il arrive par d'anciennes valeurs, du texte
+ *  collé ou généré par l'IA, ou l'entité numérique `&#160;`. À appliquer à tout
+ *  texte destiné au PDF. */
+export function normalizeSpaces(text: string): string {
+  return text && text.includes(" ") ? text.replace(/ /g, " ") : text;
+}
+
 /** Builds a download-safe file name stem from CV fields: strips inline HTML,
  *  drops characters forbidden on Windows/macOS (`\ / : * ? " < > |`), turns
  *  whitespace into `_` and joins the non-empty parts with `_`.
@@ -47,12 +56,14 @@ export function hasInlineHtml(text: string): boolean {
  *  tooltip / selection info bar) for a section title that carries formatting. */
 export function stripHtml(text: string): string {
   if (!text) return "";
-  if (!/[<&]/.test(text)) return text;
-  return decodeEntities(
-    text
-      .replace(/<br\s*\/?>/gi, "\n")
-      .replace(/<li(?:\s[^>]*)?>/gi, "• ")
-      .replace(/<\/li>/gi, "\n")
-      .replace(/<\/?(?:a|b|strong|i|em|u|s|strike|span|div|p|font|ul|ol)(?:\s[^>]*)?>/gi, ""),
+  if (!/[<&]/.test(text)) return normalizeSpaces(text);
+  return normalizeSpaces(
+    decodeEntities(
+      text
+        .replace(/<br\s*\/?>/gi, "\n")
+        .replace(/<li(?:\s[^>]*)?>/gi, "• ")
+        .replace(/<\/li>/gi, "\n")
+        .replace(/<\/?(?:a|b|strong|i|em|u|s|strike|span|div|p|font|ul|ol)(?:\s[^>]*)?>/gi, ""),
+    ),
   );
 }
