@@ -38,6 +38,8 @@ export function ATSAIError({ message, details, failures, onRetry }: ATSAIErrorPr
   if (allMissingKey) hint = t("error_hint_missing_key");
   else if (hasFailures && failures!.some((f) => f.reason === "quota" || f.reason === "rate_limit"))
     hint = t("error_hint_quota");
+  else if (hasFailures && failures!.every((f) => f.reason === "model_unavailable"))
+    hint = t("error_hint_model_unavailable");
   else if (hasFailures && failures!.some((f) => f.reason === "auth"))
     hint = t("error_hint_auth");
   else if (hasFailures && failures!.some((f) => f.reason === "network" || f.reason === "timeout"))

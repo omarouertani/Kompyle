@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useCallback, useEffect } from "react";
+import { useTranslations } from "next-intl";
+import { toast } from "sonner";
 import type { AIProvider } from "@/types/cv";
 import { MODELS_BY_PROVIDER, DEFAULT_MODEL, getModelName, providerForModel } from "@/lib/ai-models";
 
@@ -15,37 +17,46 @@ const KNOWN_MODELS = new Set(
 
 export { getModelName, DEFAULT_MODEL, providerForModel };
 
-/** Modèles regroupés par provider pour le sélecteur (4 groupes). */
+/** Modèles regroupés par provider pour le sélecteur (un groupe par provider). */
 export const PROVIDER_MODELS = MODELS_BY_PROVIDER;
 
-/** Métadonnées d'affichage par provider (libellé + pastille de marque). */
-export const PROVIDER_META: Record<AIProvider, { label: string; color: string }> = {
-  google: { label: "Google Gemini (gratuit)", color: "#4285f4" },
-  groq: { label: "Groq (gratuit)", color: "#f55036" },
-  openrouter: { label: "OpenRouter (gratuit)", color: "#6566f1" },
-  nvidia: { label: "NVIDIA NIM (gratuit)", color: "#76b900" },
-  anthropic: { label: "Anthropic Claude", color: "#d97757" },
-  openai: { label: "OpenAI", color: "#10a37f" },
+/** Métadonnées d'affichage par provider (libellé + pastille de marque + offre gratuite). */
+export const PROVIDER_META: Record<AIProvider, { label: string; color: string; free: boolean }> = {
+  google: { label: "Google Gemini", color: "#4285f4", free: true },
+  groq: { label: "Groq", color: "#f55036", free: true },
+  openrouter: { label: "OpenRouter", color: "#6566f1", free: true },
+  nvidia: { label: "NVIDIA NIM", color: "#76b900", free: true },
+  anthropic: { label: "Anthropic Claude", color: "#d97757", free: false },
+  openai: { label: "OpenAI", color: "#10a37f", free: false },
 };
 
 export function useAIProviderConfig() {
   const [model, setModel] = useState<string>(DEFAULT_MODEL);
   const provider = providerForModel(model);
+  const tErr = useTranslations("AIErrors");
 
-  // Restaure le dernier modèle choisi (après hydratation, côté client). On ignore
-  // une valeur stockée qui ne correspond plus à aucun modèle du catalogue.
+  // Restaure le dernier modèle choisi (après hydratation, côté client). Une
+  // valeur stockée qui ne correspond plus à aucun modèle du catalogue (modèle
+  // ou provider retiré, ex. Mistral) est oubliée : on garde le modèle par
+  // défaut et on prévient l'utilisateur, sans planter.
   // A lazy useState initialiser cannot be used: localStorage does not exist
   // during SSR and the first client render must match the server HTML. The
   // one-off restore after mount is the intended effect here.
   useEffect(() => {
     try {
       const stored = localStorage.getItem(MODEL_KEY);
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- one-off restore from localStorage after hydration
-      if (stored && KNOWN_MODELS.has(stored)) setModel(stored);
+      if (!stored) return;
+      if (KNOWN_MODELS.has(stored)) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- one-off restore from localStorage after hydration
+        setModel(stored);
+        return;
+      }
+      localStorage.removeItem(MODEL_KEY);
+      toast.info(tErr("model_reset", { model: getModelName(DEFAULT_MODEL) }));
     } catch {
       // stockage indisponible — on garde le modèle par défaut
     }
-  }, []);
+  }, [tErr]);
 
   /** Sélectionne un modèle (le provider en découle) et persiste le choix. */
   const selectModel = useCallback((modelId: string) => {
