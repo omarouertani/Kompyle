@@ -277,6 +277,7 @@
     "undo": "Annuler (Ctrl+Z)",
     "redo": "Rétablir (Ctrl+Y)",
     "format_bold": "Gras (Ctrl+B)",
+    "format_semibold": "Semi-gras (600 — gras si la police n'a pas de 600)",
     "format_italic": "Italique (Ctrl+I)",
     "format_underline": "Souligné (Ctrl+U)",
     "format_strike": "Barré",

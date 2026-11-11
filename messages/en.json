@@ -277,6 +277,7 @@
     "undo": "Undo (Ctrl+Z)",
     "redo": "Redo (Ctrl+Y)",
     "format_bold": "Bold (Ctrl+B)",
+    "format_semibold": "Semi-bold (600 — bold when the font has no 600 weight)",
     "format_italic": "Italic (Ctrl+I)",
     "format_underline": "Underline (Ctrl+U)",
     "format_strike": "Strikethrough",

@@ -397,6 +397,17 @@ export function CanvasToolbar({
               <Bold size={13} strokeWidth={2.5} />
             </ToolButton>
             <ToolButton
+              title={t("format_semibold")}
+              active={fmt.state.semibold}
+              onClick={() => {
+                // Toggle in an editor (600 ↔ normal); on selected blocks, apply 600.
+                const w = fmt.state.semibold ? "normal" : "600";
+                applyFmt(() => fmt.applyInlineStyle("font-weight", w), () => onBlockStyles?.({ "font-weight": "600" }) ?? false);
+              }}
+            >
+              <span className="text-[12px] leading-none" style={{ fontWeight: 600 }}>B</span>
+            </ToolButton>
+            <ToolButton
               title={t("format_italic")}
               active={fmt.state.italic}
               onClick={() => applyFmt(() => fmt.exec("italic"), () => onBlockCommand?.("italic", undefined, { toggle: true }) ?? false)}

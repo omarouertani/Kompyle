@@ -52,8 +52,10 @@ export function fontSrc(rel: string): string {
  *    rendu quasi identique à Calibri (police Microsoft non redistribuable,
  *    donc absente du repo) ; les CV en « Calibri » sont rendus en Carlito.
  *
- * On n'enregistre que 400 (regular) et 700 (bold) — les seuls poids utilisés par
- * le template. PDF plus léger, rendu plus rapide (philosophie RR).
+ * On enregistre 400 (regular), 700 (bold) et, quand Google Fonts le fournit,
+ * 600 (semi-gras, bouton « Semi-gras » de la barre d'outils). Sans 600
+ * (Carlito, Lato, Roboto, polices standard Times/Courier), react-pdf retombe
+ * sur 700 : le semi-gras s'affiche alors en gras.
  */
 export const PDF_FONTS = {
   Inter: {
@@ -67,6 +69,8 @@ export const PDF_FONTS = {
         src: fontSrc("inter/Inter-Bold.ttf"),
         fontWeight: 700,
       },
+      { src: fontSrc("inter/Inter-SemiBold.ttf"), fontWeight: 600 },
+      { src: fontSrc("inter/Inter-SemiBoldItalic.ttf"), fontWeight: 600, fontStyle: "italic" },
       // Italic variants — required so the user toggling italic on a selection
       // doesn't crash the render (react-pdf throws if a used variant is unregistered).
       // Inter ships a single variable italic file; we point both weights at it.
@@ -130,6 +134,8 @@ export const PDF_FONTS = {
     fonts: [
       { src: fontSrc("montserrat/Montserrat-Regular.ttf"), fontWeight: 400 },
       { src: fontSrc("montserrat/Montserrat-Bold.ttf"), fontWeight: 700 },
+      { src: fontSrc("montserrat/Montserrat-SemiBold.ttf"), fontWeight: 600 },
+      { src: fontSrc("montserrat/Montserrat-SemiBoldItalic.ttf"), fontWeight: 600, fontStyle: "italic" },
       { src: fontSrc("montserrat/Montserrat-Italic.ttf"), fontWeight: 400, fontStyle: "italic" },
       { src: fontSrc("montserrat/Montserrat-BoldItalic.ttf"), fontWeight: 700, fontStyle: "italic" },
     ],
@@ -139,6 +145,8 @@ export const PDF_FONTS = {
     fonts: [
       { src: fontSrc("poppins/Poppins-Regular.ttf"), fontWeight: 400 },
       { src: fontSrc("poppins/Poppins-Bold.ttf"), fontWeight: 700 },
+      { src: fontSrc("poppins/Poppins-SemiBold.ttf"), fontWeight: 600 },
+      { src: fontSrc("poppins/Poppins-SemiBoldItalic.ttf"), fontWeight: 600, fontStyle: "italic" },
       { src: fontSrc("poppins/Poppins-Italic.ttf"), fontWeight: 400, fontStyle: "italic" },
       { src: fontSrc("poppins/Poppins-BoldItalic.ttf"), fontWeight: 700, fontStyle: "italic" },
     ],
@@ -148,6 +156,8 @@ export const PDF_FONTS = {
     fonts: [
       { src: fontSrc("opensans/OpenSans-Regular.ttf"), fontWeight: 400 },
       { src: fontSrc("opensans/OpenSans-Bold.ttf"), fontWeight: 700 },
+      { src: fontSrc("opensans/OpenSans-SemiBold.ttf"), fontWeight: 600 },
+      { src: fontSrc("opensans/OpenSans-SemiBoldItalic.ttf"), fontWeight: 600, fontStyle: "italic" },
       { src: fontSrc("opensans/OpenSans-Italic.ttf"), fontWeight: 400, fontStyle: "italic" },
       { src: fontSrc("opensans/OpenSans-BoldItalic.ttf"), fontWeight: 700, fontStyle: "italic" },
     ],
@@ -157,6 +167,8 @@ export const PDF_FONTS = {
     fonts: [
       { src: fontSrc("sourcesans3/SourceSans3-Regular.ttf"), fontWeight: 400 },
       { src: fontSrc("sourcesans3/SourceSans3-Bold.ttf"), fontWeight: 700 },
+      { src: fontSrc("sourcesans3/SourceSans3-SemiBold.ttf"), fontWeight: 600 },
+      { src: fontSrc("sourcesans3/SourceSans3-SemiBoldItalic.ttf"), fontWeight: 600, fontStyle: "italic" },
       { src: fontSrc("sourcesans3/SourceSans3-Italic.ttf"), fontWeight: 400, fontStyle: "italic" },
       { src: fontSrc("sourcesans3/SourceSans3-BoldItalic.ttf"), fontWeight: 700, fontStyle: "italic" },
     ],
@@ -166,6 +178,8 @@ export const PDF_FONTS = {
     fonts: [
       { src: fontSrc("merriweather/Merriweather-Regular.ttf"), fontWeight: 400 },
       { src: fontSrc("merriweather/Merriweather-Bold.ttf"), fontWeight: 700 },
+      { src: fontSrc("merriweather/Merriweather-SemiBold.ttf"), fontWeight: 600 },
+      { src: fontSrc("merriweather/Merriweather-SemiBoldItalic.ttf"), fontWeight: 600, fontStyle: "italic" },
       { src: fontSrc("merriweather/Merriweather-Italic.ttf"), fontWeight: 400, fontStyle: "italic" },
       { src: fontSrc("merriweather/Merriweather-BoldItalic.ttf"), fontWeight: 700, fontStyle: "italic" },
     ],
@@ -175,6 +189,8 @@ export const PDF_FONTS = {
     fonts: [
       { src: fontSrc("playfairdisplay/PlayfairDisplay-Regular.ttf"), fontWeight: 400 },
       { src: fontSrc("playfairdisplay/PlayfairDisplay-Bold.ttf"), fontWeight: 700 },
+      { src: fontSrc("playfairdisplay/PlayfairDisplay-SemiBold.ttf"), fontWeight: 600 },
+      { src: fontSrc("playfairdisplay/PlayfairDisplay-SemiBoldItalic.ttf"), fontWeight: 600, fontStyle: "italic" },
       { src: fontSrc("playfairdisplay/PlayfairDisplay-Italic.ttf"), fontWeight: 400, fontStyle: "italic" },
       { src: fontSrc("playfairdisplay/PlayfairDisplay-BoldItalic.ttf"), fontWeight: 700, fontStyle: "italic" },
     ],
@@ -184,6 +200,8 @@ export const PDF_FONTS = {
     fonts: [
       { src: fontSrc("gelasio/Gelasio-Regular.ttf"), fontWeight: 400 },
       { src: fontSrc("gelasio/Gelasio-Bold.ttf"), fontWeight: 700 },
+      { src: fontSrc("gelasio/Gelasio-SemiBold.ttf"), fontWeight: 600 },
+      { src: fontSrc("gelasio/Gelasio-SemiBoldItalic.ttf"), fontWeight: 600, fontStyle: "italic" },
       { src: fontSrc("gelasio/Gelasio-Italic.ttf"), fontWeight: 400, fontStyle: "italic" },
       { src: fontSrc("gelasio/Gelasio-BoldItalic.ttf"), fontWeight: 700, fontStyle: "italic" },
     ],

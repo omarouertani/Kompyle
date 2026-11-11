@@ -7,6 +7,8 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useR
  *  user's cursor or selection moves inside any registered EditableText. */
 export interface FormatState {
   bold: boolean;
+  /** Computed font-weight at the caret is 500-600 (semi-bold face). */
+  semibold: boolean;
   italic: boolean;
   underline: boolean;
   strike: boolean;
@@ -22,6 +24,7 @@ export interface FormatState {
 
 const DEFAULT_STATE: FormatState = {
   bold: false,
+  semibold: false,
   italic: false,
   underline: false,
   strike: false,
@@ -100,8 +103,13 @@ export function CanvasFormatProvider({ children }: { children: React.ReactNode }
       const anchorEl = anchor.nodeType === Node.TEXT_NODE ? anchor.parentElement : (anchor as Element);
       const cs = anchorEl ? window.getComputedStyle(anchorEl) : null;
       const px = cs ? parseFloat(cs.fontSize) : NaN;
+      const weight = cs ? parseInt(cs.fontWeight, 10) : NaN;
+      // queryCommandState("bold") is true from 600 up: split it so the B and
+      // semi-bold buttons don't both light up.
+      const semibold = weight >= 500 && weight < 700;
       return {
-        bold: safeQueryState("bold"),
+        bold: safeQueryState("bold") && !semibold,
+        semibold,
         italic: safeQueryState("italic"),
         underline: safeQueryState("underline"),
         strike: safeQueryState("strikeThrough"),

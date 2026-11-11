@@ -59,7 +59,8 @@ function toTextRuns(run: RichTextRun, base: RunBase): TextRun[] {
         break: i > 0 ? 1 : undefined,
         font: FONT,
         size: st.fontSize ? Math.round(st.fontSize * 2) : base.size,
-        bold: st.fontWeight ? st.fontWeight === "bold" : base.bold,
+        // Word has no 600 face for Calibri: semibold is exported as bold.
+        bold: st.fontWeight ? st.fontWeight !== "normal" : base.bold,
         italics: st.fontStyle ? st.fontStyle === "italic" : base.italics,
         underline: deco.includes("underline") || st.href ? {} : undefined,
         strike: deco.includes("line-through") || undefined,
