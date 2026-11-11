@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import React, { createContext, useCallback, useContext, useMemo, useRef, useState } from "react";
 
 import { DEFAULT_FORMAT_STATE as DEFAULT_STATE, type FormatCommand, type FormatState, type RichEditorHandle } from "./format-types";
 
@@ -8,21 +8,20 @@ export type { FormatState, FormatCommand, RichEditorHandle };
 
 interface FormatApi {
   state: FormatState;
-  /** Called by EditableText on focus to register itself as the active editor
-   *  (with its TipTap command handle), and with `null` on blur. Registering a
-   *  NEW editor deactivates the previous TipTap one (one live editor at most). */
+  /** Called by EditableText when its TipTap editor takes focus (with its command
+   *  handle), and with `null` on blur. Registering a NEW editor deactivates the
+   *  previous one (one live editor at most). */
   registerActiveEditor: (el: HTMLElement | null, handle?: RichEditorHandle | null) => void;
   /** Called when a TipTap field editor is torn down. */
   releaseEditor: (handle: RichEditorHandle) => void;
   /** Apply a format command. Returns true if applied to an active editor. */
   exec: (command: FormatCommand, value?: string) => boolean;
-  /** Wrap the current selection in a `<span style="prop: value">` so font /
-   *  size / family changes apply ONLY to the selected substring, not to the
-   *  whole block. If the selection is collapsed, expands to the entire editor
-   *  so clicking a size with the caret somewhere still does something useful. */
+  /** Apply a CSS property to the selected text only. If the selection is
+   *  collapsed, applies to the whole field so clicking a size with the caret
+   *  somewhere still does something useful. */
   applyInlineStyle: (prop: string, value: string) => boolean;
-  /** Like `applyInlineStyle` but sets several CSS properties at once on a single
-   *  span (e.g. a heading: font-size + font-weight + color). */
+  /** Like `applyInlineStyle` but sets several CSS properties at once (e.g. a
+   *  heading: font-size + font-weight + color). */
   applyInlineStyles: (styles: Record<string, string>) => boolean;
   /** Force-refresh the toolbar's format state (call after exec). */
   refresh: () => void;
@@ -33,76 +32,15 @@ const FormatContext = createContext<FormatApi | null>(null);
 
 export function CanvasFormatProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<FormatState>(DEFAULT_STATE);
-  const activeEditorRef = useRef<HTMLElement | null>(null);
-  // The "live" editor is whatever currently has focus. When the user clicks a
-  // toolbar button, focus moves out — we keep the LAST editor that was focused
-  // (the "anchored" editor) so we can route exec() back to it.
-  const anchoredEditorRef = useRef<HTMLElement | null>(null);
-  // Last selection range inside an anchored editor. Saved on every selectionchange
-  // and on editor blur so we can restore it before execCommand (a Range that's no
-  // longer in the live Selection is still valid as long as its nodes remain mounted).
-  const savedRangeRef = useRef<Range | null>(null);
-  const [activeEditor, setActiveEditor] = useState<HTMLElement | null>(null);
-  // TipTap command handle of the anchored editor (D2) — when set, every format
-  // call goes through it instead of execCommand.
+  // Command handle of the "anchored" editor: the last focused field. It stays
+  // set while focus moves to a toolbar button, so commands still reach it.
   const handleRef = useRef<RichEditorHandle | null>(null);
+  const [activeEditor, setActiveEditor] = useState<HTMLElement | null>(null);
 
   const computeState = useCallback((): FormatState => {
-    if (handleRef.current) {
-      try { return handleRef.current.readState(); } catch { return { ...DEFAULT_STATE, hasActiveEditor: true }; }
-    }
-    // Use the anchored editor (last focused) so the toolbar keeps reflecting the
-    // selection state even after focus moves out to a toolbar button.
-    const el = activeEditorRef.current ?? anchoredEditorRef.current;
-    if (!el || !el.isContentEditable) return DEFAULT_STATE;
-    const sel = typeof window !== "undefined" ? window.getSelection() : null;
-    if (!sel || sel.rangeCount === 0) {
-      return { ...DEFAULT_STATE, hasActiveEditor: !!el };
-    }
-    // Selection must be inside the anchored editor.
-    const anchor = sel.anchorNode;
-    if (!anchor || !el.contains(anchor)) {
-      return { ...DEFAULT_STATE, hasActiveEditor: !!el };
-    }
-    try {
-      const safeQueryState = (cmd: string): boolean => {
-        try { return document.queryCommandState(cmd); } catch { return false; }
-      };
-      const safeQueryValue = (cmd: string): string => {
-        try { return document.queryCommandValue(cmd); } catch { return ""; }
-      };
-      const align: FormatState["align"] = safeQueryState("justifyCenter")
-        ? "center"
-        : safeQueryState("justifyRight")
-          ? "right"
-          : safeQueryState("justifyFull")
-            ? "justify"
-            : "left";
-      // Font at the caret: computed style of the anchor's element. The canvas
-      // is scaled with a CSS transform, so computed sizes are unzoomed px.
-      const anchorEl = anchor.nodeType === Node.TEXT_NODE ? anchor.parentElement : (anchor as Element);
-      const cs = anchorEl ? window.getComputedStyle(anchorEl) : null;
-      const px = cs ? parseFloat(cs.fontSize) : NaN;
-      const weight = cs ? parseInt(cs.fontWeight, 10) : NaN;
-      // queryCommandState("bold") is true from 600 up: split it so the B and
-      // semi-bold buttons don't both light up.
-      const semibold = weight >= 500 && weight < 700;
-      return {
-        bold: safeQueryState("bold") && !semibold,
-        semibold,
-        italic: safeQueryState("italic"),
-        underline: safeQueryState("underline"),
-        strike: safeQueryState("strikeThrough"),
-        align,
-        textColor: safeQueryValue("foreColor") || null,
-        fontFamily: cs?.fontFamily || null,
-        fontSize: Number.isFinite(px) ? Math.round(px * 0.75 * 2) / 2 : null,
-        hasSelection: !sel.isCollapsed,
-        hasActiveEditor: true,
-      };
-    } catch {
-      return { ...DEFAULT_STATE, hasActiveEditor: true };
-    }
+    const h = handleRef.current;
+    if (!h) return DEFAULT_STATE;
+    try { return h.readState(); } catch { return { ...DEFAULT_STATE, hasActiveEditor: true }; }
   }, []);
 
   const refresh = useCallback(() => {
@@ -110,9 +48,7 @@ export function CanvasFormatProvider({ children }: { children: React.ReactNode }
   }, [computeState]);
 
   const registerActiveEditor = useCallback((el: HTMLElement | null, handle?: RichEditorHandle | null) => {
-    activeEditorRef.current = el;
     if (el) {
-      anchoredEditorRef.current = el;
       const prev = handleRef.current;
       handleRef.current = handle ?? null;
       if (prev && prev !== handle) prev.deactivate();
@@ -124,157 +60,25 @@ export function CanvasFormatProvider({ children }: { children: React.ReactNode }
   const releaseEditor = useCallback((handle: RichEditorHandle) => {
     if (handleRef.current !== handle) return;
     handleRef.current = null;
-    if (anchoredEditorRef.current === handle.dom) anchoredEditorRef.current = null;
-    if (activeEditorRef.current === handle.dom) activeEditorRef.current = null;
     setActiveEditor((cur) => (cur === handle.dom ? null : cur));
     setState(computeState());
   }, [computeState]);
 
-  // Make execCommand emit CSS spans (`<span style="color: …">`) instead of
-  // legacy `<font>` tags. Browsers default this to false. Setting it once at
-  // mount is enough for the lifetime of this provider.
-  useEffect(() => {
-    try { document.execCommand("styleWithCSS", false, "true"); } catch { /* ignored */ }
-  }, []);
-
-  // Re-evaluate format state whenever the selection changes anywhere in the doc.
-  // We also snapshot the live range so a later toolbar click can restore it
-  // even after focus moved to the button.
-  useEffect(() => {
-    const onSelectionChange = () => {
-      const sel = window.getSelection();
-      const anchored = anchoredEditorRef.current;
-      if (sel && sel.rangeCount > 0 && anchored && anchored.contains(sel.anchorNode)) {
-        savedRangeRef.current = sel.getRangeAt(0).cloneRange();
-      }
-      setState(computeState());
-    };
-    document.addEventListener("selectionchange", onSelectionChange);
-    return () => document.removeEventListener("selectionchange", onSelectionChange);
-  }, [computeState]);
-
   const exec = useCallback<FormatApi["exec"]>((command, value) => {
-    if (handleRef.current) {
-      const ok = handleRef.current.exec(command, value);
-      setState(computeState());
-      return ok;
-    }
-    const el = activeEditorRef.current ?? anchoredEditorRef.current;
-    if (!el || !el.isContentEditable) return false;
-    // Re-focus the anchored editor and restore its saved selection. We must do
-    // this BEFORE execCommand — otherwise the command runs on whatever (if
-    // anything) is focused in the page, which for a toolbar click is usually
-    // the button itself, and the call silently no-ops.
-    if (document.activeElement !== el) {
-      el.focus({ preventScroll: true });
-    }
-    const sel = window.getSelection();
-    if (sel) {
-      const saved = savedRangeRef.current;
-      const needsRestore =
-        sel.rangeCount === 0 || !el.contains(sel.anchorNode);
-      if (needsRestore) {
-        const range = saved && el.contains(saved.startContainer)
-          ? saved
-          : (() => {
-              const r = document.createRange();
-              r.selectNodeContents(el);
-              r.collapse(false);
-              return r;
-            })();
-        sel.removeAllRanges();
-        sel.addRange(range);
-      }
-    }
-    let ok = false;
-    try {
-      // execCommand is the only mainstream way to mutate contentEditable selections
-      // without rewriting our entire EditableText into a rich-text framework. The
-      // replacement (Selection + Range APIs) doesn't toggle inline styles for us.
-      ok = document.execCommand(command, false, value);
-    } catch {
-      return false;
-    }
-    // Notify the editor that its content changed so React state syncs (we dispatch
-    // an `input` event because contentEditable's React onInput only fires for typing).
-    el.dispatchEvent(new Event("input", { bubbles: true }));
-    // Re-snapshot the new selection so consecutive commands chain correctly.
-    const sel2 = window.getSelection();
-    if (sel2 && sel2.rangeCount > 0 && el.contains(sel2.anchorNode)) {
-      savedRangeRef.current = sel2.getRangeAt(0).cloneRange();
-    }
+    const h = handleRef.current;
+    if (!h) return false;
+    const ok = h.exec(command, value);
     setState(computeState());
     return ok;
   }, [computeState]);
 
-  // Core: wrap the current selection (or whole editor if collapsed) in a single
-  // <span> and let `apply` set its style. Shared by applyInlineStyle (one prop)
-  // and applyInlineStyles (several props), so heading/size/family all chain the
-  // same restore-range + reselect logic.
-  const wrapSelectionWithStyle = useCallback((apply: (span: HTMLSpanElement) => void): boolean => {
-    const el = activeEditorRef.current ?? anchoredEditorRef.current;
-    if (!el || !el.isContentEditable) return false;
-
-    if (document.activeElement !== el) {
-      el.focus({ preventScroll: true });
-    }
-    const sel = window.getSelection();
-    if (!sel) return false;
-
-    // Restore the saved range if focus had moved out (toolbar click).
-    if (sel.rangeCount === 0 || !el.contains(sel.anchorNode)) {
-      const saved = savedRangeRef.current;
-      const range = saved && el.contains(saved.startContainer)
-        ? saved.cloneRange()
-        : (() => {
-            const r = document.createRange();
-            r.selectNodeContents(el);
-            return r;
-          })();
-      sel.removeAllRanges();
-      sel.addRange(range);
-    }
-
-    let range = sel.getRangeAt(0);
-    // Collapsed selection → expand to the entire editor so clicking a size
-    // with the caret somewhere doesn't silently do nothing.
-    if (range.collapsed) {
-      range = document.createRange();
-      range.selectNodeContents(el);
-    }
-
-    try {
-      const fragment = range.extractContents();
-      const span = document.createElement("span");
-      apply(span);
-      span.appendChild(fragment);
-      range.insertNode(span);
-
-      // Re-select the wrapped content so consecutive style changes chain.
-      const newRange = document.createRange();
-      newRange.selectNodeContents(span);
-      sel.removeAllRanges();
-      sel.addRange(newRange);
-      savedRangeRef.current = newRange.cloneRange();
-    } catch {
-      return false;
-    }
-
-    el.dispatchEvent(new Event("input", { bubbles: true }));
-    setState(computeState());
-    return true;
-  }, [computeState]);
-
   const applyInlineStyles = useCallback((styles: Record<string, string>): boolean => {
-    if (handleRef.current) {
-      const ok = handleRef.current.applyStyles(styles);
-      setState(computeState());
-      return ok;
-    }
-    return wrapSelectionWithStyle((span) => {
-      for (const [prop, val] of Object.entries(styles)) span.style.setProperty(prop, val);
-    });
-  }, [wrapSelectionWithStyle, computeState]);
+    const h = handleRef.current;
+    if (!h) return false;
+    const ok = h.applyStyles(styles);
+    setState(computeState());
+    return ok;
+  }, [computeState]);
 
   const applyInlineStyle = useCallback((prop: string, val: string): boolean =>
     applyInlineStyles({ [prop]: val }),

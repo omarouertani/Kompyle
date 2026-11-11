@@ -8,9 +8,8 @@ import { sanitizeRichHtml } from "@/utils/sanitize-html";
 import { TYPING_COMMIT_IDLE_MS } from "./canvas/constants";
 import type { Editor } from "@tiptap/core";
 import type { RichEditorHandle } from "./canvas/format-types";
-import { isRichTextValue, storedToEditorHtml, trimRich } from "./canvas/tiptap/stored-html";
+import { isRichTextValue, storedToEditorHtml } from "./canvas/tiptap/stored-html";
 import { createEditorHandle, createFieldEditor, readStoredValue, readTextCaret } from "./canvas/tiptap/field-editor";
-import { isTiptapEditorEnabled } from "@/lib/feature-flags";
 
 // Conversion EXACTE des points PDF (72 dpi) en pixels CSS (96 dpi) : 96/72.
 // Le rendu PDF (react-pdf) place les blocs en points ; le canvas applique ce
@@ -227,21 +226,12 @@ export function EditableText({
   }, []);
 
   const commit = useCallback((): string => {
-    let next: string;
     const ed = editorRef.current;
-    if (ed) {
-      next = readStoredValue(ed);
-      const base = baselineRef.current;
-      if (base && next === base.normalized) next = base.stored;
-    } else {
-      if (!ref.current) return value;
-      const html = ref.current.innerHTML;
-      // If the rendered content has no inline formatting tags, save the plain
-      // text. Keeps the data file readable when the user never used B/I/U.
-      // Sanitize rich content on commit too, so anything pasted into the field is
-      // cleaned before it reaches storage (defense in depth alongside injection).
-      next = isRichTextValue(html) ? trimRich(sanitizeRichHtml(html)) : (ref.current.innerText ?? "").trim();
-    }
+    if (!ed) return value;
+    // `readStoredValue` : texte brut sans mise en forme, sinon HTML assaini.
+    let next = readStoredValue(ed);
+    const base = baselineRef.current;
+    if (base && next === base.normalized) next = base.stored;
     if (next !== value) {
       lastCommittedRef.current = next;
       onChange(next);
@@ -327,59 +317,36 @@ export function EditableText({
     editor.view.focus();
   };
 
-  const handleBlur = () => {
-    if (editorRef.current) return; // TipTap gère son propre blur
-    clearIdle();
-    setIsFocused(false);
-    format.registerActiveEditor(null);
-    commit();
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (editorRef.current) return;
-    if (!multiline && e.key === "Enter") {
-      e.preventDefault();
-      ref.current?.blur();
-    }
-  };
-
   return (
+    // Hors édition : span statique, éditable seulement pour recevoir le focus et
+    // le caret du clic ; l'éditeur TipTap y est monté aussitôt.
     <span
       ref={ref}
       contentEditable
       suppressContentEditableWarning
       spellCheck={false}
-      onBlur={handleBlur}
       onPointerDown={() => {
         pointerDownRef.current = true;
       }}
       onFocus={(e) => {
         if (editorRef.current || e.target !== ref.current) return;
-        if (isTiptapEditorEnabled()) {
-          // Au clic, le navigateur place le caret APRÈS l'événement focus : on
-          // monte l'éditeur au relâchement (caret ou sélection à la souris
-          // alors connus). Au clavier (Tab), tout de suite.
-          if (pointerDownRef.current) {
-            window.addEventListener("pointerup", () => {
-              pointerDownRef.current = false;
-              activateTiptap();
-            }, { once: true, capture: true });
-          } else {
+        // Au clic, le navigateur place le caret APRÈS l'événement focus : on
+        // monte l'éditeur au relâchement (caret ou sélection à la souris alors
+        // connus). Au clavier (Tab), tout de suite.
+        if (pointerDownRef.current) {
+          window.addEventListener("pointerup", () => {
+            pointerDownRef.current = false;
             activateTiptap();
-          }
-          return;
+          }, { once: true, capture: true });
+        } else {
+          activateTiptap();
         }
-        setIsFocused(true);
-        format.registerActiveEditor(ref.current);
       }}
-      onInput={() => {
-        if (editorRef.current) return;
-        // Re-evaluate the toolbar's format state on every typed character so
-        // active B/I/U highlights stay in sync as the caret moves.
-        format.refresh();
-        scheduleCommit();
+      // Avant le montage (entre l'appui et le relâchement) : rien ne s'écrit
+      // dans le span statique.
+      onBeforeInput={(e) => {
+        if (!editorRef.current) e.preventDefault();
       }}
-      onKeyDown={handleKeyDown}
       data-placeholder={placeholder}
       className={cn(
         "outline-none transition-colors duration-100 cursor-text select-text inline-block min-w-[20px]",

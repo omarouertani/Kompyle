@@ -64,7 +64,8 @@ function parseTextAlign(raw: string): RichTextAlign | undefined {
   return undefined;
 }
 
-/** Minimal HTML → run parser over the controlled subset execCommand produces. */
+/** Minimal HTML → run parser over the controlled subset the canvas editor
+ *  produces (and older contentEditable / execCommand values). */
 export function parseInlineHtml(html: string): RichTextRun[] {
   if (!html) return [];
   if (!/[<&]/.test(html)) return [{ text: html }];
@@ -220,8 +221,8 @@ export function parseInlineHtml(html: string): RichTextRun[] {
 }
 
 /**
- * Paragraph alignment carried by inline HTML (e.g. `execCommand("justifyCenter")`
- * writes `<div style="text-align: center;">…</div>`). react-pdf only applies
+ * Paragraph alignment carried by inline HTML (e.g. the editor's "center" alignment
+ * writes `<p style="text-align: center">…</p>`, older values a `<div>`). react-pdf only applies
  * `textAlign` on the parent <Text>, not on a nested run, so the primitives read
  * it here and set it on the outer <Text>.
  * Known limit: when a field holds several paragraphs with different
