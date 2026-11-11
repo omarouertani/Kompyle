@@ -38,7 +38,7 @@
 
 - **Canva-Style Interactive Canvas**: Design layout constraints freely with absolute positioning, multi-select lassoing, magnetic snapping guides, floating alignment tools, workspace zooming, and space-pan navigation. Every pixel on the canvas translates 1:1 into a vector PDF generated server-side via `@react-pdf/renderer`.
 - **Integrated ATS Auditor**: Audit how well your resume matches target descriptions. Get automated scores (0–100), formatting readability diagnostics, and a structured keyword reconciliation checklist. The auditor uses a self-healing LLM flow that auto-corrects structural validation issues dynamically.
-- **Privacy-First AI Engine**: Leverage advanced LLMs (Gemini, Claude, OpenAI, Groq, Mistral, OpenRouter) with built-in anti-hallucination guardrails that lock and enforce the immutability of vital personal data (such as emails, phone numbers, dates, and locations).
+- **Privacy-First AI Engine**: Leverage advanced LLMs (Gemini, Groq, OpenRouter, NVIDIA NIM, Claude, OpenAI) with built-in anti-hallucination guardrails that lock and enforce the immutability of vital personal data (such as emails, phone numbers, dates, and locations).
 - **Bilingual UI**: Full English and French localization out of the box via `next-intl`.
 
 ---
@@ -55,7 +55,7 @@
 | Internationalization | [`next-intl`](https://next-intl.dev/) (English / French) |
 | Database | [PostgreSQL](https://www.postgresql.org/) (via `pg`) |
 | Validation | [Zod](https://zod.dev/) |
-| AI | BYOK multi-provider (Gemini, Claude, OpenAI, Groq, Mistral, OpenRouter) |
+| AI | BYOK multi-provider (Gemini, Groq, OpenRouter, NVIDIA NIM, Claude, OpenAI) |
 
 ---
 
@@ -163,14 +163,16 @@ Open [http://localhost:3000](http://localhost:3000) to view your workspace.
 
 Kompyle uses a **Bring Your Own Key** model — you provide a key for at least one of the supported providers. Keys are entered directly in the web UI and stored only in your browser (see [Security & Privacy](#security--privacy)).
 
-| Provider | Get an API key |
-| --- | --- |
-| Google Gemini | https://aistudio.google.com/apikey |
-| Anthropic Claude | https://console.anthropic.com/settings/keys |
-| OpenAI | https://platform.openai.com/api-keys |
-| Groq | https://console.groq.com/keys |
-| Mistral | https://console.mistral.ai/api-keys |
-| OpenRouter | https://openrouter.ai/keys |
+| Provider | Free tier | Get an API key |
+| --- | --- | --- |
+| Google Gemini | Yes (Flash / Flash-Lite models) | https://aistudio.google.com/apikey |
+| Groq | Yes (rate-limited) | https://console.groq.com/keys |
+| OpenRouter | Yes (`:free` models, 50 requests/day) | https://openrouter.ai/keys |
+| NVIDIA NIM | Yes (prototyping use) | https://build.nvidia.com/settings/api-keys |
+| Anthropic Claude | No | https://platform.claude.com/settings/keys |
+| OpenAI | No | https://platform.openai.com/api-keys |
+
+Free tiers have rate and daily limits: when one is reached, Kompyle shows a clear message — wait for the reset or switch to another provider. Free models are tried in order within the same provider; Kompyle never sends your CV to a different provider on its own.
 
 > [!TIP]
 > **OpenRouter** can also be configured server-side via an `OPENROUTER_API_KEY` environment variable as a fallback. See [`.env.example`](.env.example) for all optional environment variables.
@@ -181,7 +183,7 @@ Kompyle uses a **Bring Your Own Key** model — you provide a key for at least o
 > ### Security & Privacy
 >
 > Kompyle enforces a strict **Bring Your Own Key (BYOK)** model to preserve data autonomy:
-> - **Strictly Client-Side Storage**: Your API keys (Google Gemini, Anthropic Claude, OpenAI, Groq, Mistral, OpenRouter) are stored exclusively in your browser's local storage (`window.localStorage`).
+> - **Strictly Client-Side Storage**: Your API keys (Google Gemini, Groq, OpenRouter, NVIDIA NIM, Anthropic Claude, OpenAI) are stored exclusively in your browser's local storage (`window.localStorage`).
 > - **Zero Server Persistence**: Keys are never sent to or cached on any external database. They are only sent in transient request payloads to local API route proxies which route requests directly to official AI endpoints.
 
 To report a security vulnerability, please see [`SECURITY.md`](SECURITY.md).

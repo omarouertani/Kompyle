@@ -9,6 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 import { PROVIDER_META, PROVIDER_MODELS, providerForModel } from "@/hooks/use-ai-provider-config";
 import type { AIProvider } from "@/types/cv";
@@ -40,6 +41,7 @@ interface ModelSelectProps {
  */
 export function ModelSelect({ model, onModelChange, disabled, label, className, elevated, menuContainer, compact }: ModelSelectProps) {
   const provider = providerForModel(model);
+  const tKeys = useTranslations("ApiKeys");
 
   // Liste de groupes provider/modèles — identique aux deux modes (source unique).
   const options = (
@@ -49,6 +51,11 @@ export function ModelSelect({ model, onModelChange, disabled, label, className, 
           <SelectLabel className="flex items-center gap-2 px-2 pt-2 pb-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
             <span className="size-2 rounded-full" style={{ backgroundColor: PROVIDER_META[prov].color }} />
             {PROVIDER_META[prov].label}
+            {PROVIDER_META[prov].free && (
+              <span className="ml-auto rounded-full bg-emerald-500/15 px-1.5 py-px text-[9px] font-semibold normal-case tracking-normal text-emerald-600 dark:text-emerald-400">
+                {tKeys("free_badge")}
+              </span>
+            )}
           </SelectLabel>
           {PROVIDER_MODELS[prov].map((m) => (
             <SelectItem key={m.model} value={m.model} className="cursor-pointer rounded-lg text-sm">

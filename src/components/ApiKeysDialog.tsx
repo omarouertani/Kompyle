@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { KeyRound, Check, ExternalLink, Eye, EyeOff } from "lucide-react";
+import { KeyRound, Check, ExternalLink, Eye, EyeOff, Info } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogTrigger,
@@ -16,19 +16,11 @@ import {
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useApiKeys } from "@/hooks/use-api-keys";
+import { readRetiredProviders, forgetRetiredKeys } from "@/lib/api-keys";
 import { PROVIDER_META } from "@/hooks/use-ai-provider-config";
-import { PROVIDERS } from "@/lib/ai-models";
+import { PROVIDERS, PROVIDER_KEY_URLS } from "@/lib/ai-models";
 import type { AIProvider } from "@/types/cv";
 
-/** Où obtenir une clé API par provider. */
-const KEY_URLS: Record<AIProvider, string> = {
-  openrouter: "https://openrouter.ai/keys",
-  anthropic: "https://console.anthropic.com/settings/keys",
-  openai: "https://platform.openai.com/api-keys",
-  google: "https://aistudio.google.com/apikey",
-  groq: "https://console.groq.com/keys",
-  mistral: "https://console.mistral.ai/api-keys",
-};
 
 function KeyRow({ provider }: { provider: AIProvider }) {
   const t = useTranslations("ApiKeys");
@@ -44,6 +36,11 @@ function KeyRow({ provider }: { provider: AIProvider }) {
         <span className="flex items-center gap-2 text-sm font-semibold text-foreground">
           <span className="size-2.5 rounded-full shrink-0" style={{ backgroundColor: meta.color }} />
           {meta.label}
+          {meta.free && (
+            <span className="rounded-full bg-emerald-500/15 px-1.5 py-px text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
+              {t("free_badge")}
+            </span>
+          )}
         </span>
         {saved ? (
           <span className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
@@ -51,7 +48,7 @@ function KeyRow({ provider }: { provider: AIProvider }) {
           </span>
         ) : (
           <a
-            href={KEY_URLS[provider]}
+            href={PROVIDER_KEY_URLS[provider]}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-1 text-[11px] font-medium text-primary hover:underline"
@@ -85,6 +82,32 @@ function KeyRow({ provider }: { provider: AIProvider }) {
           </button>
         )}
       </div>
+    </div>
+  );
+}
+
+/**
+ * Avertit qu'une clé enregistrée appartient à un provider retiré (ex. Mistral) :
+ * elle est ignorée, l'utilisateur est invité à choisir un autre provider et
+ * peut la supprimer. Rendu seulement dialog ouvert (client) → lecture directe
+ * du stockage sans risque d'écart d'hydratation.
+ */
+function RetiredKeysNotice() {
+  const t = useTranslations("ApiKeys");
+  const [retired, setRetired] = useState<string[]>(() => readRetiredProviders());
+  if (retired.length === 0) return null;
+  const names = retired.map((p) => p.charAt(0).toUpperCase() + p.slice(1)).join(", ");
+  return (
+    <div className="flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-300">
+      <Info size={14} className="mt-0.5 shrink-0" />
+      <p className="flex-1 leading-relaxed">{t("retired_notice", { providers: names })}</p>
+      <button
+        type="button"
+        onClick={() => { forgetRetiredKeys(); setRetired([]); }}
+        className="shrink-0 font-semibold underline-offset-2 hover:underline"
+      >
+        {t("retired_forget")}
+      </button>
     </div>
   );
 }
@@ -126,7 +149,7 @@ export function ApiKeysDialog({ className, iconOnly }: { className?: string; ico
           </Button>
         )}
       </AlertDialogTrigger>
-      <AlertDialogContent className="max-w-md">
+      <AlertDialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
         <AlertDialogHeader>
           <AlertDialogTitle className="flex items-center gap-2 text-base">
             <KeyRound size={16} className="text-primary" />
@@ -134,6 +157,8 @@ export function ApiKeysDialog({ className, iconOnly }: { className?: string; ico
           </AlertDialogTitle>
           <AlertDialogDescription>{t("subtitle")}</AlertDialogDescription>
         </AlertDialogHeader>
+
+        <RetiredKeysNotice />
 
         <div className="flex flex-col gap-4 py-1">
           {PROVIDERS.map((p) => (

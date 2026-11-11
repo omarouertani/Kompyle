@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { AlertTriangle, KeyRound, Clock, ShieldX, ServerCrash, Wifi, RotateCcw } from "lucide-react";
+import { AlertTriangle, KeyRound, Clock, ShieldX, ServerCrash, Wifi, RotateCcw, PackageX } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import type { ProviderFailure, ProviderFailureReason } from "@/lib/ai-orchestrator";
@@ -19,6 +19,7 @@ const REASON_ICON: Record<ProviderFailureReason, React.ReactNode> = {
   auth: <ShieldX size={14} />,
   rate_limit: <Clock size={14} />,
   quota: <ShieldX size={14} />,
+  model_unavailable: <PackageX size={14} />,
   timeout: <Clock size={14} />,
   network: <Wifi size={14} />,
   server: <ServerCrash size={14} />,
@@ -37,6 +38,8 @@ export function ATSAIError({ message, details, failures, onRetry }: ATSAIErrorPr
   if (allMissingKey) hint = t("error_hint_missing_key");
   else if (hasFailures && failures!.some((f) => f.reason === "quota" || f.reason === "rate_limit"))
     hint = t("error_hint_quota");
+  else if (hasFailures && failures!.every((f) => f.reason === "model_unavailable"))
+    hint = t("error_hint_model_unavailable");
   else if (hasFailures && failures!.some((f) => f.reason === "auth"))
     hint = t("error_hint_auth");
   else if (hasFailures && failures!.some((f) => f.reason === "network" || f.reason === "timeout"))

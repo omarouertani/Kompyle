@@ -1,4 +1,5 @@
 import type { AIProvider } from "@/types/cv";
+import { PROVIDERS, isKnownProvider } from "@/lib/ai-models";
 
 // ─── Store BYOK des clés API (localStorage) ───────────────────────────────────
 // App locale / open-source : chaque utilisateur saisit ses propres clés. Stockées
@@ -22,7 +23,9 @@ function readStorage(): ApiKeys {
     const parsed = JSON.parse(raw);
     if (!parsed || typeof parsed !== "object") return {};
     const out: ApiKeys = {};
-    for (const p of ["openrouter", "google", "openai", "anthropic", "groq", "mistral"] as AIProvider[]) {
+    // Seuls les providers ENCORE supportés sont lus : une clé d'un provider
+    // retiré (ex. "mistral") est ignorée, sans planter.
+    for (const p of PROVIDERS) {
       const v = (parsed as Record<string, unknown>)[p];
       if (typeof v === "string" && v.trim()) out[p] = v.trim();
     }
@@ -67,4 +70,33 @@ export function writeKey(provider: AIProvider, key: string) {
     // quota plein / mode privé : perte acceptée au prochain reload
   }
   for (const l of listeners) l();
+}
+
+/**
+ * Noms des providers RETIRÉS (ex. "mistral") pour lesquels une clé est encore
+ * enregistrée. Lecture brute du stockage : à appeler côté client uniquement.
+ */
+export function readRetiredProviders(): string[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") return [];
+    return Object.entries(parsed as Record<string, unknown>)
+      .filter(([p, v]) => !isKnownProvider(p) && typeof v === "string" && v.trim() !== "")
+      .map(([p]) => p);
+  } catch {
+    return [];
+  }
+}
+
+/** Supprime du stockage les clés des providers retirés (garde les autres). */
+export function forgetRetiredKeys() {
+  ensureInit();
+  try {
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(snapshot));
+  } catch {
+    // stockage indisponible : rien à nettoyer
+  }
 }

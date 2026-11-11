@@ -97,8 +97,12 @@ export function useAISubmission(deps: UseAISubmissionDeps) {
 
   /** Toast d'erreur enrichi : on choisit le message selon la raison du 1er échec. */
   const showErrorToast = useCallback((e: AIErrorBody) => {
-    const reason = e.failures?.[0]?.reason;
-    toast.error(reason ? tErr(reason) : (e.error || e.message || t("status_error")));
+    const first = e.failures?.[0];
+    if (first?.reason === "rate_limit" && first.retryAfterSeconds !== undefined) {
+      toast.error(tErr("rate_limit_retry", { seconds: first.retryAfterSeconds }));
+      return;
+    }
+    toast.error(first ? tErr(first.reason) : (e.error || e.message || t("status_error")));
   }, [tErr, t]);
 
   /** Garde BYOK : pas de clé pour ce provider → on bloque avant le réseau. */
