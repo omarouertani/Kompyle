@@ -1,4 +1,5 @@
 import type { AIProvider } from "@/types/cv";
+import { PROVIDERS } from "@/lib/ai-models";
 
 // ─── Store BYOK des clés API (localStorage) ───────────────────────────────────
 // App locale / open-source : chaque utilisateur saisit ses propres clés. Stockées
@@ -22,7 +23,9 @@ function readStorage(): ApiKeys {
     const parsed = JSON.parse(raw);
     if (!parsed || typeof parsed !== "object") return {};
     const out: ApiKeys = {};
-    for (const p of ["openrouter", "google", "openai", "anthropic", "groq", "mistral"] as AIProvider[]) {
+    // Seuls les providers ENCORE supportés sont lus : une clé d'un provider
+    // retiré (ex. "mistral") est ignorée, sans planter.
+    for (const p of PROVIDERS) {
       const v = (parsed as Record<string, unknown>)[p];
       if (typeof v === "string" && v.trim()) out[p] = v.trim();
     }

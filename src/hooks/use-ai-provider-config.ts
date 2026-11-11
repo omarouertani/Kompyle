@@ -20,12 +20,12 @@ export const PROVIDER_MODELS = MODELS_BY_PROVIDER;
 
 /** Métadonnées d'affichage par provider (libellé + pastille de marque). */
 export const PROVIDER_META: Record<AIProvider, { label: string; color: string }> = {
+  google: { label: "Google Gemini (gratuit)", color: "#4285f4" },
+  groq: { label: "Groq (gratuit)", color: "#f55036" },
   openrouter: { label: "OpenRouter (gratuit)", color: "#6566f1" },
+  nvidia: { label: "NVIDIA NIM (gratuit)", color: "#76b900" },
   anthropic: { label: "Anthropic Claude", color: "#d97757" },
   openai: { label: "OpenAI", color: "#10a37f" },
-  google: { label: "Google Gemini", color: "#4285f4" },
-  groq: { label: "Groq", color: "#f55036" },
-  mistral: { label: "Mistral", color: "#fa5208" },
 };
 
 export function useAIProviderConfig() {

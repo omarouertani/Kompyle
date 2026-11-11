@@ -205,9 +205,9 @@ export interface CVData {
 
 // ─── API Types ──────────────────────────────────────────────────────────────
 
-// Providers supportés. OpenRouter = modèles gratuits (clé user). Google/OpenAI/
-// Anthropic/Groq/Mistral = modèles appelés directement avec la clé du provider (BYOK).
-export type AIProvider = "openrouter" | "google" | "openai" | "anthropic" | "groq" | "mistral";
+// Providers supportés (BYOK : clé de l'utilisateur). Gratuits : Google Gemini,
+// Groq, OpenRouter (`:free`), NVIDIA NIM. Payants : Anthropic, OpenAI.
+export type AIProvider = "google" | "groq" | "openrouter" | "nvidia" | "anthropic" | "openai";
 
 export interface AdaptCVRequest {
   jobDescription: string;

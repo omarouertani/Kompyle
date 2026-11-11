@@ -4,11 +4,15 @@ import type { AIProvider } from "@/types/cv";
 // Source de vérité unique, importable côté serveur (orchestrateur) ET client
 // (sélecteur UI). Module pur (aucun "use client", aucune dépendance React).
 //
-// BYOK : OpenRouter sert les modèles GRATUITS (suffixe `:free`) ; Google / OpenAI /
-// Anthropic exposent des modèles PAYANTS appelés avec la clé du provider.
+// BYOK : Google Gemini, Groq, OpenRouter (`:free`) et NVIDIA NIM ont une offre
+// GRATUITE avec une clé personnelle ; Anthropic et OpenAI sont PAYANTS.
 //
-// ⚠️ Les IDs payants doivent être vérifiés vis-à-vis de la doc de chaque provider.
-// Tout est centralisé ici → un seul fichier à ajuster.
+// Ids vérifiés le 2026-11-11 (doc officielle de chaque provider + endpoints
+// publics OpenRouter / NVIDIA). Les modèles gratuits changent vite : tout est
+// centralisé ici → un seul fichier à ajuster.
+//
+// ⚠️ Un id de modèle doit être UNIQUE tous providers confondus : le provider
+// est déduit de l'id (`providerForModel`) et l'id sert de valeur au sélecteur.
 
 export interface OpenRouterModel {
   /** Identifiant de modèle, passé tel quel comme paramètre `model` de l'API du provider. */
@@ -16,49 +20,65 @@ export interface OpenRouterModel {
   name: string;
 }
 
-/** Modèles proposés par provider (ordre = priorité d'affichage dans le sélecteur). */
+/** Modèles proposés par provider (ordre = priorité d'affichage ET de secours). */
 export const MODELS_BY_PROVIDER: Record<AIProvider, OpenRouterModel[]> = {
-  openrouter: [
-    // Gratuits — gros contexte, optimisés JSON structuré / suivi d'instructions.
-    { model: "openai/gpt-oss-120b:free", name: "GPT-OSS 120B" },
-    { model: "nousresearch/hermes-3-llama-3.1-405b:free", name: "Hermes 3 405B" },
-    { model: "qwen/qwen3-next-80b-a3b-instruct:free", name: "Qwen3 Next 80B" },
-    { model: "meta-llama/llama-3.3-70b-instruct:free", name: "Llama 3.3 70B" },
-    { model: "nvidia/nemotron-3-super-120b-a12b:free", name: "Nemotron 3 Super" },
-    { model: "openai/gpt-oss-20b:free", name: "GPT-OSS 20B" },
-  ],
-  anthropic: [
-    { model: "claude-opus-4-8", name: "Claude Opus 4.8" },
-    { model: "claude-sonnet-4-6", name: "Claude Sonnet 4.6" },
-    { model: "claude-haiku-4-5", name: "Claude Haiku 4.5" },
-  ],
-  openai: [
-    { model: "gpt-4.1", name: "GPT-4.1" },
-    { model: "gpt-4.1-mini", name: "GPT-4.1 mini" },
-    { model: "gpt-4o", name: "GPT-4o" },
-    { model: "gpt-4o-mini", name: "GPT-4o mini" },
-    { model: "o4-mini", name: "o4-mini" },
-  ],
   google: [
-    { model: "gemini-2.5-pro", name: "Gemini 2.5 Pro" },
-    { model: "gemini-2.5-flash", name: "Gemini 2.5 Flash" },
-    { model: "gemini-2.0-flash", name: "Gemini 2.0 Flash" },
-    { model: "gemini-1.5-pro", name: "Gemini 1.5 Pro" },
+    { model: "gemini-3.6-flash", name: "Gemini 3.6 Flash" },
+    { model: "gemini-3.8-flash", name: "Gemini 3.8 Flash" },
+    { model: "gemini-3.5-flash-lite", name: "Gemini 3.5 Flash-Lite" },
+    { model: "gemini-3.1-flash-lite", name: "Gemini 3.1 Flash-Lite" },
   ],
   groq: [
-    { model: "llama-3.3-70b-versatile", name: "Llama 3.3 70B (Fast)" },
-    { model: "llama-3.1-8b-instant", name: "Llama 3.1 8B" },
-    { model: "mixtral-8x7b-32768", name: "Mixtral 8x7B" },
+    { model: "openai/gpt-oss-120b", name: "GPT-OSS 120B" },
+    { model: "llama-3.3-70b-versatile", name: "Llama 3.3 70B" },
+    { model: "openai/gpt-oss-20b", name: "GPT-OSS 20B" },
   ],
-  mistral: [
-    { model: "open-mistral-nemo", name: "Mistral Nemo" },
-    { model: "mistral-small-latest", name: "Mistral Small" },
-    { model: "open-mixtral-8x22b", name: "Mixtral 8x22B" },
+  openrouter: [
+    // Gratuits (suffixe `:free`) — gros contexte, JSON structuré annoncé.
+    { model: "nvidia/nemotron-3.5-super-vl:free", name: "Nemotron 3.5 Super" },
+    { model: "google/gemma-4-31b-it:free", name: "Gemma 4 31B" },
+    { model: "baidu/ernie-5.5-flash-preview:free", name: "ERNIE 5.5 Flash" },
+    // Routeur OpenRouter : choisit un modèle gratuit disponible (filet de sécurité).
+    { model: "openrouter/free", name: "Auto (gratuit)" },
+  ],
+  nvidia: [
+    { model: "nvidia/nemotron-3-super-120b-a12b", name: "Nemotron 3 Super 120B" },
+    { model: "deepseek-ai/deepseek-v4.1-flash", name: "DeepSeek V4.1 Flash" },
+    { model: "z-ai/glm-5.3-flash", name: "GLM 5.3 Flash" },
+    { model: "moonshotai/kimi-k2.6", name: "Kimi K2.6" },
+  ],
+  anthropic: [
+    { model: "claude-sonnet-5-5", name: "Claude Sonnet 5.5" },
+    { model: "claude-opus-5-5", name: "Claude Opus 5.5" },
+    { model: "claude-haiku-5-5", name: "Claude Haiku 5.5" },
+  ],
+  openai: [
+    { model: "gpt-6.1-terra", name: "GPT-6.1 Terra" },
+    { model: "gpt-6.1-sol", name: "GPT-6.1 Sol" },
+    { model: "gpt-6-luna", name: "GPT-6 Luna" },
   ],
 };
 
-/** Ordre d'affichage des providers (OpenRouter gratuit en premier). */
-export const PROVIDERS: AIProvider[] = ["openrouter", "anthropic", "openai", "google", "groq", "mistral"];
+/** Ordre d'affichage des providers (gratuits d'abord). */
+export const PROVIDERS: AIProvider[] = ["google", "groq", "openrouter", "nvidia", "anthropic", "openai"];
+
+/** Providers ayant une offre gratuite (clé perso) : secours automatique autorisé. */
+export const FREE_PROVIDERS: ReadonlySet<AIProvider> = new Set<AIProvider>(["google", "groq", "openrouter", "nvidia"]);
+
+/** Page de création de clé API, par provider. */
+export const PROVIDER_KEY_URLS: Record<AIProvider, string> = {
+  google: "https://aistudio.google.com/apikey",
+  groq: "https://console.groq.com/keys",
+  openrouter: "https://openrouter.ai/keys",
+  nvidia: "https://build.nvidia.com/settings/api-keys",
+  anthropic: "https://platform.claude.com/settings/keys",
+  openai: "https://platform.openai.com/api-keys",
+};
+
+/** Garde de type : chaîne = provider encore supporté (ex. "mistral" → false). */
+export function isKnownProvider(value: unknown): value is AIProvider {
+  return typeof value === "string" && (PROVIDERS as string[]).includes(value);
+}
 
 /** Tous les modèles, à plat (lookups). */
 const ALL_MODELS: { provider: AIProvider; model: string; name: string }[] = PROVIDERS.flatMap(
@@ -66,20 +86,32 @@ const ALL_MODELS: { provider: AIProvider; model: string; name: string }[] = PROV
 );
 
 /** Modèle utilisé par défaut quand l'utilisateur n'en sélectionne aucun. */
-export const DEFAULT_MODEL = "openai/gpt-oss-120b:free";
+export const DEFAULT_MODEL = "gemini-3.6-flash";
+
+/** Premier modèle du catalogue d'un provider (modèle par défaut du provider). */
+export function defaultModelFor(provider: AIProvider): string {
+  return MODELS_BY_PROVIDER[provider][0].model;
+}
 
 /**
- * Chaîne de fallback OpenRouter UNIQUEMENT (modèles gratuits, même clé → aucun
- * coût). Les providers payants n'ont pas de fallback (mode strict : un seul modèle).
+ * Chaîne de secours PAR PROVIDER : uniquement pour les providers gratuits (même
+ * clé → aucun coût). Les providers payants n'ont pas de secours (mode strict :
+ * un seul modèle, aucun coût surprise). On ne bascule JAMAIS vers un autre
+ * provider : le CV partirait chez un tiers sans l'accord de l'utilisateur.
  */
-export const FALLBACK_MODELS: string[] = [
-  "openai/gpt-oss-120b:free",
-  "nousresearch/hermes-3-llama-3.1-405b:free",
-  "qwen/qwen3-next-80b-a3b-instruct:free",
-  "meta-llama/llama-3.3-70b-instruct:free",
-  "nvidia/nemotron-3-super:free",
-  "openai/gpt-oss-20b:free",
-];
+export const FALLBACK_MODELS: Record<AIProvider, string[]> = {
+  google: MODELS_BY_PROVIDER.google.map((m) => m.model),
+  groq: MODELS_BY_PROVIDER.groq.map((m) => m.model),
+  openrouter: MODELS_BY_PROVIDER.openrouter.map((m) => m.model),
+  nvidia: ["nvidia/nemotron-3-super-120b-a12b", "deepseek-ai/deepseek-v4.1-flash", "z-ai/glm-5.3-flash"],
+  anthropic: [],
+  openai: [],
+};
+
+/** Vrai si l'id fait partie du catalogue actuel. */
+export function isKnownModel(model: string): boolean {
+  return ALL_MODELS.some((m) => m.model === model);
+}
 
 /** Provider auquel appartient un identifiant de modèle (défaut: openrouter). */
 export function providerForModel(model: string): AIProvider {

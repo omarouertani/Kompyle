@@ -17,18 +17,9 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useApiKeys } from "@/hooks/use-api-keys";
 import { PROVIDER_META } from "@/hooks/use-ai-provider-config";
-import { PROVIDERS } from "@/lib/ai-models";
+import { PROVIDERS, PROVIDER_KEY_URLS } from "@/lib/ai-models";
 import type { AIProvider } from "@/types/cv";
 
-/** Où obtenir une clé API par provider. */
-const KEY_URLS: Record<AIProvider, string> = {
-  openrouter: "https://openrouter.ai/keys",
-  anthropic: "https://console.anthropic.com/settings/keys",
-  openai: "https://platform.openai.com/api-keys",
-  google: "https://aistudio.google.com/apikey",
-  groq: "https://console.groq.com/keys",
-  mistral: "https://console.mistral.ai/api-keys",
-};
 
 function KeyRow({ provider }: { provider: AIProvider }) {
   const t = useTranslations("ApiKeys");
@@ -51,7 +42,7 @@ function KeyRow({ provider }: { provider: AIProvider }) {
           </span>
         ) : (
           <a
-            href={KEY_URLS[provider]}
+            href={PROVIDER_KEY_URLS[provider]}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-1 text-[11px] font-medium text-primary hover:underline"
