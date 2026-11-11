@@ -1,4 +1,5 @@
 import type { CVLayout, ElementPosition, FreeElement, FreeElementKind } from "@/types/cv";
+import { DEFAULT_CV_ICON } from "./cv-icons";
 
 /** Préfixe des ids d'éléments libres (clé dans `absolutePositions`). */
 export const FREE_PREFIX = "free_";
@@ -12,6 +13,7 @@ const DEFAULTS: Record<FreeElementKind, Omit<FreeElement, "id" | "kind" | "page"
   rect: { w: 140, h: 70, fill: "#f4f4f5", strokeWidth: 1, radius: 4 },
   ellipse: { w: 100, h: 70, fill: "#f4f4f5", strokeWidth: 1 },
   image: { w: 160, h: 120 },
+  icon: { w: 24, h: 24, strokeWidth: 2, iconName: DEFAULT_CV_ICON },
 };
 
 /** Seules sources d'image acceptées (canvas et PDF) : data URL PNG/JPEG.

@@ -3,7 +3,9 @@
 import React from "react";
 import type { CVData, FreeElement } from "@/types/cv";
 import { EditableText, ptsToPx } from "../cv-canvas-primitives";
+import { Icon } from "lucide-react";
 import { isSafeImageSrc, isVerticalLine } from "@/lib/free-elements";
+import { cvIconNode } from "@/lib/cv-icons";
 import type { BlockPos } from "./snap";
 
 interface FreeElementContentProps {
@@ -43,6 +45,25 @@ export function FreeElementContent({ el, pos, data, baseFontSize, lineHeight, pl
     return isSafeImageSrc(el.src) ? (
       // eslint-disable-next-line @next/next/no-img-element -- data URL locale, pas d'optimisation Next possible
       <img src={el.src} alt="" draggable={false} style={{ display: "block", width: "100%", height: ptsToPx(h), objectFit: "contain" }} />
+    ) : (
+      <div style={{ height: ptsToPx(h) }} className="bg-muted/40" />
+    );
+  }
+
+  if (el.kind === "icon") {
+    const node = cvIconNode(el.iconName);
+    // Même géométrie que le PDF : grille 24, trait proportionnel, centrée sans déformation.
+    return node ? (
+      <Icon
+        iconNode={node}
+        color={el.color ?? "#1a1a1a"}
+        strokeWidth={el.strokeWidth ?? 2}
+        width="100%"
+        height={ptsToPx(h)}
+        preserveAspectRatio="xMidYMid meet"
+        style={{ display: "block" }}
+        aria-hidden
+      />
     ) : (
       <div style={{ height: ptsToPx(h) }} className="bg-muted/40" />
     );

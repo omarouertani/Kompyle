@@ -4,6 +4,7 @@ import React from "react";
 import { useTranslations } from "next-intl";
 import type { FreeElement } from "@/types/cv";
 import { stripDecl } from "./use-selection-format";
+import { CV_ICON_STROKES } from "@/lib/cv-icons";
 
 interface FreeElementStyleBarProps {
   el: FreeElement;
@@ -63,6 +64,12 @@ export function FreeElementStyleBar({ el, defaultTextColor, onPatch }: FreeEleme
         <>
           {color(t("free_color"), el.color ?? "#1a1a1a", (v) => onPatch({ color: v }))}
           {select(t("free_stroke_width"), el.strokeWidth ?? 1.5, STROKES.filter((s) => s > 0), (v) => onPatch({ strokeWidth: v }))}
+        </>
+      )}
+      {el.kind === "icon" && (
+        <>
+          {color(t("free_color"), el.color ?? "#1a1a1a", (v) => onPatch({ color: v }))}
+          {select(t("free_stroke_width"), el.strokeWidth ?? 2, CV_ICON_STROKES, (v) => onPatch({ strokeWidth: v }))}
         </>
       )}
       {(el.kind === "rect" || el.kind === "ellipse") && (

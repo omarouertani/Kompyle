@@ -1,9 +1,51 @@
 import React from "react";
 import { View, Text, Image } from "@/components/pdf-primitives";
-import { Svg, Ellipse } from "@react-pdf/renderer";
+import { Svg, Ellipse, Path, Circle, Rect } from "@react-pdf/renderer";
 import type { CVLayout, ElementPosition, FreeElement } from "@/types/cv";
 import { freeElementsOnPage, isSafeImageSrc, isVerticalLine } from "@/lib/free-elements";
+import { cvIconNode, CV_ICON_VIEWBOX } from "@/lib/cv-icons";
+import type { CvIconNode } from "@/lib/cv-icons-data";
 import { sortByZ } from "@/lib/z-order";
+
+const num = (v: string | undefined): number | undefined => (v === undefined ? undefined : Number(v));
+
+/**
+ * Icône lucide en SVG react-pdf : mêmes tracés que le canvas (grille 24),
+ * mêmes attributs que le <svg> lucide (trait `color`, sans remplissage, bouts
+ * et jonctions arrondis), centrée dans la boîte sans déformation.
+ */
+export function renderIconSvgPdf(node: CvIconNode, w: number, h: number, color: string, strokeWidth: number) {
+  const paint = {
+    stroke: color,
+    strokeWidth,
+    fill: "none",
+    strokeLinecap: "round" as const,
+    strokeLinejoin: "round" as const,
+  };
+  return (
+    <Svg width={w} height={h} viewBox={`0 0 ${CV_ICON_VIEWBOX} ${CV_ICON_VIEWBOX}`} preserveAspectRatio="xMidYMid meet">
+      {node.map(([tag, a], i) => {
+        // Un attribut de l'icône (ex. fill="currentColor") prime sur le style par défaut.
+        const fill = a.fill === "currentColor" ? color : (a.fill ?? paint.fill);
+        if (tag === "path") return <Path key={i} {...paint} fill={fill} d={a.d} />;
+        if (tag === "circle") return <Circle key={i} {...paint} fill={fill} cx={num(a.cx) ?? 0} cy={num(a.cy) ?? 0} r={num(a.r) ?? 0} />;
+        return (
+          <Rect
+            key={i}
+            {...paint}
+            fill={fill}
+            x={num(a.x) ?? 0}
+            y={num(a.y) ?? 0}
+            width={num(a.width) ?? 0}
+            height={num(a.height) ?? 0}
+            rx={num(a.rx)}
+            ry={num(a.ry) ?? num(a.rx)}
+          />
+        );
+      })}
+    </Svg>
+  );
+}
 
 type TextStyle = { fontSize: number; color: string; lineHeight: number };
 
@@ -44,6 +86,16 @@ function renderFreeElementPdf(el: FreeElement, pos: ElementPosition, textStyle: 
       <View key={el.id} style={{ ...box, height: h }}>
         {/* eslint-disable-next-line jsx-a11y/alt-text -- Image react-pdf : pas d'attribut alt */}
         <Image src={el.src} style={{ width: w, height: h, objectFit: "contain" }} />
+      </View>
+    );
+  }
+
+  if (el.kind === "icon") {
+    const node = cvIconNode(el.iconName);
+    if (!node) return null;
+    return (
+      <View key={el.id} style={{ ...box, height: h }}>
+        {renderIconSvgPdf(node, w, h, el.color ?? "#1a1a1a", el.strokeWidth ?? 2)}
       </View>
     );
   }

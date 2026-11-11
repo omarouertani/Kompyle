@@ -147,7 +147,7 @@ export interface CVLayout {
   freeElements?: FreeElement[];
 }
 
-export type FreeElementKind = "text" | "line" | "rect" | "ellipse" | "image";
+export type FreeElementKind = "text" | "line" | "rect" | "ellipse" | "image" | "icon";
 
 /**
  * Élément libre du canvas, indépendant des sections. Son id (`free_<uuid>`)
@@ -170,8 +170,11 @@ export interface FreeElement {
   color?: string;
   /** Remplissage du rectangle ("transparent" = aucun). */
   fill?: string;
-  /** Épaisseur du trait en pt (0 = sans bord pour un rectangle). */
+  /** Épaisseur du trait en pt (0 = sans bord pour un rectangle) ; pour une
+   *  icône, en unités de sa grille de 24 (le trait suit la taille de l'icône). */
   strokeWidth?: number;
+  /** Icône : nom dans `CV_ICON_NAMES` (src/lib/cv-icons.ts). */
+  iconName?: string;
   /** Rayon des coins du rectangle, en pt. */
   radius?: number;
   /** Image : data URL PNG/JPEG redimensionnée (jamais une URL distante). */

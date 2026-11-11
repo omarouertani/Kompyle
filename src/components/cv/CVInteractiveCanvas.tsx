@@ -6,6 +6,7 @@ import type { CVData, FreeElement, FreeElementKind } from "@/types/cv";
 import { createFreeElement, freeElementPos, freeElementsOnPage, freeImagesSize, isFreeElementId, MAX_FREE_IMAGES_TOTAL_CHARS } from "@/lib/free-elements";
 import { toast } from "sonner";
 import type { InsertedImage } from "./canvas/InsertMenu";
+import type { CvIconName } from "@/lib/cv-icons";
 import {
   defaultLayout,
   getDefaultPositions,
@@ -338,7 +339,7 @@ export default function CVInteractiveCanvas({ data, onChange: onChangeProp, temp
     if (HEADER_LABELS[id]) return HEADER_LABELS[id];
     if (isFreeElementId(id)) {
       const kind = layout.freeElements?.find((f) => f.id === id)?.kind ?? "text";
-      const FREE_LABELS = { text: "free_text", line: "free_line", rect: "free_rect", ellipse: "free_ellipse", image: "free_image" } as const;
+      const FREE_LABELS = { text: "free_text", line: "free_line", rect: "free_rect", ellipse: "free_ellipse", image: "free_image", icon: "free_icon" } as const;
       return t(FREE_LABELS[kind]);
     }
     // Le titre peut contenir du balisage de mise en forme (gras/couleur/…) —
@@ -351,8 +352,9 @@ export default function CVInteractiveCanvas({ data, onChange: onChangeProp, temp
   // Ajoutés sur la page active ; leur position vit dans absolutePositions (on
   // part des positions par défaut si rien n'est encore sauvegardé, comme
   // commitPositions, pour ne pas « perdre » les sections côté PDF).
-  const insertFreeElement = (kind: FreeElementKind, image?: InsertedImage) => {
+  const insertFreeElement = (kind: FreeElementKind, image?: InsertedImage, iconName?: CvIconName) => {
     let el = createFreeElement(kind, activePageIndex, pageDims.widthPt, 120, primaryColor);
+    if (kind === "icon" && iconName) el = { ...el, iconName };
     if (kind === "image") {
       if (!image) return;
       // Limite du corps de /api/render-pdf : on refuse au-delà d'un total d'images.

@@ -27,9 +27,9 @@ import {
   MoreHorizontal,
   Layers,
 } from "lucide-react";
-import type { BlockTextAlign, CVTheme, CVFontFamily, FreeElementKind } from "@/types/cv";
+import type { BlockTextAlign, CVTheme, CVFontFamily } from "@/types/cv";
 import { FONT_FAMILIES, ThemePanel, fontKeyFromStack } from "./ThemePanel";
-import { InsertMenu, type InsertedImage } from "./InsertMenu";
+import { InsertMenu, type InsertHandler } from "./InsertMenu";
 import { ColorDrawer } from "./ColorDrawer";
 import { useCanvasFormat } from "./use-canvas-format";
 import { TextExtrasGroup } from "./TextExtrasGroup";
@@ -70,8 +70,8 @@ interface CanvasToolbarProps {
   onBlockAlign?: (align: BlockTextAlign) => void;
   /** Alignement commun des blocs sélectionnés (null si mixte / aucun). */
   selectedAlign?: BlockTextAlign | null;
-  /** Insère un élément libre (texte, ligne, rectangle) sur la page active. */
-  onInsert?: (kind: FreeElementKind, image?: InsertedImage) => void;
+  /** Insère un élément libre (texte, ligne, forme, image, icône) sur la page active. */
+  onInsert?: InsertHandler;
   /** Panneau de calques ouvert / bascule. */
   layersOpen?: boolean;
   onToggleLayers?: () => void;
