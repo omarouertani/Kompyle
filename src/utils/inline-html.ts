@@ -1,5 +1,5 @@
 import { resolvePdfFontFromCss } from "./pdf-fonts";
-import { stripHtml, hasInlineHtml, decodeEntities } from "./strip-html";
+import { stripHtml, hasInlineHtml, decodeEntities, normalizeSpaces } from "./strip-html";
 
 // Pure (JSX-free) inline-HTML parsing shared by the PDF primitives and the
 // rich-text helpers. Kept in its own module so the <Text>/<Link> primitives can
@@ -64,10 +64,11 @@ function parseTextAlign(raw: string): RichTextAlign | undefined {
   return undefined;
 }
 
-/** Minimal HTML → run parser over the controlled subset execCommand produces. */
+/** Minimal HTML → run parser over the controlled subset the canvas editor
+ *  produces (and older contentEditable / execCommand values). */
 export function parseInlineHtml(html: string): RichTextRun[] {
   if (!html) return [];
-  if (!/[<&]/.test(html)) return [{ text: html }];
+  if (!/[<&]/.test(html)) return [{ text: normalizeSpaces(html) }];
 
   const runs: RichTextRun[] = [];
   const stack: InlineStyle[] = [{}];
@@ -99,7 +100,7 @@ export function parseInlineHtml(html: string): RichTextRun[] {
 
   const push = (text: string) => {
     if (!text) return;
-    runs.push({ text: decodeEntities(text), style: mergeStyle() });
+    runs.push({ text: normalizeSpaces(decodeEntities(text)), style: mergeStyle() });
   };
 
   // Open lists, innermost last: <ol> numbers its items, <ul> uses bullets.
@@ -220,8 +221,8 @@ export function parseInlineHtml(html: string): RichTextRun[] {
 }
 
 /**
- * Paragraph alignment carried by inline HTML (e.g. `execCommand("justifyCenter")`
- * writes `<div style="text-align: center;">…</div>`). react-pdf only applies
+ * Paragraph alignment carried by inline HTML (e.g. the editor's "center" alignment
+ * writes `<p style="text-align: center">…</p>`, older values a `<div>`). react-pdf only applies
  * `textAlign` on the parent <Text>, not on a nested run, so the primitives read
  * it here and set it on the outer <Text>.
  * Known limit: when a field holds several paragraphs with different

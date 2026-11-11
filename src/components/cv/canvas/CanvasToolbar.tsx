@@ -177,7 +177,7 @@ export function CanvasToolbar({
     return ok;
   };
 
-  // Alignement : éditeur focalisé → paragraphe courant (execCommand, HTML) ;
+  // Alignement : éditeur focalisé → paragraphe courant (TipTap, HTML) ;
   // sinon bloc(s) sélectionné(s) → alignement stocké dans la position du bloc.
   const alignRun = (cmd: Parameters<typeof fmt.exec>[0], align: BlockTextAlign) => {
     if (fmt.activeEditor) {
@@ -563,9 +563,9 @@ function ToolButton({ children, onClick, active, destructive, disabled, title, c
       type="button"
       onClick={onClick}
       disabled={disabled}
-      // CRITICAL: mousedown must not steal focus from the contentEditable
+      // CRITICAL: mousedown must not steal focus from the TipTap editor of the
       // EditableText — otherwise the browser focuses this button and the
-      // user's selection collapses, leaving execCommand nothing to act on.
+      // user's selection collapses, leaving the command nothing to act on.
       onMouseDown={(e) => e.preventDefault()}
       title={title}
       className={cn(

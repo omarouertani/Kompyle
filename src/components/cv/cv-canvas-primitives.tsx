@@ -6,6 +6,10 @@ import { cn } from "@/lib/utils";
 import { useCanvasFormat } from "./canvas/use-canvas-format";
 import { sanitizeRichHtml } from "@/utils/sanitize-html";
 import { TYPING_COMMIT_IDLE_MS } from "./canvas/constants";
+import type { Editor } from "@tiptap/core";
+import type { RichEditorHandle } from "./canvas/format-types";
+import { isRichTextValue, storedToEditorHtml } from "./canvas/tiptap/stored-html";
+import { createEditorHandle, createFieldEditor, readStoredValue, readTextCaret } from "./canvas/tiptap/field-editor";
 
 // Conversion EXACTE des points PDF (72 dpi) en pixels CSS (96 dpi) : 96/72.
 // Le rendu PDF (react-pdf) place les blocs en points ; le canvas applique ce
@@ -143,17 +147,20 @@ interface EditableTextProps {
   style?: React.CSSProperties;
 }
 
-/** Detects whether a stored value contains inline rich-text markup (B/I/U/S,
- *  color/size/font spans, alignment divs, or legacy <font>). Plain strings
- *  render via textContent (XSS-safe); HTML strings use innerHTML so format
- *  tags survive across re-renders and reach the PDF renderer intact. */
-function isRichTextValue(v: string): boolean {
-  return /<(b|i|u|s|strong|em|span|div|p|font)[\s>/]/i.test(v);
-}
-
-/** Trim leading/trailing whitespace text without disturbing inline tags. */
-function trimRich(v: string): string {
-  return v.replace(/^(?:&nbsp;|\s|<br\s*\/?>)+/i, "").replace(/(?:&nbsp;|\s|<br\s*\/?>)+$/i, "").trim();
+/** Static (non-editing) rendering of a stored value: sanitized innerHTML for
+ *  rich text, textContent for plain strings (XSS-safe by default). */
+function renderStaticValue(el: HTMLElement, value: string) {
+  const next = value || "";
+  if (isRichTextValue(next)) {
+    // SECURITY: values may originate from AI output derived from an untrusted
+    // job posting. Sanitize before innerHTML injection (strict allowlist) so
+    // no executable markup (script, event handlers, <img onerror>…) survives.
+    const safe = sanitizeRichHtml(next);
+    if (el.innerHTML !== safe) el.innerHTML = safe;
+  } else if (el.innerText !== next || el.childElementCount > 0) {
+    // Compare via innerText so an unchanged value doesn't clobber the caret.
+    el.textContent = next;
+  }
 }
 
 export function EditableText({
@@ -168,38 +175,68 @@ export function EditableText({
   const [isFocused, setIsFocused] = useState(false);
   const format = useCanvasFormat();
 
-  // Sync incoming value → DOM. We use innerHTML when the stored value is
-  // rich-text (contains inline format tags), and textContent otherwise so
-  // plain strings can never be interpreted as markup (XSS-safe by default).
-  useEffect(() => {
-    if (!ref.current || isFocused) return;
-    const current = ref.current.innerHTML;
-    const next = value || "";
-    if (isRichTextValue(next)) {
-      // SECURITY: values may originate from AI output derived from an untrusted
-      // job posting. Sanitize before innerHTML injection (strict allowlist) so
-      // no executable markup (script, event handlers, <img onerror>…) survives.
-      const safe = sanitizeRichHtml(next);
-      if (current !== safe) ref.current.innerHTML = safe;
-    } else {
-      // Use textContent for safety; only set if it differs from the rendered
-      // text (compare via innerText so existing inline tags don't trigger a
-      // pointless overwrite that would clobber the user's caret).
-      if (ref.current.innerText !== next) {
-        ref.current.textContent = next;
-      }
-    }
-  }, [value, isFocused]);
+  // TipTap (D2) : l'éditeur n'existe que pendant l'édition de CE champ.
+  const editorRef = useRef<Editor | null>(null);
+  const handleRef = useRef<RichEditorHandle | null>(null);
+  // Dernière valeur écrite par ce champ : un retour de `value` identique est
+  // l'écho de notre propre commit (on garde l'éditeur) ; toute autre valeur
+  // vient de l'extérieur (annuler, formatage de bloc) → on repasse en statique.
+  const lastCommittedRef = useRef<string | null>(null);
+  const pointerDownRef = useRef(false);
+  // Valeur chargée dans l'éditeur et sa forme normalisée par TipTap (ex.
+  // `<span style="font-style: italic">` → `<em>`) : contenu inchangé = on garde
+  // la chaîne d'origine (ni réécriture ni faux pas d'historique).
+  const baselineRef = useRef<{ stored: string; normalized: string } | null>(null);
 
-  const commit = useCallback(() => {
-    if (!ref.current) return;
-    const html = ref.current.innerHTML;
-    // If the rendered content has no inline formatting tags, save the plain
-    // text. Keeps the data file readable when the user never used B/I/U.
-    // Sanitize rich content on commit too, so anything pasted into the field is
-    // cleaned before it reaches storage (defense in depth alongside injection).
-    const next = isRichTextValue(html) ? trimRich(sanitizeRichHtml(html)) : (ref.current.innerText ?? "").trim();
-    if (next !== value) onChange(next);
+  // Sync incoming value → DOM (static rendering when not editing).
+  useEffect(() => {
+    const host = ref.current;
+    if (!host) return;
+    const ed = editorRef.current;
+    if (ed) {
+      if (value === lastCommittedRef.current) return;
+      if (ed.isFocused) {
+        // Formatage de bloc (ou annuler) pendant l'édition : on recharge la
+        // valeur dans l'éditeur, sinon son ancien contenu l'écraserait au blur.
+        lastCommittedRef.current = value;
+        const { from, to } = ed.state.selection;
+        ed.commands.setContent(storedToEditorHtml(value), { emitUpdate: false });
+        const max = ed.state.doc.content.size;
+        ed.commands.setTextSelection({ from: Math.min(from, max), to: Math.min(to, max) });
+        baselineRef.current = { stored: value, normalized: readStoredValue(ed) };
+        return;
+      }
+      // Valeur changée de l'extérieur : l'éditeur (non focalisé) est obsolète.
+      editorRef.current = null;
+      const h = handleRef.current;
+      handleRef.current = null;
+      ed.destroy();
+      host.contentEditable = "true";
+      if (h) format.releaseEditor(h);
+    }
+    if (isFocused) return;
+    renderStaticValue(host, value);
+  }, [value, isFocused, format]);
+
+  // Unmount: tear the editor down (pending text was committed on blur).
+  useEffect(() => () => {
+    const ed = editorRef.current;
+    editorRef.current = null;
+    ed?.destroy();
+  }, []);
+
+  const commit = useCallback((): string => {
+    const ed = editorRef.current;
+    if (!ed) return value;
+    // `readStoredValue` : texte brut sans mise en forme, sinon HTML assaini.
+    let next = readStoredValue(ed);
+    const base = baselineRef.current;
+    if (base && next === base.normalized) next = base.stored;
+    if (next !== value) {
+      lastCommittedRef.current = next;
+      onChange(next);
+    }
+    return next;
   }, [onChange, value]);
 
   // Regroupement de frappe : un commit après TYPING_COMMIT_IDLE_MS d'inactivité
@@ -215,39 +252,101 @@ export function EditableText({
   };
   useEffect(() => clearIdle, []);
 
-  const handleBlur = () => {
+  const scheduleCommit = () => {
     clearIdle();
-    setIsFocused(false);
-    format.registerActiveEditor(null);
-    commit();
+    idleTimer.current = setTimeout(() => commitRef.current(), TYPING_COMMIT_IDLE_MS);
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (!multiline && e.key === "Enter") {
-      e.preventDefault();
-      ref.current?.blur();
+  /** Commit (optionnel) puis destruction de l'éditeur ; le champ redevient un
+   *  span statique. Appelé quand un autre champ prend la main. */
+  const destroyEditor = (withCommit: boolean) => {
+    const ed = editorRef.current;
+    const host = ref.current;
+    if (!ed) return;
+    clearIdle();
+    const finalValue = withCommit ? commitRef.current() : value;
+    editorRef.current = null;
+    const h = handleRef.current;
+    handleRef.current = null;
+    ed.destroy();
+    if (host) {
+      host.contentEditable = "true";
+      renderStaticValue(host, finalValue);
     }
+    setIsFocused(false);
+    if (h) format.releaseEditor(h);
+  };
+
+  /** Monte TipTap dans le span au focus, caret au même caractère. */
+  const activateTiptap = () => {
+    const host = ref.current;
+    if (!host || editorRef.current) return;
+    const caret = readTextCaret(host);
+    lastCommittedRef.current = value;
+    host.contentEditable = "false";
+    let handle: RichEditorHandle | null = null;
+    const editor = createFieldEditor({
+      host,
+      value,
+      multiline,
+      placeholder,
+      caret,
+      onUpdate: () => {
+        format.refresh();
+        scheduleCommit();
+      },
+      onSelectionChange: () => format.refresh(),
+      onFocus: () => {
+        if (!handle) return;
+        setIsFocused(true);
+        format.registerActiveEditor(handle.dom, handle);
+      },
+      onBlur: () => {
+        clearIdle();
+        setIsFocused(false);
+        format.registerActiveEditor(null);
+        commitRef.current();
+      },
+    });
+    editorRef.current = editor;
+    baselineRef.current = { stored: value, normalized: readStoredValue(editor) };
+    handle = createEditorHandle(editor, () => destroyEditor(true));
+    handleRef.current = handle;
+    setIsFocused(true);
+    format.registerActiveEditor(handle.dom, handle);
+    editor.view.focus();
   };
 
   return (
+    // Hors édition : span statique, éditable seulement pour recevoir le focus et
+    // le caret du clic ; l'éditeur TipTap y est monté aussitôt.
     <span
       ref={ref}
       contentEditable
       suppressContentEditableWarning
       spellCheck={false}
-      onBlur={handleBlur}
-      onFocus={() => {
-        setIsFocused(true);
-        format.registerActiveEditor(ref.current);
+      onPointerDown={() => {
+        pointerDownRef.current = true;
       }}
-      onInput={() => {
-        // Re-evaluate the toolbar's format state on every typed character so
-        // active B/I/U highlights stay in sync as the caret moves.
-        format.refresh();
-        clearIdle();
-        idleTimer.current = setTimeout(() => commitRef.current(), TYPING_COMMIT_IDLE_MS);
+      onFocus={(e) => {
+        if (editorRef.current || e.target !== ref.current) return;
+        // Au clic, le navigateur place le caret APRÈS l'événement focus : on
+        // monte l'éditeur au relâchement (caret ou sélection à la souris alors
+        // connus). Au clavier (Tab), tout de suite.
+        if (pointerDownRef.current) {
+          window.addEventListener("pointerup", () => {
+            pointerDownRef.current = false;
+            activateTiptap();
+          }, { once: true, capture: true });
+        } else {
+          activateTiptap();
+        }
       }}
-      onKeyDown={handleKeyDown}
+      // Avant le montage (entre l'appui et le relâchement) : rien ne s'écrit
+      // dans le span statique.
+      onBeforeInput={(e) => {
+        if (!editorRef.current) e.preventDefault();
+      }}
       data-placeholder={placeholder}
       className={cn(
         "outline-none transition-colors duration-100 cursor-text select-text inline-block min-w-[20px]",

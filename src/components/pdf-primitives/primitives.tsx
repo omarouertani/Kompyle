@@ -22,6 +22,7 @@ import {
   detectRichAlign,
   detectRichLineHeight,
 } from "@/utils/inline-html";
+import { normalizeSpaces } from "@/utils/strip-html";
 
 /**
  * If `children` is a string carrying inline formatting markup (B/I/U/S, color,
@@ -40,7 +41,9 @@ type LinkLikeProps = ComponentProps<typeof PdfLink> & { children?: ReactNode };
 /** `insideLink`: the caller is already a <Link>, so runs carrying an `href`
  *  stay plain text (a link can't be nested in a link). */
 function renderRichChildren(children: ReactNode, composedStyle: unknown, insideLink = false): ReactNode {
-  if (typeof children !== "string" || !hasInlineHtml(children)) return children;
+  // Chaîne simple : seule l’espace insécable est à normaliser (elle fait planter fontkit).
+  if (typeof children === "string" && !hasInlineHtml(children)) return normalizeSpaces(children);
+  if (typeof children !== "string") return children;
   const runs = parseInlineHtml(children);
   if (runs.length === 0) return null;
   const base = inheritableTextStyle(composedStyle);
