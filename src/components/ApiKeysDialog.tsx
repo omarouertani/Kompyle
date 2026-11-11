@@ -149,7 +149,7 @@ export function ApiKeysDialog({ className, iconOnly }: { className?: string; ico
           </Button>
         )}
       </AlertDialogTrigger>
-      <AlertDialogContent className="max-w-md">
+      <AlertDialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
         <AlertDialogHeader>
           <AlertDialogTitle className="flex items-center gap-2 text-base">
             <KeyRound size={16} className="text-primary" />

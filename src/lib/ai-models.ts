@@ -39,7 +39,7 @@ export const MODELS_BY_PROVIDER: Record<AIProvider, OpenRouterModel[]> = {
     { model: "google/gemma-4-31b-it:free", name: "Gemma 4 31B" },
     { model: "baidu/ernie-5.5-flash-preview:free", name: "ERNIE 5.5 Flash" },
     // Routeur OpenRouter : choisit un modèle gratuit disponible (filet de sécurité).
-    { model: "openrouter/free", name: "Auto (gratuit)" },
+    { model: "openrouter/free", name: "OpenRouter Auto" },
   ],
   nvidia: [
     { model: "nvidia/nemotron-3-super-120b-a12b", name: "Nemotron 3 Super 120B" },

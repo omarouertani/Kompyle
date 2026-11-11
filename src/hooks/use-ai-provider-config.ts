@@ -51,8 +51,15 @@ export function useAIProviderConfig() {
         setModel(stored);
         return;
       }
-      localStorage.removeItem(MODEL_KEY);
-      toast.info(tErr("model_reset", { model: getModelName(DEFAULT_MODEL) }));
+      // Différé : le <Toaster> du layout s'abonne dans son propre effet, qui
+      // s'exécute APRÈS celui-ci au premier rendu (un toast émis avant serait
+      // perdu). Le nettoyage du stockage est fait dans le même rappel pour que
+      // le double montage du mode strict n'efface pas la valeur sans prévenir.
+      const timer = window.setTimeout(() => {
+        try { localStorage.removeItem(MODEL_KEY); } catch { /* stockage indisponible */ }
+        toast.info(tErr("model_reset", { model: getModelName(DEFAULT_MODEL) }));
+      }, 0);
+      return () => window.clearTimeout(timer);
     } catch {
       // stockage indisponible — on garde le modèle par défaut
     }
