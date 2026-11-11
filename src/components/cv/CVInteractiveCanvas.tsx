@@ -2,7 +2,11 @@
 
 import React, { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { useTranslations } from "next-intl";
-import type { CVData } from "@/types/cv";
+import type { CVData, FreeElement, FreeElementKind } from "@/types/cv";
+import { createFreeElement, freeElementPos, freeElementsOnPage, freeImagesSize, isFreeElementId, MAX_FREE_IMAGES_TOTAL_CHARS } from "@/lib/free-elements";
+import { toast } from "sonner";
+import type { InsertedImage } from "./canvas/InsertMenu";
+import type { CvIconName } from "@/lib/cv-icons";
 import {
   defaultLayout,
   getDefaultPositions,
@@ -40,9 +44,12 @@ import { useCanvasPagination } from "./canvas/use-canvas-pagination";
 import { usePageRouting } from "./canvas/use-page-routing";
 import { useKeyboardShortcuts } from "./canvas/use-keyboard-shortcuts";
 import { useContextMenu } from "./canvas/use-context-menu";
+import { useLayers } from "./canvas/use-layers";
+import { LayersPanel } from "./canvas/LayersPanel";
 import { getHeaderBlockIds } from "./canvas/block-helpers";
 import { CanvasPage } from "./canvas/CanvasPage";
 import { CanvasBlock } from "./canvas/CanvasBlock";
+import { FreeElementStyleBar } from "./canvas/FreeElementStyleBar";
 
 interface CVInteractiveCanvasProps {
   data: CVData;
@@ -259,6 +266,11 @@ export default function CVInteractiveCanvas({ data, onChange: onChangeProp, temp
     ungroupSelected,
   });
 
+  // ── Calques (ordre de superposition, masquer, verrouiller) ─────────────────
+  const headerBlockIds = useMemo(() => getHeaderBlockIds(data, template), [data, template]);
+  const layers = useLayers({ data, layout, headerBlockIds, defaultPositions, onChange, homePageOf });
+  const [layersOpen, setLayersOpen] = useState(false);
+
   // ── Menu contextuel ─────────────────────────────────────────────────────────
   const { menu, setMenu, openBlockMenu, openCanvasMenu, menuItems } = useContextMenu({
     data,
@@ -283,6 +295,7 @@ export default function CVInteractiveCanvas({ data, onChange: onChangeProp, temp
     moveSectionToPage,
     addPage,
     removePage,
+    reorderZ: layers.reorder,
   });
 
   /** Résout la position d'un bloc : cas photo, position sauvegardée, ou
@@ -293,6 +306,10 @@ export default function CVInteractiveCanvas({ data, onChange: onChangeProp, temp
     if (id === "photo") {
       const pos = absolutePositions[id] ?? { x: 50, y: 100, w: photoSize };
       return { ...pos, w: pos.w ?? photoSize, h: undefined };
+    }
+    if (isFreeElementId(id)) {
+      const el = layout.freeElements?.find((f) => f.id === id);
+      if (el) return freeElementPos(el, savedPositions);
     }
     if (savedPositions[id]) return savedPositions[id];
 
@@ -320,17 +337,67 @@ export default function CVInteractiveCanvas({ data, onChange: onChangeProp, temp
       contactLine: t("block_contactline"),
     };
     if (HEADER_LABELS[id]) return HEADER_LABELS[id];
+    if (isFreeElementId(id)) {
+      const kind = layout.freeElements?.find((f) => f.id === id)?.kind ?? "text";
+      const FREE_LABELS = { text: "free_text", line: "free_line", rect: "free_rect", ellipse: "free_ellipse", image: "free_image", icon: "free_icon" } as const;
+      return t(FREE_LABELS[kind]);
+    }
     // Le titre peut contenir du balisage de mise en forme (gras/couleur/…) —
     // on l'affiche en texte brut dans l'étiquette de survol / la barre d'info.
     return stripHtml(getSectionLabel(getParentSectionId(id), data));
   };
 
-  const headerBlockIds = getHeaderBlockIds(data, template);
 
-  const renderBlock = (id: string) => (
+  // ── Éléments libres (texte, ligne, rectangle) ───────────────────────────────
+  // Ajoutés sur la page active ; leur position vit dans absolutePositions (on
+  // part des positions par défaut si rien n'est encore sauvegardé, comme
+  // commitPositions, pour ne pas « perdre » les sections côté PDF).
+  const insertFreeElement = (kind: FreeElementKind, image?: InsertedImage, iconName?: CvIconName) => {
+    let el = createFreeElement(kind, activePageIndex, pageDims.widthPt, 120, primaryColor);
+    if (kind === "icon" && iconName) el = { ...el, iconName };
+    if (kind === "image") {
+      if (!image) return;
+      // Limite du corps de /api/render-pdf : on refuse au-delà d'un total d'images.
+      if (freeImagesSize(layout) + image.src.length > MAX_FREE_IMAGES_TOTAL_CHARS) {
+        toast.error(t("insert_image_total_error"));
+        return;
+      }
+      // Garde les proportions : largeur 160 pt max (et 1/2 page), hauteur déduite.
+      const w = Math.min(160, pageDims.widthPt / 2, image.width * 0.75);
+      const h = Math.max(8, Math.round((w * image.height) / Math.max(1, image.width)));
+      el = { ...el, src: image.src, w: Math.round(w), h, x: Math.round((pageDims.widthPt - w) / 2) };
+    }
+    onChange({
+      ...data,
+      layout: {
+        ...layout,
+        freeElements: [...(layout.freeElements ?? []), el],
+        absolutePositions: {
+          ...(layout.absolutePositions ?? defaultPositions),
+          [el.id]: { x: el.x, y: el.y, w: el.w, h: el.h, page: el.page },
+        },
+      },
+    });
+    setSelectedIds([el.id]);
+  };
+  const patchFreeElement = (id: string, patch: Partial<FreeElement>) =>
+    onChange({
+      ...data,
+      layout: {
+        ...layout,
+        freeElements: (layout.freeElements ?? []).map((f) => (f.id === id ? { ...f, ...patch } : f)),
+      },
+    });
+  const selectedFree =
+    selectedIds.length === 1 && isFreeElementId(selectedIds[0])
+      ? layout.freeElements?.find((f) => f.id === selectedIds[0])
+      : undefined;
+
+  const renderBlock = (id: string, rank: number) => (
     <CanvasBlock
       key={id}
       id={id}
+      rank={rank}
       pos={resolvePos(id)}
       isSelected={selectedIds.includes(id)}
       isInteracting={isDragging || isResizing}
@@ -387,7 +454,31 @@ export default function CVInteractiveCanvas({ data, onChange: onChangeProp, temp
         onBlockStyles={(styles) => applyStyles(selectedIds, styles)}
         onBlockAlign={setBlocksTextAlign}
         selectedAlign={selectedTextAlign}
+        onInsert={insertFreeElement}
+        layersOpen={layersOpen}
+        onToggleLayers={() => setLayersOpen((o) => !o)}
       />
+
+      {layersOpen && (
+        <LayersPanel
+          pageIndex={activePageIndex}
+          stack={layers.stackOf(activePageIndex)}
+          selectedIds={selectedIds}
+          labelOf={(id) => {
+            const base = blockLabel(id);
+            if (id.startsWith("title_")) return `${base} · ${t("layer_heading")}`;
+            const n = id.match(/_(\d+)$/);
+            return n && !isFreeElementId(id) ? `${base} ${Number(n[1]) + 1}` : base;
+          }}
+          isHidden={(id) => layers.isFlagged(id, "hidden")}
+          isLocked={(id) => layers.isFlagged(id, "locked")}
+          onSelect={(id) => setSelectedIds([id])}
+          onMove={(id, to) => layers.moveTo(activePageIndex, id, to)}
+          onToggleHidden={(id) => layers.toggleFlag([id], "hidden")}
+          onToggleLocked={(id) => layers.toggleFlag([id], "locked")}
+          onClose={() => setLayersOpen(false)}
+        />
+      )}
 
       {isOverflowing && (
         <OverflowBanner
@@ -446,6 +537,7 @@ export default function CVInteractiveCanvas({ data, onChange: onChangeProp, temp
             homePageOf={homePageOf}
             onSidebarResize={startSidebarResize}
             renderBlock={renderBlock}
+            freeElementIds={freeElementsOnPage(layout, pageIndex).map(({ el }) => el.id)}
           />
         ))}
       </div>
@@ -469,6 +561,14 @@ export default function CVInteractiveCanvas({ data, onChange: onChangeProp, temp
           </div>
         );
       })()}
+
+      {selectedFree && !isDragging && !isResizing && (
+        <FreeElementStyleBar
+          el={selectedFree}
+          defaultTextColor={textColor}
+          onPatch={(patch) => patchFreeElement(selectedFree.id, patch)}
+        />
+      )}
 
       {/* Lasso de sélection */}
       {marqueeRect && (

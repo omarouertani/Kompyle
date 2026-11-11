@@ -13,7 +13,9 @@ export { stripHtml, hasInlineHtml };
 export type RichTextAlign = "left" | "center" | "right" | "justify";
 
 export interface InlineStyle {
-  fontWeight?: "bold" | "normal";
+  /** "semibold" = CSS 500-600 (rendered with the 600 face when the font ships
+   *  one, else react-pdf falls back to 700). 700+ stays "bold". */
+  fontWeight?: "bold" | "semibold" | "normal";
   fontStyle?: "italic" | "normal";
   textDecoration?: "underline" | "line-through" | "underline line-through" | "none";
   /** Paragraph alignment (from `text-align` / `align=` on div/p). Never emitted
@@ -187,8 +189,9 @@ export function parseInlineHtml(html: string): RichTextRun[] {
             const n = parseLengthToPt(val);
             if (n !== undefined) style.letterSpacing = n;
           } else if (prop === "font-weight") {
-            if (/^(bold|bolder|[6-9]00)$/i.test(val)) style.fontWeight = "bold";
-            else if (/^(normal|lighter|[1-5]00)$/i.test(val)) style.fontWeight = "normal";
+            if (/^(bold|bolder|[7-9]00)$/i.test(val)) style.fontWeight = "bold";
+            else if (/^(semibold|[56]00)$/i.test(val)) style.fontWeight = "semibold";
+            else if (/^(normal|lighter|[1-4]00)$/i.test(val)) style.fontWeight = "normal";
           } else if (prop === "font-style") {
             if (/^(italic|oblique)\b/i.test(val)) style.fontStyle = "italic";
             else if (/^normal$/i.test(val)) style.fontStyle = "normal";
@@ -263,7 +266,7 @@ export function detectRichLineHeight(html: string): number | undefined {
  *  fontFamily CSS stack to a registered PDF font. */
 export function toPdfRunStyle(s: InlineStyle): Record<string, unknown> {
   const out: Record<string, unknown> = {};
-  if (s.fontWeight) out.fontWeight = s.fontWeight;
+  if (s.fontWeight) out.fontWeight = s.fontWeight === "semibold" ? 600 : s.fontWeight;
   if (s.fontStyle) out.fontStyle = s.fontStyle;
   if (s.textDecoration) out.textDecoration = s.textDecoration;
   if (s.color) out.color = s.color;

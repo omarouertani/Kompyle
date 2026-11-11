@@ -20,13 +20,13 @@ export function SnapGuides({ guides }: { guides: SnapGuide[] }) {
           return g.orientation === "vertical" ? (
             <div
               key={`a-${i}`}
-              className="absolute w-px z-40 pointer-events-none"
+              className="absolute w-px z-[950] pointer-events-none"
               style={{ left: px(g.position), top: px(g.start), height: px(g.end - g.start), backgroundColor: SELECTION_COLOR }}
             />
           ) : (
             <div
               key={`a-${i}`}
-              className="absolute h-px z-40 pointer-events-none"
+              className="absolute h-px z-[950] pointer-events-none"
               style={{ top: px(g.position), left: px(g.start), width: px(g.end - g.start), backgroundColor: SELECTION_COLOR }}
             />
           );
@@ -38,7 +38,7 @@ export function SnapGuides({ guides }: { guides: SnapGuide[] }) {
         if (g.orientation === "vertical") {
           const left = px(g.position);
           return (
-            <div key={`d-${i}`} className="absolute z-40 pointer-events-none" style={{ left, top: px(g.start), height: len }}>
+            <div key={`d-${i}`} className="absolute z-[950] pointer-events-none" style={{ left, top: px(g.start), height: len }}>
               <div className="absolute top-0 bottom-0 w-px" style={{ backgroundColor: DISTANCE_COLOR }} />
               <div className="absolute left-[-3px] top-0 w-[7px] h-px" style={{ backgroundColor: DISTANCE_COLOR }} />
               <div className="absolute left-[-3px] bottom-0 w-[7px] h-px" style={{ backgroundColor: DISTANCE_COLOR }} />
@@ -53,7 +53,7 @@ export function SnapGuides({ guides }: { guides: SnapGuide[] }) {
         }
         const top = px(g.position);
         return (
-          <div key={`d-${i}`} className="absolute z-40 pointer-events-none" style={{ top, left: px(g.start), width: len }}>
+          <div key={`d-${i}`} className="absolute z-[950] pointer-events-none" style={{ top, left: px(g.start), width: len }}>
             <div className="absolute left-0 right-0 h-px" style={{ backgroundColor: DISTANCE_COLOR }} />
             <div className="absolute top-[-3px] left-0 h-[7px] w-px" style={{ backgroundColor: DISTANCE_COLOR }} />
             <div className="absolute top-[-3px] right-0 h-[7px] w-px" style={{ backgroundColor: DISTANCE_COLOR }} />

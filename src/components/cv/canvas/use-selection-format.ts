@@ -21,7 +21,7 @@ import { getSectionLabel, renameSection } from "@/lib/cv-layout";
 
 /** Retire une déclaration CSS (`prop: …;`) de tous les attributs style d'une
  *  chaîne HTML, et supprime les `style=""` devenus vides. */
-function stripDecl(html: string, prop: string): string {
+export function stripDecl(html: string, prop: string): string {
   if (!html) return html;
   const declRe = new RegExp(`${prop}\\s*:[^;"]*;?`, "gi");
   return html.replace(/style\s*=\s*"([^"]*)"/gi, (_m, decls: string) => {
@@ -120,6 +120,17 @@ function applyToBlock(data: CVData, blockId: string, tf: FieldTransform): CVData
     const next = [...data.education];
     next[idx] = { ...next[idx], degree: tf(next[idx].degree), institution: tf(next[idx].institution), ...(next[idx].date ? { date: tf(next[idx].date!) } : {}) };
     return { ...data, education: next };
+  }
+
+  if (blockId.startsWith("free_")) {
+    // Zone de texte libre : tout son HTML ; les autres éléments libres n'ont pas de texte.
+    const list = data.layout?.freeElements;
+    const el = list?.find((f) => f.id === blockId);
+    if (!el || el.kind !== "text" || !data.layout) return data;
+    return {
+      ...data,
+      layout: { ...data.layout, freeElements: list!.map((f) => (f.id === blockId ? { ...f, html: tf(f.html ?? "") } : f)) },
+    };
   }
 
   return data; // photo & inconnus

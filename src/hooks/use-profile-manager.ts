@@ -3,6 +3,8 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import type { CVData, CoverLetterData } from "@/types/cv";
 import { defaultLayout, normalizeTemplate, migrateLayoutForTemplate } from "@/lib/cv-layout";
+import { applyTemplateTheme } from "@/lib/cv-templates";
+import { bakeFreeElementPositions } from "@/lib/free-elements";
 import { mockCV } from "@/lib/mock-cv";
 import { getModelName, DEFAULT_MODEL } from "@/lib/ai-models";
 import { v4 as uuidv4 } from "uuid";
@@ -373,6 +375,7 @@ export function useProfileManager(locale: string, t: (key: string, values?: Reco
    *  Les bascules entre templates de même structure (default ↔ modern) ne
    *  touchent pas au layout. */
   const changeTemplate = useCallback((template: string) => {
+    const from = selectedTemplate;
     setSelectedTemplate(template);
     setCurrentCV((prev) => {
       const migrated = migrateLayoutForTemplate(prev, template);
@@ -383,10 +386,19 @@ export function useProfileManager(locale: string, t: (key: string, values?: Reco
       if (!migrated.layout) return migrated;
       return {
         ...migrated,
-        layout: { ...migrated.layout, absolutePositions: undefined, autoPaginated: false },
+        layout: {
+          ...migrated.layout,
+          // Les modèles du registre portent leur thème (police, couleurs) : on
+          // l'applique en gardant les réglages propres à l'utilisateur.
+          theme: applyTemplateTheme(migrated.layout.theme, from, template),
+          // Les éléments libres gardent leur place malgré l'effacement des positions.
+          freeElements: bakeFreeElementPositions(migrated.layout),
+          absolutePositions: undefined,
+          autoPaginated: false,
+        },
       };
     });
-  }, []);
+  }, [selectedTemplate]);
 
   /** Crée un nouveau profil principal à partir d'un template VIDE, le
    *  sauvegarde en base, puis bascule dessus — les données se remplissent

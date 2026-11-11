@@ -126,6 +126,8 @@ export interface ElementPosition {
   locked?: boolean;   // bloc verrouillé : ni drag ni resize
   groupId?: string;   // identifiant de groupe : les blocs partageant un groupId se déplacent ensemble
   align?: BlockTextAlign; // alignement du texte du bloc (toolbar, bloc sélectionné sans éditeur actif)
+  z?: number;         // ordre de superposition sur la page (plus grand = devant) ; défaut : sections 0, éléments libres 1
+  hidden?: boolean;   // masqué (panneau de calques) : invisible dans le canvas, absent du PDF
 }
 
 export type BlockTextAlign = "left" | "center" | "right" | "justify";
@@ -141,6 +143,45 @@ export interface CVLayout {
   /** Renommage des sections built-in (id → titre affiché). Vide = libellé par défaut. */
   sectionTitles?: Record<string, string>;
   autoPaginated?: boolean; // les blocs sont répartis sur plusieurs pages via ElementPosition.page
+  /** Éléments libres posés sur les pages (texte, ligne, rectangle). */
+  freeElements?: FreeElement[];
+}
+
+export type FreeElementKind = "text" | "line" | "rect" | "ellipse" | "image" | "icon";
+
+/**
+ * Élément libre du canvas, indépendant des sections. Son id (`free_<uuid>`)
+ * sert de clé dans `absolutePositions`, qui porte la position courante (le
+ * glisser, le redimensionnement, l'alignement et le verrou fonctionnent donc
+ * comme pour les blocs). `page/x/y/w/h` sont la position de création, reprise
+ * si `absolutePositions` est vidé (changement de modèle, adaptation IA).
+ */
+export interface FreeElement {
+  id: string;
+  kind: FreeElementKind;
+  page: number;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  /** Texte (HTML inline, même format que les autres champs). */
+  html?: string;
+  /** Couleur du texte, ou du trait (ligne, bord du rectangle). */
+  color?: string;
+  /** Remplissage du rectangle ("transparent" = aucun). */
+  fill?: string;
+  /** Épaisseur du trait en pt (0 = sans bord pour un rectangle) ; pour une
+   *  icône, en unités de sa grille de 24 (le trait suit la taille de l'icône). */
+  strokeWidth?: number;
+  /** Icône : nom dans `CV_ICON_NAMES` (src/lib/cv-icons.ts). */
+  iconName?: string;
+  /** Rayon des coins du rectangle, en pt. */
+  radius?: number;
+  /** Image : data URL PNG/JPEG redimensionnée (jamais une URL distante). */
+  src?: string;
+  /** Ordre de superposition et masquage recopiés de la position (voir `bakeFreeElementPositions`). */
+  z?: number;
+  hidden?: boolean;
 }
 
 /** Section libre créée par l'utilisateur (titre + texte).

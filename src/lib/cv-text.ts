@@ -66,23 +66,31 @@ function sectionBody(id: string, data: CVData): string {
   }
 }
 
+/**
+ * Sections du CV dans l'ordre de lecture d'une seule colonne : pour chaque
+ * page, colonne principale puis colonne latérale, sans doublon. Partagé par
+ * l'export texte et l'export DOCX.
+ */
+export function readingOrderSectionIds(data: CVData): string[] {
+  const layout = data.layout ?? defaultLayout();
+  const seen = new Set<string>();
+  for (const page of dedupePages(layout.pages)) {
+    for (const id of [...page.main, ...page.sidebar]) seen.add(id);
+  }
+  return [...seen];
+}
+
 export function cvToPlainText(data: CVData): string {
   const pi = data.personalInfo;
   const out: string[] = [];
   const header = lines(pi.name, pi.role, pi.techLine);
   if (header) out.push(header);
 
-  const layout = data.layout ?? defaultLayout();
-  const seen = new Set<string>();
-  for (const page of dedupePages(layout.pages)) {
-    for (const id of [...page.main, ...page.sidebar]) {
-      if (seen.has(id)) continue;
-      seen.add(id);
-      const body = sectionBody(id, data);
-      if (!body) continue;
-      const title = clean(getSectionLabel(id, data)).toUpperCase();
-      out.push(`${title}\n${"-".repeat(Math.min(title.length, 40))}\n${body}`);
-    }
+  for (const id of readingOrderSectionIds(data)) {
+    const body = sectionBody(id, data);
+    if (!body) continue;
+    const title = clean(getSectionLabel(id, data)).toUpperCase();
+    out.push(`${title}\n${"-".repeat(Math.min(title.length, 40))}\n${body}`);
   }
   return out.join("\n\n") + "\n";
 }

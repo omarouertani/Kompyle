@@ -25,9 +25,11 @@ import {
   Undo2,
   Redo2,
   MoreHorizontal,
+  Layers,
 } from "lucide-react";
 import type { BlockTextAlign, CVTheme, CVFontFamily } from "@/types/cv";
 import { FONT_FAMILIES, ThemePanel, fontKeyFromStack } from "./ThemePanel";
+import { InsertMenu, type InsertHandler } from "./InsertMenu";
 import { ColorDrawer } from "./ColorDrawer";
 import { useCanvasFormat } from "./use-canvas-format";
 import { TextExtrasGroup } from "./TextExtrasGroup";
@@ -68,6 +70,11 @@ interface CanvasToolbarProps {
   onBlockAlign?: (align: BlockTextAlign) => void;
   /** Alignement commun des blocs sélectionnés (null si mixte / aucun). */
   selectedAlign?: BlockTextAlign | null;
+  /** Insère un élément libre (texte, ligne, forme, image, icône) sur la page active. */
+  onInsert?: InsertHandler;
+  /** Panneau de calques ouvert / bascule. */
+  layersOpen?: boolean;
+  onToggleLayers?: () => void;
 }
 
 /** Largeurs (px) de la barre sous lesquelles on compacte / on autorise le retour à la ligne. */
@@ -107,6 +114,9 @@ export function CanvasToolbar({
   onBlockStyles,
   onBlockAlign,
   selectedAlign = null,
+  onInsert,
+  layersOpen = false,
+  onToggleLayers,
 }: CanvasToolbarProps) {
   const t = useTranslations("Canvas");
   const fmt = useCanvasFormat();
@@ -319,6 +329,24 @@ export function CanvasToolbar({
 
           <ThemePanel theme={theme} onThemeChange={onThemeChange} compact />
 
+          {onInsert && <InsertMenu onInsert={onInsert} />}
+
+          {onToggleLayers && (
+            <button
+              type="button"
+              onClick={onToggleLayers}
+              className={cn(
+                "flex items-center gap-1 px-2 py-0.5 text-[9px] font-bold rounded-md transition-all shadow-sm h-6",
+                layersOpen ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted/80 text-foreground"
+              )}
+              title={t("layers")}
+              aria-pressed={layersOpen}
+            >
+              <Layers size={10} />
+              <span className="hidden sm:inline">{t("layers")}</span>
+            </button>
+          )}
+
           {/* ── Format group : font · size · A · B I U S · align · lists · H1 H2 ── */}
           <ToolGroup>
             <FontFamilyPicker
@@ -367,6 +395,17 @@ export function CanvasToolbar({
               onClick={() => applyFmt(() => fmt.exec("bold"), () => onBlockCommand?.("bold", undefined, { toggle: true }) ?? false)}
             >
               <Bold size={13} strokeWidth={2.5} />
+            </ToolButton>
+            <ToolButton
+              title={t("format_semibold")}
+              active={fmt.state.semibold}
+              onClick={() => {
+                // Toggle in an editor (600 ↔ normal); on selected blocks, apply 600.
+                const w = fmt.state.semibold ? "normal" : "600";
+                applyFmt(() => fmt.applyInlineStyle("font-weight", w), () => onBlockStyles?.({ "font-weight": "600" }) ?? false);
+              }}
+            >
+              <span className="text-[12px] leading-none" style={{ fontWeight: 600 }}>B</span>
             </ToolButton>
             <ToolButton
               title={t("format_italic")}

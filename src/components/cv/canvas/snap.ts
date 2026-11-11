@@ -22,6 +22,10 @@ export type BlockPos = {
   groupId?: string;
   /** Alignement du texte du bloc (toolbar, bloc sélectionné). */
   align?: "left" | "center" | "right" | "justify";
+  /** Ordre de superposition sur la page (voir `ElementPosition.z`). */
+  z?: number;
+  /** Masqué via le panneau de calques. */
+  hidden?: boolean;
 };
 
 /** Rectangle plein (avec hauteur résolue) utilisé pour la géométrie du snap. */

@@ -36,12 +36,12 @@ const playfair = Playfair_Display({
 //    enregistrés côté PDF. Poids 400/700 + italiques pour couvrir gras/italique.
 //    NOTE: next/font exige des tableaux LITTÉRAUX pour weight/style (pas de spread). ──
 const lato = Lato({ subsets: ["latin"], weight: ["400", "700"], style: ["normal", "italic"], variable: "--font-lato", display: "swap" });
-const montserrat = Montserrat({ subsets: ["latin"], weight: ["400", "700"], style: ["normal", "italic"], variable: "--font-montserrat", display: "swap" });
-const poppins = Poppins({ subsets: ["latin"], weight: ["400", "700"], style: ["normal", "italic"], variable: "--font-poppins", display: "swap" });
-const openSans = Open_Sans({ subsets: ["latin"], weight: ["400", "700"], style: ["normal", "italic"], variable: "--font-opensans", display: "swap" });
-const sourceSans = Source_Sans_3({ subsets: ["latin"], weight: ["400", "700"], style: ["normal", "italic"], variable: "--font-sourcesans", display: "swap" });
-const merriweather = Merriweather({ subsets: ["latin"], weight: ["400", "700"], style: ["normal", "italic"], variable: "--font-merriweather", display: "swap" });
-const gelasio = Gelasio({ subsets: ["latin"], weight: ["400", "700"], style: ["normal", "italic"], variable: "--font-gelasio", display: "swap" });
+const montserrat = Montserrat({ subsets: ["latin"], weight: ["400", "600", "700"], style: ["normal", "italic"], variable: "--font-montserrat", display: "swap" });
+const poppins = Poppins({ subsets: ["latin"], weight: ["400", "600", "700"], style: ["normal", "italic"], variable: "--font-poppins", display: "swap" });
+const openSans = Open_Sans({ subsets: ["latin"], weight: ["400", "600", "700"], style: ["normal", "italic"], variable: "--font-opensans", display: "swap" });
+const sourceSans = Source_Sans_3({ subsets: ["latin"], weight: ["400", "600", "700"], style: ["normal", "italic"], variable: "--font-sourcesans", display: "swap" });
+const merriweather = Merriweather({ subsets: ["latin"], weight: ["400", "600", "700"], style: ["normal", "italic"], variable: "--font-merriweather", display: "swap" });
+const gelasio = Gelasio({ subsets: ["latin"], weight: ["400", "600", "700"], style: ["normal", "italic"], variable: "--font-gelasio", display: "swap" });
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
 const OG_DESCRIPTION =

@@ -6,8 +6,10 @@ import CVInteractiveCanvas from "./CVInteractiveCanvas";
 import AIProgressOverlay from "./AIProgressOverlay";
 import type { CVData } from "@/types/cv";
 import { normalizeTemplate } from "@/lib/cv-layout";
+import { TEMPLATES } from "@/lib/cv-templates";
+import { TemplateThumbnail } from "./TemplateThumbnail";
 import { safeFileName, stripHtml } from "@/utils/strip-html";
-import { Download, Loader2, LayoutPanelLeft, History, AlertTriangle, LayoutTemplate, Trash2, ShieldCheck, FileText } from "lucide-react";
+import { Download, Loader2, LayoutPanelLeft, History, AlertTriangle, LayoutTemplate, Trash2, ShieldCheck, FileText, FileType } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { cn } from "@/lib/utils";
@@ -142,7 +144,8 @@ export default function CVPreview({
   const [mode, setMode] = useState<"canvas" | "pdf">("canvas");
   const [isDownloading, setIsDownloading] = useState(false);
   const [isOverflowing, setIsOverflowing] = useState(false);
-  const [downloadError, setDownloadError] = useState<null | "generic" | "too_large">(null);
+  const [downloadError, setDownloadError] = useState<null | "generic" | "too_large" | "docx">(null);
+  const [isDownloadingDocx, setIsDownloadingDocx] = useState(false);
   const [confirmDeleteVersion, setConfirmDeleteVersion] = useState(false);
   const mounted = useSyncExternalStore(emptySubscribe, () => true, () => false);
 
@@ -153,11 +156,8 @@ export default function CVPreview({
 
   // Template normalisé : les anciennes lignes "chaima" → "modern".
   const tpl = normalizeTemplate(template);
-  const TEMPLATE_OPTIONS = [
-    { id: "default", label: t("template_default") },
-    { id: "modern", label: t("template_modern") },
-    { id: "canadian", label: t("template_canadian") },
-  ];
+  const TEMPLATE_OPTIONS = TEMPLATES.map((tp) => ({ id: tp.id, label: t(`template_${tp.id}`) }));
+  const templateLabel = (id: unknown) => TEMPLATE_OPTIONS.find((o) => o.id === id)?.label ?? String(id ?? "");
 
   const handleCanvasChange = (newData: CVData) => {
     if (onChange) onChange(newData);
@@ -198,6 +198,33 @@ export default function CVPreview({
       setDownloadError((prev) => prev ?? "generic");
     } finally {
       setIsDownloading(false);
+    }
+  }, [data, template]);
+
+  // DOCX (une colonne, ordre de lecture) généré côté serveur par /api/render-docx.
+  const handleDownloadDocx = useCallback(async () => {
+    setIsDownloadingDocx(true);
+    setDownloadError(null);
+    try {
+      const res = await fetch("/api/render-docx", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ data, template }),
+      });
+      if (res.status === 413) setDownloadError("too_large");
+      if (!res.ok) throw new Error(`Server returned ${res.status}`);
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${safeFileName(["CV", data.personalInfo.name, data.personalInfo.role])}.docx`;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (err) {
+      console.error("DOCX download failed:", err);
+      setDownloadError((prev) => prev ?? "docx");
+    } finally {
+      setIsDownloadingDocx(false);
     }
   }, [data, template]);
 
@@ -322,13 +349,20 @@ export default function CVPreview({
           <Select value={tpl} onValueChange={(val) => val && onTemplateChange(val)}>
             <SelectTrigger className="h-9 w-[150px] rounded-lg border border-border/60 bg-muted/40 hover:bg-muted/60 transition-colors text-xs gap-1.5" title={t("label_template")}>
               <LayoutTemplate size={13} className="text-primary shrink-0" />
-              <SelectValue />
+              <SelectValue>{templateLabel}</SelectValue>
             </SelectTrigger>
-            <SelectContent className="bg-popover border border-border shadow-md rounded-lg p-1">
-              <SelectGroup>
+            <SelectContent className="bg-popover border border-border shadow-md rounded-lg p-1 w-[300px]" alignItemWithTrigger={false}>
+              <SelectGroup className="grid grid-cols-3 gap-1">
                 {TEMPLATE_OPTIONS.map((opt) => (
-                  <SelectItem key={opt.id} value={opt.id} className="cursor-pointer text-xs">
-                    {opt.label}
+                  <SelectItem
+                    key={opt.id}
+                    value={opt.id}
+                    className="cursor-pointer text-xs pr-2"
+                  >
+                    <div className="flex w-full min-w-0 flex-col items-center gap-1">
+                      <TemplateThumbnail templateId={opt.id} className="!size-auto w-full rounded-sm shadow-sm" />
+                      <span className="w-full truncate text-center">{opt.label}</span>
+                    </div>
                   </SelectItem>
                 ))}
               </SelectGroup>
@@ -366,7 +400,7 @@ export default function CVPreview({
             {downloadError && !isOverflowing && (
               <div className="flex items-center gap-1.5 text-destructive text-xs font-medium">
                 <AlertTriangle size={13} />
-                {downloadError === "too_large" ? t("pdf_too_large") : t("download_error")}
+                {downloadError === "too_large" ? t("pdf_too_large") : downloadError === "docx" ? t("download_docx_error") : t("download_error")}
               </div>
             )}
           <Button
@@ -397,6 +431,17 @@ export default function CVPreview({
           >
             <FileText size={14} />
             TXT
+          </Button>
+          {/* Word (une colonne, gras / italique / couleurs conservés) */}
+          <Button
+            variant="outline"
+            onClick={handleDownloadDocx}
+            disabled={isDownloadingDocx}
+            title={t("download_docx_tooltip")}
+            className="h-9 px-3 text-xs gap-1.5"
+          >
+            {isDownloadingDocx ? <Loader2 size={14} className="animate-spin" /> : <FileType size={14} />}
+            DOCX
           </Button>
           </div>
         )}
