@@ -10,7 +10,7 @@ import Header from "@/components/Header";
 import {
   Sparkles,
   PencilRuler,
-  Loader2,
+
   FileText,
   Mail,
   PenTool,
@@ -27,6 +27,8 @@ import { ATSChecker } from "@/components/cv/ats/ATSChecker";
 import { useATSCheckedVersions } from "@/hooks/use-ats-checked-versions";
 
 import { cn } from "@/lib/utils";
+import { Spinner } from "@/components/ui/motion";
+import { Skeleton } from "@/components/ui/skeleton";
 import { stripHtml } from "@/utils/strip-html";
 import { Button } from "@/components/ui/button";
 import { PromptInput, PromptInputTextarea, PromptInputToolbar, PromptInputAction } from "@/components/ui/prompt-input";
@@ -57,7 +59,7 @@ function LoadingSpinner({ type }: { type: "cv" | "letter" }) {
   return (
     <div className="flex flex-col items-center justify-center h-full text-muted-foreground gap-3">
       <div className="size-10 rounded-full border-2 border-border flex items-center justify-center">
-        <Loader2 className="animate-spin text-primary" size={20} />
+        <Spinner size={20} className="text-primary" />
       </div>
       <p className="text-sm font-medium">{t(type)}</p>
     </div>
@@ -389,7 +391,7 @@ export default function AdaptPage() {
       {/* Feedback global : barre de progression pendant une action IA */}
       <div className="relative h-0.5 shrink-0 z-30">
         {profile.status === "loading" && (
-          <div className="progress-indeterminate absolute inset-x-0 top-0 h-0.5" role="progressbar" aria-label={t("status_loading_cv")} />
+          <div className="motion-bar-indeterminate absolute inset-x-0 top-0 h-0.5" role="progressbar" aria-label={t("status_loading_cv")} />
         )}
       </div>
 
@@ -409,7 +411,7 @@ export default function AdaptPage() {
                   <div className="flex items-center gap-1 text-[11px] font-medium">
                     {profile.saveStatus === "saving" && (
                       <span className="flex items-center gap-1 text-muted-foreground">
-                        <Loader2 size={12} className="animate-spin" />
+                        <Spinner size={12} />
                         {tp("saving")}
                       </span>
                     )}
@@ -448,7 +450,7 @@ export default function AdaptPage() {
                     faux onglet "Omar" codé en dur (qui ne correspondait à aucun
                     profil réel). Une fois chargé : les profils réels de la base. */}
                 {profile.initialLoading && profile.profiles.length === 0 ? (
-                  <span className="h-7 w-20 rounded-lg bg-muted/60 animate-pulse" aria-hidden />
+                  <Skeleton className="h-7 w-20 rounded-lg" aria-hidden />
                 ) : (
                   [...new Map(profile.profiles.map((p) => [p.slug, p])).values()].map((p) => (
                     <Button

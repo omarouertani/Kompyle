@@ -5,9 +5,10 @@ import { useLocale, useTranslations } from "next-intl";
 import { AlertTriangle } from "lucide-react";
 import { PDFViewer, pdf } from "@react-pdf/renderer";
 import CoverLetterTemplate, { type CoverLetterLabels } from "./CoverLetterTemplate";
-import AIProgressOverlay from "./AIProgressOverlay";
+import { AIProgressOverlay } from "./AIProgress";
+import { Spinner } from "@/components/ui/motion";
 import type { CoverLetterData, CVTheme, PersonalInfo } from "@/types/cv";
-import { Download, Loader2 } from "lucide-react";
+import { Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { safeFileName } from "@/utils/strip-html";
@@ -31,7 +32,7 @@ export default function CoverLetterPreview({
 }: CoverLetterPreviewProps) {
   const t = useTranslations("LetterPreview");
   const locale = useLocale();
-  const tAdapt = useTranslations("AIAdapt");
+
   const [isDownloading, setIsDownloading] = useState(false);
   const [downloadError, setDownloadError] = useState(false);
   // true côté client uniquement (les viewers PDF ne supportent pas le SSR)
@@ -88,7 +89,7 @@ export default function CoverLetterPreview({
         <Button onClick={handleDownload} disabled={isDownloading} className="gap-1.5">
           {isDownloading ? (
             <>
-              <Loader2 size={15} className="animate-spin" />
+              <Spinner size={14} />
               {t("downloading")}
             </>
           ) : (
@@ -109,7 +110,7 @@ export default function CoverLetterPreview({
             </PDFViewer>
           )}
         </div>
-        <AIProgressOverlay active={isAdapting} title={tAdapt("adapting_letter")} />
+        <AIProgressOverlay active={isAdapting} kind="letter" />
       </div>
     </div>
   );

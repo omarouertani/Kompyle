@@ -81,12 +81,30 @@
     "adapting_cv": "L'IA travaille sur votre CV…",
     "adapting_letter": "L'IA rédige votre lettre…",
     "adapting_ats": "Adaptation de votre CV au rapport ATS…",
-    "progress_label": "Progression de l'IA",
     "hint": "Cela peut prendre quelques secondes selon le modèle choisi.",
     "toast_cv_success": "Votre CV a été adapté",
     "toast_letter_success": "Votre lettre de motivation est prête",
     "toast_refine_success": "Modifications appliquées",
-    "toast_ats_adapt_success": "CV adapté au rapport ATS"
+    "toast_ats_adapt_success": "CV adapté au rapport ATS",
+    "auditing_ats": "Audit ATS en cours…",
+    "elapsed": "Temps écoulé",
+    "cancel": "Annuler",
+    "steps_cv_1": "Lecture de l'offre d'emploi",
+    "steps_cv_2": "Analyse de votre CV",
+    "steps_cv_3": "Réécriture ciblée du contenu",
+    "steps_cv_4": "Contrôle et mise en page",
+    "steps_letter_1": "Lecture de l'offre d'emploi",
+    "steps_letter_2": "Sélection de vos expériences clés",
+    "steps_letter_3": "Rédaction de la lettre",
+    "steps_letter_4": "Relecture et mise en forme",
+    "steps_ats_1": "Lecture du CV et de l'offre",
+    "steps_ats_2": "Extraction des mots-clés",
+    "steps_ats_3": "Calcul des scores",
+    "steps_ats_4": "Rédaction des recommandations",
+    "steps_ats_adapt_1": "Lecture du rapport ATS",
+    "steps_ats_adapt_2": "Intégration des mots-clés manquants",
+    "steps_ats_adapt_3": "Réécriture des sections",
+    "steps_ats_adapt_4": "Contrôle et enregistrement"
   },
   "DatePicker": {
     "placeholder": "Ajouter les dates",
@@ -162,7 +180,6 @@
     "btn_run_again": "Relancer l'audit",
     "btn_reset": "Réinitialiser",
     "btn_retry": "Réessayer",
-
     "empty_title": "Auditez votre CV face à une offre",
     "empty_subtitle": "Vérifiez en quelques secondes la compatibilité ATS du CV sélectionné avec n'importe quelle offre d'emploi, et obtenez un plan d'action concret.",
     "empty_feature1_title": "Score ATS",
@@ -173,7 +190,6 @@
     "empty_feature3_desc": "Liste de modifications précises pour faire grimper le score.",
     "empty_cta": "Lancer un audit",
     "empty_selected_cv": "CV en cours d'analyse : {name}",
-
     "dialog_title": "Choisir l'offre d'emploi à analyser",
     "dialog_desc_existing": "Une offre est déjà saisie dans le sidebar. Voulez-vous l'utiliser ou en saisir une nouvelle ?",
     "dialog_desc_new": "Collez l'offre d'emploi cible : elle servira de référence à l'analyse ATS.",
@@ -186,10 +202,8 @@
     "dialog_cancel": "Annuler",
     "dialog_confirm": "Lancer l'audit ATS",
     "dialog_model_label": "Modèle IA",
-
     "loading_title": "Audit ATS en cours…",
     "loading_hint": "Analyse du CV face à l'offre",
-
     "score_caption": "Score ATS global",
     "verdict_title": "Verdict",
     "subscores_title": "Détail du score",
@@ -197,31 +211,24 @@
     "sub_skills": "Compétences",
     "sub_experience": "Expérience",
     "sub_formatting": "Format & sections",
-
-    "tab_overview": "Vue d'ensemble",
     "tab_keywords": "Mots-clés",
     "tab_sections": "Sections",
-    "tab_recommendations": "Reco",
-
     "matched_title": "Mots-clés présents",
     "matched_subtitle": "{count} trouvés",
     "matched_empty": "Aucun mot-clé de l'offre détecté dans le CV.",
     "missing_title": "Mots-clés manquants",
     "missing_subtitle": "{count} absents",
     "missing_empty": "Aucun mot-clé important n'est manquant — bravo !",
-
     "sections_empty": "Aucune section à analyser.",
     "status_good": "OK",
     "status_warning": "Partiel",
     "status_missing": "Manquant",
-
     "recommendations_title": "Recommandations",
     "recommendations_subtitle": "À appliquer en priorité",
     "recommendations_empty": "Aucune recommandation — votre CV est déjà optimisé.",
     "strengths_title": "Points forts",
     "strengths_subtitle": "Atouts pour cette offre",
     "strengths_empty": "Aucun point fort identifié pour cette offre.",
-
     "error_title": "L'audit a échoué",
     "error_hint_missing_key": "Aucune clé API n'est définie pour le fournisseur sélectionné. Ajoutez-en une via le bouton Clés API — Gemini, Groq, OpenRouter et NVIDIA ont une offre gratuite.",
     "error_hint_quota": "Une limite de requêtes ou de l'offre gratuite a été atteinte (ou le crédit est épuisé). Attendez le renouvellement — les limites gratuites quotidiennes repartent chaque jour — ou changez de fournisseur, puis réessayez.",
@@ -240,7 +247,6 @@
     "error_reason_server": "Erreur serveur",
     "error_reason_empty": "Réponse vide",
     "error_reason_unknown": "Erreur inconnue",
-
     "adapt_title": "Adapter le CV avec ces recommandations",
     "adapt_subtitle": "Applique les reco ATS au CV sélectionné. Choisissez un modèle, ajoutez vos consignes si besoin, et lancez : le CV en cours sera modifié et enregistré.",
     "adapt_model_label": "Modèle IA",
@@ -252,7 +258,8 @@
     "adapt_cancel": "Annuler",
     "adapt_success_title": "CV mis à jour et enregistré",
     "adapt_success_hint": "Les modifications ont été appliquées à la version sélectionnée.",
-    "adapt_again": "Nouvelle adaptation"
+    "adapt_again": "Nouvelle adaptation",
+    "keywords_coverage": "{matched} sur {total} présents dans le CV"
   },
   "Canvas": {
     "insert": "Insérer",

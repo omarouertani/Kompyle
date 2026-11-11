@@ -3,13 +3,14 @@
 import React, { useState, useCallback, useSyncExternalStore, useEffect, useRef } from "react";
 import { useTranslations } from "next-intl";
 import CVInteractiveCanvas from "./CVInteractiveCanvas";
-import AIProgressOverlay from "./AIProgressOverlay";
+import { AIProgressOverlay } from "./AIProgress";
+import { Spinner } from "@/components/ui/motion";
 import type { CVData } from "@/types/cv";
 import { normalizeTemplate } from "@/lib/cv-layout";
 import { TEMPLATES } from "@/lib/cv-templates";
 import { TemplateThumbnail } from "./TemplateThumbnail";
 import { safeFileName, stripHtml } from "@/utils/strip-html";
-import { Download, Loader2, LayoutPanelLeft, History, AlertTriangle, LayoutTemplate, Trash2, ShieldCheck, FileText, FileType } from "lucide-react";
+import { Download, LayoutPanelLeft, History, AlertTriangle, LayoutTemplate, Trash2, ShieldCheck, FileText, FileType } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { cn } from "@/lib/utils";
@@ -334,7 +335,7 @@ export default function CVPreview({
                   className={cn(
                     "h-9 px-3 gap-1.5 text-xs font-semibold shrink-0 rounded-lg",
                     "text-primary border-primary/30 hover:bg-primary/5 hover:border-primary/50 bg-transparent",
-                    atsButtonShine && "shine-diamond",
+                    atsButtonShine && "motion-attention",
                   )}
                   title={t("ats_button_tooltip")}
                 >
@@ -411,7 +412,7 @@ export default function CVPreview({
           >
             {isDownloading ? (
               <>
-                <Loader2 size={14} className="animate-spin" />
+                <Spinner size={14} />
                 {t("downloading")}
               </>
             ) : (
@@ -440,7 +441,7 @@ export default function CVPreview({
             title={t("download_docx_tooltip")}
             className="h-9 px-3 text-xs gap-1.5"
           >
-            {isDownloadingDocx ? <Loader2 size={14} className="animate-spin" /> : <FileType size={14} />}
+            {isDownloadingDocx ? <Spinner size={14} /> : <FileType size={14} />}
             DOCX
           </Button>
           </div>
@@ -512,7 +513,7 @@ export default function CVPreview({
             </div>
           )}
         </div>
-        <AIProgressOverlay active={isAdapting} />
+        <AIProgressOverlay active={isAdapting} kind="cv" />
       </div>
     </div>
   );
@@ -561,7 +562,7 @@ function PdfIframe({ url, loading }: { url: string | null; loading: boolean }) {
     <div className="flex-1 rounded-lg overflow-hidden border border-border bg-card shadow-sm min-h-0 relative">
       {(loading || !url) && (
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 z-10 bg-card">
-          <Loader2 className="animate-spin text-primary" size={28} />
+          <Spinner size={24} className="text-primary" />
           <span className="text-xs text-muted-foreground">{t("generating_pdf")}</span>
         </div>
       )}
