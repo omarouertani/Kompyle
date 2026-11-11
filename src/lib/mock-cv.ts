@@ -3,8 +3,8 @@ import {
   canadianLayout,
   defaultLayout,
   isCanadianTemplate,
-  isModernTemplate,
 } from "./cv-layout";
+import { getTemplateDef } from "./cv-templates";
 
 /**
  * Données d'exemple (« mock ») injectées dans CHAQUE nouveau profil pour que les
@@ -83,9 +83,7 @@ export function mockCV(template = "default"): CVData {
       ? canadianLayout()
       : {
           ...defaultLayout(),
-          theme: isModernTemplate(template)
-            ? { primaryColor: "#fbbf24", sidebarBg: "#f4f4f5" }
-            : {},
+          theme: { ...getTemplateDef(template).theme },
         },
   };
 }

@@ -6,6 +6,8 @@ import CVInteractiveCanvas from "./CVInteractiveCanvas";
 import AIProgressOverlay from "./AIProgressOverlay";
 import type { CVData } from "@/types/cv";
 import { normalizeTemplate } from "@/lib/cv-layout";
+import { TEMPLATES } from "@/lib/cv-templates";
+import { TemplateThumbnail } from "./TemplateThumbnail";
 import { safeFileName, stripHtml } from "@/utils/strip-html";
 import { Download, Loader2, LayoutPanelLeft, History, AlertTriangle, LayoutTemplate, Trash2, ShieldCheck, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -153,11 +155,8 @@ export default function CVPreview({
 
   // Template normalisé : les anciennes lignes "chaima" → "modern".
   const tpl = normalizeTemplate(template);
-  const TEMPLATE_OPTIONS = [
-    { id: "default", label: t("template_default") },
-    { id: "modern", label: t("template_modern") },
-    { id: "canadian", label: t("template_canadian") },
-  ];
+  const TEMPLATE_OPTIONS = TEMPLATES.map((tp) => ({ id: tp.id, label: t(`template_${tp.id}`) }));
+  const templateLabel = (id: unknown) => TEMPLATE_OPTIONS.find((o) => o.id === id)?.label ?? String(id ?? "");
 
   const handleCanvasChange = (newData: CVData) => {
     if (onChange) onChange(newData);
@@ -322,13 +321,20 @@ export default function CVPreview({
           <Select value={tpl} onValueChange={(val) => val && onTemplateChange(val)}>
             <SelectTrigger className="h-9 w-[150px] rounded-lg border border-border/60 bg-muted/40 hover:bg-muted/60 transition-colors text-xs gap-1.5" title={t("label_template")}>
               <LayoutTemplate size={13} className="text-primary shrink-0" />
-              <SelectValue />
+              <SelectValue>{templateLabel}</SelectValue>
             </SelectTrigger>
-            <SelectContent className="bg-popover border border-border shadow-md rounded-lg p-1">
-              <SelectGroup>
+            <SelectContent className="bg-popover border border-border shadow-md rounded-lg p-1 w-[300px]" alignItemWithTrigger={false}>
+              <SelectGroup className="grid grid-cols-3 gap-1">
                 {TEMPLATE_OPTIONS.map((opt) => (
-                  <SelectItem key={opt.id} value={opt.id} className="cursor-pointer text-xs">
-                    {opt.label}
+                  <SelectItem
+                    key={opt.id}
+                    value={opt.id}
+                    className="cursor-pointer text-xs pr-2"
+                  >
+                    <div className="flex w-full min-w-0 flex-col items-center gap-1">
+                      <TemplateThumbnail templateId={opt.id} className="!size-auto w-full rounded-sm shadow-sm" />
+                      <span className="w-full truncate text-center">{opt.label}</span>
+                    </div>
                   </SelectItem>
                 ))}
               </SelectGroup>

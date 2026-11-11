@@ -1,23 +1,20 @@
 import type { CVData, CVLayout, LayoutPage, SectionId } from "@/types/cv";
 import { getPageDims, PAGE_BOTTOM_MARGIN_PT } from "@/lib/page-size";
+import { getTemplateDef, getTemplateEngine } from "@/lib/cv-templates";
 
-/** Clés de template connues. "modern" remplace l'ancien "chaima" (conservé en
- *  alias pour les anciennes lignes en base). "canadian" = CV sobre nord-américain. */
-export type TemplateKey = "default" | "modern" | "canadian";
-
-/** Vrai pour le template "Moderne" (anciennement nommé "chaima"). On accepte
- *  encore l'ancien identifiant pour les CV déjà enregistrés en base. */
+/** Vrai pour les modèles du moteur « Moderne » (photo + colonne latérale),
+ *  y compris l'ancien identifiant "chaima" des CV déjà enregistrés. */
 export const isModernTemplate = (template: string): boolean =>
-  template === "modern" || template === "chaima";
+  getTemplateEngine(template) === "modern";
 
-/** Vrai pour le template "Canadien" : CV sobre, sans photo, mono-colonne,
- *  optimisé pour la lecture par les logiciels ATS. */
+/** Vrai pour les modèles du moteur « Canadien » : CV sobre, sans photo,
+ *  mono-colonne, optimisé pour la lecture par les logiciels ATS. */
 export const isCanadianTemplate = (template: string): boolean =>
-  template === "canadian";
+  getTemplateEngine(template) === "canadian";
 
-/** Normalise un identifiant de template legacy vers la nouvelle clé. */
+/** Normalise un identifiant de template (legacy "chaima", inconnu → "default"). */
 export const normalizeTemplate = (template?: string | null): string =>
-  template === "chaima" ? "modern" : template || "default";
+  getTemplateDef(template).id;
 
 /**
  * Métadonnées des sections "built-in" + layout par défaut.
@@ -210,7 +207,7 @@ export function emptyCV(template = "default"): CVData {
     projects: [],
     layout: isCanadianTemplate(template)
       ? canadianLayout()
-      : { ...defaultLayout(), theme: isModernTemplate(template) ? { primaryColor: "#fbbf24", sidebarBg: "#f4f4f5" } : {} },
+      : { ...defaultLayout(), theme: { ...getTemplateDef(template).theme } },
   };
 }
 

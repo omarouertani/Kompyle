@@ -5,7 +5,7 @@ import CVTemplate from "@/components/cv/CVTemplate";
 import CVTemplateModern from "@/components/cv/CVTemplateModern";
 import CVTemplateCanadian from "@/components/cv/CVTemplateCanadian";
 import type { CVData } from "@/types/cv";
-import { isModernTemplate } from "@/lib/cv-layout";
+import { getTemplateEngine, type TemplateEngine } from "@/lib/cv-templates";
 import { checkRateLimit } from "@/lib/rate-limiter";
 
 /** Corps max accepté (photo en data URL comprise). La limite Vercel est 4,5 Mo. */
@@ -14,6 +14,14 @@ const MAX_BODY = 4 * 1024 * 1024;
  *  par défaut (10/min) bloquerait la saisie. */
 const PDF_RATE_LIMIT = 120;
 const RENDER_TIMEOUT_MS = 30_000;
+
+/** Composant PDF de chaque moteur. Les modèles (registre `TEMPLATES`) ne
+ *  diffèrent ensuite que par leur thème, porté par `data.layout.theme`. */
+const PDF_ENGINES: Record<TemplateEngine, React.ComponentType<{ data: CVData; originalData?: CVData }>> = {
+  classic: CVTemplate,
+  modern: CVTemplateModern,
+  canadian: CVTemplateCanadian,
+};
 
 const isObject = (v: unknown): v is Record<string, unknown> =>
   typeof v === "object" && v !== null && !Array.isArray(v);
@@ -53,11 +61,7 @@ export async function POST(req: NextRequest) {
 
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {
-    const Template = isModernTemplate(template)
-      ? CVTemplateModern
-      : template === "canadian"
-        ? CVTemplateCanadian
-        : CVTemplate;
+    const Template = PDF_ENGINES[getTemplateEngine(template)];
     // Les templates renvoient un <Document> : on le type comme tel pour renderToBuffer.
     const doc = React.createElement(Template, {
       data,
