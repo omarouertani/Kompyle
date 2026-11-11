@@ -178,7 +178,7 @@ Preserve every existing experience, project and skill item (no deletions); refra
             <span className="text-xs text-muted-foreground">{t("adapt_success_hint")}</span>
           </div>
         </div>
-        <Button variant="outline" size="sm" className="h-9 px-3 text-xs gap-1.5" onClick={() => setStatus("idle")}>
+        <Button variant="outline" onClick={() => setStatus("idle")}>
           <Wand2 size={13} />
           {t("adapt_again")}
         </Button>

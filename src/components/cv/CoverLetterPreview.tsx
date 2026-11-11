@@ -6,10 +6,10 @@ import { AlertTriangle } from "lucide-react";
 import { PDFViewer, pdf } from "@react-pdf/renderer";
 import CoverLetterTemplate, { type CoverLetterLabels } from "./CoverLetterTemplate";
 import { AIProgressOverlay } from "./AIProgress";
-import { Spinner } from "@/components/ui/motion";
+import { DownloadMenu } from "./DownloadMenu";
 import type { CoverLetterData, CVTheme, PersonalInfo } from "@/types/cv";
-import { Download } from "lucide-react";
-import { Button } from "@/components/ui/button";
+
+
 import { cn } from "@/lib/utils";
 import { safeFileName } from "@/utils/strip-html";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
@@ -86,19 +86,11 @@ export default function CoverLetterPreview({
             {t("download_error")}
           </div>
         )}
-        <Button onClick={handleDownload} disabled={isDownloading} className="gap-1.5">
-          {isDownloading ? (
-            <>
-              <Spinner size={14} />
-              {t("downloading")}
-            </>
-          ) : (
-            <>
-              <Download size={15} />
-              {t("download")}
-            </>
-          )}
-        </Button>
+        <DownloadMenu
+          label={t("download")}
+          busyLabel={t("downloading")}
+          formats={[{ id: "pdf", label: "PDF", onSelect: handleDownload, busy: isDownloading }]}
+        />
       </div>
 
       {/* PDF Viewer */}

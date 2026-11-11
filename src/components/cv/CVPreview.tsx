@@ -5,12 +5,13 @@ import { useTranslations } from "next-intl";
 import CVInteractiveCanvas from "./CVInteractiveCanvas";
 import { AIProgressOverlay } from "./AIProgress";
 import { Spinner } from "@/components/ui/motion";
+import { DownloadMenu } from "./DownloadMenu";
 import type { CVData } from "@/types/cv";
 import { normalizeTemplate } from "@/lib/cv-layout";
 import { TEMPLATES } from "@/lib/cv-templates";
 import { TemplateThumbnail } from "./TemplateThumbnail";
 import { safeFileName, stripHtml } from "@/utils/strip-html";
-import { Download, LayoutPanelLeft, History, AlertTriangle, LayoutTemplate, Trash2, ShieldCheck, FileText, FileType } from "lucide-react";
+import { LayoutPanelLeft, History, AlertTriangle, LayoutTemplate, Trash2, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { cn } from "@/lib/utils";
@@ -259,7 +260,7 @@ export default function CVPreview({
 
       {/* Toolbar */}
       <div className="flex items-center justify-between gap-4 shrink-0 flex-wrap sm:flex-nowrap">
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex min-w-0 flex-1 items-center gap-2 flex-wrap">
           {originalData && (
             <Button
               variant={sideBySide ? "secondary" : "outline"}
@@ -391,7 +392,7 @@ export default function CVPreview({
         </div>
 
         {mounted && (
-          <div className="flex items-center gap-2">
+          <div className="flex shrink-0 items-center gap-2">
             {isOverflowing && (
               <div className="flex items-center gap-1.5 text-amber-600 text-xs font-medium">
                 <AlertTriangle size={13} />
@@ -404,46 +405,18 @@ export default function CVPreview({
                 {downloadError === "too_large" ? t("pdf_too_large") : downloadError === "docx" ? t("download_docx_error") : t("download_error")}
               </div>
             )}
-          <Button
-            onClick={handleDownload}
-            disabled={isDownloading}
-            title={isOverflowing ? t("overflow_warning") : undefined}
-            className="h-9 px-4 text-xs gap-1.5 font-semibold shadow-md shadow-primary/25 bg-gradient-to-b from-primary to-primary/90 hover:shadow-lg hover:shadow-primary/30 transition-all"
-          >
-            {isDownloading ? (
-              <>
-                <Spinner size={14} />
-                {t("downloading")}
-              </>
-            ) : (
-              <>
-                <Download size={14} />
-                {isOverflowing ? t("download_anyway") : t("download")}
-              </>
-            )}
-          </Button>
-          {/* Texte brut (une colonne, sans mise en forme) : le format le plus sûr
-              pour les ATS et pour les formulaires de candidature. */}
-          <Button
-            variant="outline"
-            onClick={handleDownloadText}
-            title={t("download_txt_tooltip")}
-            className="h-9 px-3 text-xs gap-1.5"
-          >
-            <FileText size={14} />
-            TXT
-          </Button>
-          {/* Word (une colonne, gras / italique / couleurs conservés) */}
-          <Button
-            variant="outline"
-            onClick={handleDownloadDocx}
-            disabled={isDownloadingDocx}
-            title={t("download_docx_tooltip")}
-            className="h-9 px-3 text-xs gap-1.5"
-          >
-            {isDownloadingDocx ? <Spinner size={14} /> : <FileType size={14} />}
-            DOCX
-          </Button>
+            {/* Un seul bouton de téléchargement : PDF (mise en page complète),
+                Word (une colonne, mise en forme conservée) et texte brut (le plus
+                sûr pour les ATS et les formulaires de candidature). */}
+            <DownloadMenu
+              label={t("download_menu")}
+              busyLabel={t("downloading")}
+              formats={[
+                { id: "pdf", label: "PDF", description: t("format_pdf_desc"), onSelect: handleDownload, busy: isDownloading },
+                { id: "docx", label: "DOCX", description: t("format_docx_desc"), onSelect: handleDownloadDocx, busy: isDownloadingDocx },
+                { id: "txt", label: "TXT", description: t("format_txt_desc"), onSelect: handleDownloadText },
+              ]}
+            />
           </div>
         )}
       </div>

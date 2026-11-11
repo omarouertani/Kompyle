@@ -141,8 +141,6 @@
     "mode_pdf": "Aperçu PDF",
     "label_template": "Modèle",
     "label_page_size": "Format de page",
-    "download_txt_tooltip": "Télécharger en texte brut (une colonne, lu sans erreur par les ATS)",
-    "download_docx_tooltip": "Télécharger en Word (une colonne, mise en forme conservée, lu sans erreur par les ATS)",
     "download_docx_error": "Échec du téléchargement du DOCX. Vérifiez votre connexion et réessayez.",
     "template_default": "Sans photo",
     "template_modern": "Avec photo",
@@ -153,8 +151,6 @@
     "template_executive": "Direction",
     "version_main": "CV principal",
     "overflow_warning": "Contenu hors page",
-    "download_anyway": "Télécharger quand même",
-    "download": "Télécharger le PDF",
     "downloading": "Génération…",
     "generating_pdf": "Génération du PDF…",
     "cv_original": "CV Original",
@@ -170,7 +166,11 @@
     "delete": "Supprimer",
     "delete_version_error": "Impossible de supprimer ce CV adapté.",
     "ats_button": "ATS Check",
-    "ats_button_tooltip": "Auditer le CV sélectionné contre une offre d'emploi"
+    "ats_button_tooltip": "Auditer le CV sélectionné contre une offre d'emploi",
+    "download_menu": "Télécharger",
+    "format_pdf_desc": "Mise en page complète, prêt à envoyer",
+    "format_docx_desc": "Word : une colonne, mise en forme conservée, modifiable",
+    "format_txt_desc": "Texte brut : pour les formulaires de candidature et les ATS"
   },
   "ATS": {
     "header_title": "ATS Checker",

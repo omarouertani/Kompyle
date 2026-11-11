@@ -172,11 +172,11 @@ function ATSJobDialogBody({ existingJobDescription, hasExisting, model, onModelC
       </div>
 
       <AlertDialogFooter>
-        <Button variant="outline" className="h-8 px-3 text-xs" onClick={onCancel}>
+        <Button variant="outline" size="sm" onClick={onCancel}>
           {t("dialog_cancel")}
         </Button>
         <Button
-          className="h-8 px-3 text-xs gap-1.5"
+          size="sm"
           onClick={submit}
           disabled={!canSubmit}
         >

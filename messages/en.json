@@ -141,8 +141,6 @@
     "mode_pdf": "PDF Preview",
     "label_template": "Template",
     "label_page_size": "Page size",
-    "download_txt_tooltip": "Download as plain text (one column, read reliably by ATS)",
-    "download_docx_tooltip": "Download as Word (one column, formatting kept, read reliably by ATS)",
     "download_docx_error": "DOCX download failed. Check your connection and try again.",
     "template_default": "Without photo",
     "template_modern": "With photo",
@@ -153,8 +151,6 @@
     "template_executive": "Executive",
     "version_main": "Main CV",
     "overflow_warning": "Content overflows the page",
-    "download_anyway": "Download anyway",
-    "download": "Download PDF",
     "downloading": "Generating…",
     "generating_pdf": "Generating PDF…",
     "cv_original": "Original CV",
@@ -170,7 +166,11 @@
     "delete": "Delete",
     "delete_version_error": "Could not delete this adapted CV.",
     "ats_button": "ATS Check",
-    "ats_button_tooltip": "Audit the selected CV against a job posting"
+    "ats_button_tooltip": "Audit the selected CV against a job posting",
+    "download_menu": "Download",
+    "format_pdf_desc": "Full layout, ready to send",
+    "format_docx_desc": "Word: single column, formatting kept, editable",
+    "format_txt_desc": "Plain text: for application forms and ATS"
   },
   "ATS": {
     "header_title": "ATS Checker",
