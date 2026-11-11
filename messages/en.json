@@ -119,6 +119,8 @@
     "label_template": "Template",
     "label_page_size": "Page size",
     "download_txt_tooltip": "Download as plain text (one column, read reliably by ATS)",
+    "download_docx_tooltip": "Download as Word (one column, formatting kept, read reliably by ATS)",
+    "download_docx_error": "DOCX download failed. Check your connection and try again.",
     "template_default": "Without photo",
     "template_modern": "With photo",
     "template_canadian": "Canadian",

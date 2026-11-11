@@ -119,6 +119,8 @@
     "label_template": "Modèle",
     "label_page_size": "Format de page",
     "download_txt_tooltip": "Télécharger en texte brut (une colonne, lu sans erreur par les ATS)",
+    "download_docx_tooltip": "Télécharger en Word (une colonne, mise en forme conservée, lu sans erreur par les ATS)",
+    "download_docx_error": "Échec du téléchargement du DOCX. Vérifiez votre connexion et réessayez.",
     "template_default": "Sans photo",
     "template_modern": "Avec photo",
     "template_canadian": "Canadien",
