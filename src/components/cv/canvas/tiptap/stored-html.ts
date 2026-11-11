@@ -32,6 +32,21 @@ const NO_P = "((?:(?!<\\/?p[\\s>])[\\s\\S])*?)";
 const LI_SINGLE_P_RE = new RegExp(`<li><p(?:\\s[^>]*)?>${NO_P}<\\/p><\\/li>`, "gi");
 const SINGLE_P_RE = new RegExp(`^<p>${NO_P}<\\/p>$`, "i");
 
+/** Espaces comme les affichent le span statique (`white-space: normal`) et le
+ *  PDF : insécables → espaces (un insécable brut fait échouer le rendu PDF),
+ *  suites d'espaces → un seul. */
+function normalizeSpaces(text: string): string {
+  return text.replace(/\u00a0|&nbsp;/g, " ").replace(/ {2,}/g, " ");
+}
+
+/** Même chose dans du HTML, hors des balises. */
+function normalizeSpacesInHtml(html: string): string {
+  return html
+    .split(/(<[^>]*>)/)
+    .map((part) => (part.startsWith("<") ? part : normalizeSpaces(part)))
+    .join("");
+}
+
 /**
  * HTML de l'éditeur (`editor.getHTML()`) → valeur stockée, au format que le
  * PDF et les autres exports lisaient déjà :
@@ -41,13 +56,14 @@ const SINGLE_P_RE = new RegExp(`^<p>${NO_P}<\\/p>$`, "i");
  *    inchangés) ;
  *  - sans balise de mise en forme → texte brut (`plainText`, retours à la ligne
  *    compris), comme l'ancien éditeur ;
- *  - sinon HTML assaini (défense en profondeur).
+ *  - sinon HTML assaini (défense en profondeur) ;
+ *  - dans les deux cas, espaces normalisés (`normalizeSpaces`).
  */
 export function editorHtmlToStored(html: string, plainText: string): string {
   let out = html.replace(LI_SINGLE_P_RE, "<li>$1</li>");
   const single = SINGLE_P_RE.exec(out);
   if (single) out = single[1];
   if (!out.trim()) return "";
-  if (!isRichTextValue(out)) return plainText.trim();
-  return trimRich(sanitizeRichHtml(out));
+  if (!isRichTextValue(out)) return normalizeSpaces(plainText).trim();
+  return trimRich(sanitizeRichHtml(normalizeSpacesInHtml(out)));
 }

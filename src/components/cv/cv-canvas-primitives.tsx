@@ -146,8 +146,6 @@ interface EditableTextProps {
   placeholder?: string;
   multiline?: boolean;
   style?: React.CSSProperties;
-  /** D2 (essai) : éditer ce champ avec TipTap quand le flag est actif. */
-  tiptap?: boolean;
 }
 
 /** Static (non-editing) rendering of a stored value: sanitized innerHTML for
@@ -173,7 +171,6 @@ export function EditableText({
   placeholder,
   multiline = false,
   style,
-  tiptap = false,
 }: EditableTextProps) {
   const ref = useRef<HTMLSpanElement>(null);
   const [isFocused, setIsFocused] = useState(false);
@@ -302,6 +299,7 @@ export function EditableText({
       host,
       value,
       multiline,
+      placeholder,
       caret,
       onUpdate: () => {
         format.refresh();
@@ -357,7 +355,7 @@ export function EditableText({
       }}
       onFocus={(e) => {
         if (editorRef.current || e.target !== ref.current) return;
-        if (tiptap && isTiptapEditorEnabled()) {
+        if (isTiptapEditorEnabled()) {
           // Au clic, le navigateur place le caret APRÈS l'événement focus : on
           // monte l'éditeur au relâchement (caret ou sélection à la souris
           // alors connus). Au clavier (Tab), tout de suite.

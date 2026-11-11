@@ -377,6 +377,17 @@
 	z-index: 9999;
 }
 
+/* Champ du canvas en cours d'édition (TipTap) : texte indicatif d'un champ vide,
+ * comme le `data-placeholder` du span statique. */
+.kompyle-field-editor[data-empty]::before {
+	content: attr(data-placeholder);
+	float: left;
+	height: 0;
+	pointer-events: none;
+	font-style: italic;
+	color: color-mix(in oklab, var(--muted-foreground) 40%, transparent);
+}
+
 @media (prefers-reduced-motion: reduce) {
 	*,
 	*::before,

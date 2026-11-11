@@ -1,5 +1,6 @@
 import { Editor } from "@tiptap/core";
 import type { Node as PmNode } from "@tiptap/pm/model";
+import { TextSelection } from "@tiptap/pm/state";
 import { buildFieldExtensions, CSS_TO_TEXT_STYLE_ATTR } from "./extensions";
 import { editorHtmlToStored, storedToEditorHtml } from "./stored-html";
 import type { FormatCommand, FormatState, RichEditorHandle } from "../format-types";
@@ -15,6 +16,8 @@ export interface FieldEditorOptions {
   host: HTMLElement;
   value: string;
   multiline: boolean;
+  /** Texte indicatif affiché tant que le champ est vide (aussi pendant l'édition). */
+  placeholder?: string;
   /** Caret / sélection à restaurer, en caractères depuis le début du texte. */
   caret?: { anchor: number; head: number } | null;
   onUpdate: () => void;
@@ -62,6 +65,58 @@ export function readTextCaret(host: HTMLElement): { anchor: number; head: number
   return { anchor, head };
 }
 
+/**
+ * Filet de sécurité : ProseMirror ignore parfois la sélection posée par le
+ * navigateur (double-clic sur un mot déjà sélectionné juste avant : son cache
+ * de sélection DOM la croit inchangée). Le DOM montre alors le mot sélectionné
+ * mais l'état garde l'ancien caret, et le bouton suivant (lien, couleur…)
+ * s'appliquerait au mauvais endroit. On recopie donc la sélection DOM dans
+ * l'état si elle diffère : après chaque changement de sélection et juste avant
+ * chaque commande de la barre d'outils.
+ */
+function syncDomSelection(editor: Editor) {
+  const doc = editor.view.dom.ownerDocument;
+  if (editor.isDestroyed || editor.view.composing || !editor.view.hasFocus()) return;
+  const sel = doc.getSelection();
+  const dom = editor.view.dom;
+  if (!sel?.anchorNode || !sel.focusNode || !dom.contains(sel.anchorNode) || !dom.contains(sel.focusNode)) return;
+  let anchor: number;
+  let head: number;
+  try {
+    anchor = editor.view.posAtDOM(sel.anchorNode, sel.anchorOffset);
+    head = editor.view.posAtDOM(sel.focusNode, sel.focusOffset);
+  } catch {
+    return;
+  }
+  const cur = editor.state.selection;
+  // Sélection non textuelle (Ctrl+A → AllSelection) : celle de ProseMirror fait foi.
+  if (!(cur instanceof TextSelection) || (cur.anchor === anchor && cur.head === head)) return;
+  const next = TextSelection.between(editor.state.doc.resolve(anchor), editor.state.doc.resolve(head));
+  if (next.anchor === cur.anchor && next.head === cur.head) return;
+  editor.view.dispatch(editor.state.tr.setSelection(next));
+}
+
+function watchDomSelection(editor: Editor) {
+  const doc = editor.view.dom.ownerDocument;
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  const sync = () => {
+    timer = null;
+    syncDomSelection(editor);
+  };
+  // Après le traitement de ProseMirror (il lit la sélection juste après l'événement).
+  const schedule = () => {
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(sync, 30);
+  };
+  doc.addEventListener("selectionchange", schedule);
+  doc.addEventListener("mouseup", schedule, true);
+  editor.on("destroy", () => {
+    if (timer) clearTimeout(timer);
+    doc.removeEventListener("selectionchange", schedule);
+    doc.removeEventListener("mouseup", schedule, true);
+  });
+}
+
 export function createFieldEditor(opts: FieldEditorOptions): Editor {
   opts.host.innerHTML = "";
   let editor: Editor | null = null;
@@ -76,9 +131,30 @@ export function createFieldEditor(opts: FieldEditorOptions): Editor {
     // Données venant de l'IA ou de vieux HTML : jamais d'erreur bloquante.
     enableContentCheck: false,
     editorProps: {
-      attributes: {
-        class: "kompyle-field-editor outline-none",
-        spellcheck: "false",
+      // Un 2e espace consécutif est ignoré : le span statique et le PDF n'en
+      // montrent qu'un (l'éditeur, en `pre-wrap`, les afficherait tous).
+      handleTextInput: (view, from, to, text) => {
+        if (!text.includes(" ")) return false;
+        const { doc } = view.state;
+        const before = from > 1 ? doc.textBetween(from - 1, from) : "";
+        const after = to < doc.content.size - 1 ? doc.textBetween(to, to + 1) : "";
+        let next = text.replace(/ {2,}/g, " ");
+        if (before === " ") next = next.replace(/^ /, "");
+        if (after === " ") next = next.replace(/ $/, "");
+        if (next === text) return false;
+        if (next || from !== to) view.dispatch(view.state.tr.insertText(next, from, to));
+        return true;
+      },
+      // Recalculés à chaque transaction : `data-empty` affiche le texte
+      // indicatif (CSS `.kompyle-field-editor[data-empty]::before`).
+      attributes: (state) => {
+        const { doc } = state;
+        const empty = doc.childCount === 1 && doc.firstChild!.isTextblock && doc.firstChild!.content.size === 0;
+        return {
+          class: "kompyle-field-editor outline-none",
+          spellcheck: "false",
+          ...(empty && opts.placeholder ? { "data-empty": "", "data-placeholder": opts.placeholder } : {}),
+        };
       },
     },
     onUpdate: opts.onUpdate,
@@ -86,6 +162,7 @@ export function createFieldEditor(opts: FieldEditorOptions): Editor {
     onFocus: opts.onFocus,
     onBlur: opts.onBlur,
   });
+  watchDomSelection(editor);
   // Caret au même caractère que dans le span statique ; sinon en fin de texte.
   const { caret } = opts;
   const doc = editor.state.doc;
@@ -150,6 +227,7 @@ export function createEditorHandle(editor: Editor, deactivate: () => void): Rich
   };
 
   const exec = (command: FormatCommand, value?: string): boolean => {
+    syncDomSelection(editor);
     const c = editor.chain().focus();
     switch (command) {
       case "bold": return c.toggleMark("bold").run();
@@ -179,6 +257,7 @@ export function createEditorHandle(editor: Editor, deactivate: () => void): Rich
   };
 
   const applyStyles = (styles: Record<string, string>): boolean => {
+    syncDomSelection(editor);
     const c = editor.chain().focus();
     // Caret sans sélection → tout le champ (comportement de l'ancien éditeur).
     if (editor.state.selection.empty) c.selectAll();
