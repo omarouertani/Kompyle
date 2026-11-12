@@ -75,6 +75,24 @@ export function useCanvasPagination({
           getSectionBlockIds(s, d).some((b) => (positions[b]?.page ?? 0) === p)
         ),
       }));
+      // Réglages propres à chaque bloc conservés (avant : perdus à chaque
+      // remise en page — un bloc masqué réapparaissait, un texte agrandi
+      // revenait à sa taille). Seule la place (x, y, page) est recalculée.
+      const saved = l.absolutePositions ?? {};
+      for (const [id, pos] of Object.entries(positions)) {
+        const old = saved[id];
+        if (!old) continue;
+        const { fontScale, locked, groupId, align, z, hidden } = old;
+        positions[id] = {
+          ...pos,
+          ...(fontScale !== undefined ? { fontScale } : {}),
+          ...(locked !== undefined ? { locked } : {}),
+          ...(groupId !== undefined ? { groupId } : {}),
+          ...(align !== undefined ? { align } : {}),
+          ...(z !== undefined ? { z } : {}),
+          ...(hidden !== undefined ? { hidden } : {}),
+        };
+      }
       // Les éléments libres gardent leur place : la pagination ne range que les sections.
       return { ...l, useAbsolutePositioning: true, autoPaginated: true, absolutePositions: { ...positions, ...freePositionsOf(l) }, pages };
     },
