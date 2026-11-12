@@ -496,7 +496,7 @@ export default function AdaptPage() {
         style={{ "--sidebar-width": "480px" } as React.CSSProperties}
         className="flex-1 flex overflow-hidden w-full !min-h-0 !h-full"
       >
-        <Sidebar side="left" variant="sidebar" className="border-r border-border !top-14 !h-[calc(100svh-3.5rem)]">
+        <Sidebar side="left" variant="sidebar" className="overflow-hidden border-r border-border !top-14 !h-[calc(100svh-3.5rem)]">
           <SidebarHeader className="px-3 pt-3 pb-2 border-b border-border shrink-0 bg-sidebar flex flex-col gap-2.5">
             <div className="flex flex-col gap-2.5 rounded-xl bg-card/60 p-2.5 border border-border/60 shadow-sm">
               {/* Ligne 1 : libellé + statut de sauvegarde (intégré, plus de barre flottante) */}
