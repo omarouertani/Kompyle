@@ -412,7 +412,7 @@ export default function AdaptPage() {
 
             {/* Alerte clé API manquante pour le provider du modèle choisi. */}
             {!apiKeys.keys[aiConfig.provider] && (
-              <span className="flex items-center gap-1.5 text-[11px] font-medium text-amber-600 dark:text-amber-400 leading-tight pl-0.5">
+              <span className="flex items-center gap-1.5 text-[11px] font-medium text-warning leading-tight pl-0.5">
                 {te("missing_key")}
               </span>
             )}
@@ -423,7 +423,7 @@ export default function AdaptPage() {
               <div className="flex flex-col gap-1.5">
                 {refineHistory.map((instruction, i) => (
                   <div key={i} className="flex items-start gap-2 text-xs text-muted-foreground bg-muted/40 rounded-lg px-2.5 py-1.5">
-                    <Check size={12} className="text-emerald-500 mt-0.5 shrink-0" />
+                    <Check size={12} className="text-success mt-0.5 shrink-0" />
                     <span className="leading-snug">{instruction}</span>
                   </div>
                 ))}
@@ -511,7 +511,7 @@ export default function AdaptPage() {
                       </span>
                     )}
                     {profile.saveStatus === "saved" && (
-                      <span className="flex items-center gap-1 text-emerald-500">
+                      <span className="flex items-center gap-1 text-success">
                         <Check size={12} />
                         {tp("saved")}
                       </span>
@@ -711,19 +711,6 @@ export default function AdaptPage() {
                 <p className="text-xs text-muted-foreground">{ti("drop_formats")}</p>
               </div>
             )}
-            {activeRightTab === "cv" && !profile.initialLoading && isSampleCV(profile.currentCV) && (
-              <div className="mb-3 flex shrink-0 flex-wrap items-center gap-3 rounded-xl border border-primary/25 bg-primary/5 px-4 py-2.5">
-                <FileUp size={18} className="shrink-0 text-primary" />
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-semibold text-foreground">{ti("sample_banner_title")}</p>
-                  <p className="text-xs text-muted-foreground">{ti("sample_banner_text")}</p>
-                </div>
-                <Button size="sm" onClick={() => openImport()}>
-                  <FileUp size={14} />
-                  {ti("sample_banner_cta")}
-                </Button>
-              </div>
-            )}
             {/* Tant que le vrai CV n'est pas résolu au DÉMARRAGE (localStorage →
                 BD), on affiche un loader au lieu du CV d'EXEMPLE : c'est ce flash
                 du mauvais contenu qui donnait l'impression de « désordre ». Les
@@ -750,6 +737,7 @@ export default function AdaptPage() {
                   setAtsTriggerKey((k) => k + 1);
                 }}
                 atsButtonShine={!atsChecked.isChecked(currentCvVersionId)}
+                onImportSample={isSampleCV(profile.currentCV) ? () => openImport() : undefined}
               />
               </div>
             )}

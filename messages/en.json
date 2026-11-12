@@ -137,7 +137,7 @@
   "CVPreview": {
     "view_single": "Single view",
     "view_side": "Side by side",
-    "mode_canvas": "Visual Editor (Canvas)",
+    "mode_canvas": "Editor",
     "mode_pdf": "PDF Preview",
     "label_template": "Template",
     "label_page_size": "Page size",
@@ -167,7 +167,7 @@
     "delete_version_error": "Could not delete this adapted CV.",
     "ats_button": "ATS Check",
     "ats_button_tooltip": "Audit the selected CV against a job posting",
-    "download_menu": "Download",
+    "download_menu": "Export",
     "format_pdf_desc": "Full layout, ready to send",
     "format_docx_desc": "Word: single column, formatting kept, editable",
     "format_txt_desc": "Plain text: for application forms and ATS"
@@ -576,9 +576,7 @@
     "toast_new_success": "Profile “{name}” created from your CV",
     "toast_new_error": "Could not create the profile (database unavailable). Choose “This CV”.",
     "undo": "Undo",
-    "sample_banner_title": "This is a sample CV",
     "sample_banner_text": "Import your CV (PDF, DOCX or TXT) to replace this data with your own.",
-    "sample_banner_cta": "Import my CV",
     "error_unsupported": "Unsupported format. Use a PDF, a DOCX or a text file.",
     "error_too_large": "File or text too large (10 MB and 30,000 characters max).",
     "error_scanned": "This PDF has no text (scanned document or image). Export it to DOCX or paste the text.",
@@ -590,6 +588,8 @@
     "error_ai_failed": "The AI could not analyse your CV. Try again or pick another model.",
     "error_invalid_output": "The AI returned an unusable answer, even after a second attempt. Try again or pick another model.",
     "error_not_a_cv": "No CV information was found in this text.",
-    "error_network": "Network error. Check your connection and try again."
+    "error_network": "Network error. Check your connection and try again.",
+    "sample_chip_label": "Sample CV",
+    "sample_chip_cta": "Import mine"
   }
 }

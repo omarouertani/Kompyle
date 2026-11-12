@@ -207,12 +207,12 @@ export function CVImportDialog({ open, onOpenChange, initialFile, provider, mode
 
             {imp.phase === "ready" ? (
               <>
-                <div className="flex gap-2.5 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2.5 text-xs leading-relaxed text-foreground">
+                <div className="flex gap-2.5 rounded-lg border border-border bg-muted/50 px-3 py-2.5 text-xs leading-relaxed text-foreground">
                   <ShieldCheck size={16} className="mt-0.5 shrink-0 text-primary" />
                   <p>{t("privacy_notice", { provider: providerLabel, model: modelLabel })}</p>
                 </div>
                 {!apiKey?.trim() && (
-                  <div className="flex flex-wrap items-center gap-2 text-xs text-amber-600 dark:text-amber-400">
+                  <div className="flex flex-wrap items-center gap-2 text-xs text-warning">
                     <span className="flex-1">{tErr("missing_key")}</span>
                     <ApiKeysDialog />
                   </div>
@@ -277,7 +277,7 @@ function Step({ label, done, active }: { label: string; done?: boolean; active?:
   return (
     <li className={cn("flex items-center gap-2", !done && !active && "text-muted-foreground")}>
       <span className="flex size-4 items-center justify-center">
-        {done ? <Check size={14} className="text-emerald-500" /> : active ? <Spinner size={13} className="text-primary" /> : <span className="size-1.5 rounded-full bg-border" />}
+        {done ? <Check size={14} className="text-success" /> : active ? <Spinner size={13} className="text-primary" /> : <span className="size-1.5 rounded-full bg-border" />}
       </span>
       {label}
     </li>

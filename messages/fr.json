@@ -137,7 +137,7 @@
   "CVPreview": {
     "view_single": "Vue unique",
     "view_side": "Côte à côte",
-    "mode_canvas": "Éditeur Visuel (Canvas)",
+    "mode_canvas": "Éditeur",
     "mode_pdf": "Aperçu PDF",
     "label_template": "Modèle",
     "label_page_size": "Format de page",
@@ -167,7 +167,7 @@
     "delete_version_error": "Impossible de supprimer ce CV adapté.",
     "ats_button": "ATS Check",
     "ats_button_tooltip": "Auditer le CV sélectionné contre une offre d'emploi",
-    "download_menu": "Télécharger",
+    "download_menu": "Exporter",
     "format_pdf_desc": "Mise en page complète, prêt à envoyer",
     "format_docx_desc": "Word : une colonne, mise en forme conservée, modifiable",
     "format_txt_desc": "Texte brut : pour les formulaires de candidature et les ATS"
@@ -576,9 +576,7 @@
     "toast_new_success": "Profil « {name} » créé à partir de votre CV",
     "toast_new_error": "Impossible de créer le profil (base de données indisponible). Choisissez « Ce CV ».",
     "undo": "Annuler",
-    "sample_banner_title": "Ceci est un CV d'exemple",
     "sample_banner_text": "Importez votre CV (PDF, DOCX ou TXT) pour remplacer ces données par les vôtres.",
-    "sample_banner_cta": "Importer mon CV",
     "error_unsupported": "Format non pris en charge. Utilisez un PDF, un DOCX ou un fichier texte.",
     "error_too_large": "Fichier ou texte trop volumineux (10 Mo et 30 000 caractères maximum).",
     "error_scanned": "Ce PDF ne contient pas de texte (document scanné ou image). Exportez-le en DOCX ou collez le texte.",
@@ -590,6 +588,8 @@
     "error_ai_failed": "L'IA n'a pas pu analyser votre CV. Réessayez ou changez de modèle.",
     "error_invalid_output": "L'IA a renvoyé une réponse inexploitable, même après une seconde tentative. Réessayez ou changez de modèle.",
     "error_not_a_cv": "Aucune information de CV n'a été trouvée dans ce texte.",
-    "error_network": "Erreur réseau. Vérifiez votre connexion et réessayez."
+    "error_network": "Erreur réseau. Vérifiez votre connexion et réessayez.",
+    "sample_chip_label": "CV d'exemple",
+    "sample_chip_cta": "Importer le mien"
   }
 }
