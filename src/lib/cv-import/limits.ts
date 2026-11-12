@@ -23,7 +23,7 @@ export const IMPORT_ACCEPT = ".pdf,.docx,.txt,.md,application/pdf,application/vn
 export function cleanExtractedText(raw: string): string {
   return raw
     .replace(/\r\n?/g, "\n")
-    .replace(/[   ]/g, " ")
+    .replace(/[\u00a0\u2007\u202f]/g, " ")
     .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, "")
     .replace(/[ \t]+\n/g, "\n")
     .replace(/\n{3,}/g, "\n\n")
