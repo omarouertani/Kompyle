@@ -20,6 +20,7 @@ import {
   isCanadianTemplate,
   getColumnSections,
   getSectionBlockIds,
+  computeDefaultPositions,
 } from "@/lib/cv-layout";
 import { bakeFreeElementPositions } from "@/lib/free-elements";
 import type { LayerColumn } from "./canvas/LayersPanel";
@@ -325,16 +326,25 @@ export default function CVInteractiveCanvas({ data, onChange: onChangeProp, temp
     const target = column === "sidebar" && hasSidebarColumn ? sidebar : main;
     target.splice(Math.min(Math.max(0, index), target.length), 0, sectionId);
     if (sidebar.join() === cols.sidebar.join() && main.join() === cols.main.join()) return;
-    onChange({
-      ...data,
-      layout: {
-        ...layout,
-        pages: [{ sidebar, main }],
-        autoPaginated: false,
-        // Les éléments libres gardent leur place exacte malgré la remise en page.
-        freeElements: bakeFreeElementPositions(layout),
-      },
-    }, "section-order");
+    const nextLayout = {
+      ...layout,
+      pages: [{ sidebar, main }],
+      autoPaginated: false,
+      // Les éléments libres gardent leur place exacte malgré la remise en page.
+      freeElements: bakeFreeElementPositions(layout),
+    };
+    // La section prend TOUT DE SUITE la position horizontale et la largeur de sa
+    // colonne d'arrivée : la remise en page mesure les hauteurs dans le DOM, et
+    // des blocs encore à l'ancienne largeur donnaient de fausses hauteurs
+    // (chevauchements dans la colonne étroite, trous au retour).
+    const columnDefaults = computeDefaultPositions(template, { ...data, layout: nextLayout });
+    const saved = layout.absolutePositions ?? defaultPositions;
+    const positions = { ...saved };
+    for (const blockId of getSectionBlockIds(sectionId, data)) {
+      const d = columnDefaults[blockId];
+      if (d) positions[blockId] = { ...(saved[blockId] ?? d), x: d.x, w: d.w };
+    }
+    onChange({ ...data, layout: { ...nextLayout, absolutePositions: positions } }, "section-order");
     realignAfterRender();
   };
 

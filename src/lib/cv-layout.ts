@@ -416,6 +416,21 @@ export function computeDefaultPositions(template: string, data: CVData): Record<
         positions["content_summary"] = { x: sidebarX, y: sidebarY, w: sidebarW };
         const summaryLen = data?.personalInfo?.summary?.length ?? 100;
         sidebarY += Math.ceil(summaryLen / 45) * 12 + 15;
+      } else if (sectionId === "experience") {
+        // Expériences / projets placés en colonne latérale (panneau Sections) :
+        // sans position de base ici, la remise en page les ignorait et ils
+        // restaient empilés les uns sur les autres.
+        (data?.experiences ?? []).forEach((exp, idx) => {
+          positions[`experience_${idx}`] = { x: sidebarX, y: sidebarY, w: sidebarW };
+          const bulletChars = (exp.bullets ?? []).reduce((n, b) => n + (b?.length ?? 0), 0);
+          sidebarY += 30 + Math.ceil(bulletChars / 35) * 12 + (exp.customMarginBottom ?? 5) + 10;
+        });
+      } else if (sectionId === "projects") {
+        (data?.projects ?? []).forEach((proj, idx) => {
+          positions[`project_${idx}`] = { x: sidebarX, y: sidebarY, w: sidebarW };
+          const descLen = proj.description?.length ?? 100;
+          sidebarY += 18 + Math.ceil(descLen / 35) * 12 + (proj.stack ? 14 : 0) + (proj.customMarginBottom ?? 5) + 10;
+        });
       } else if (sectionId.startsWith("custom_")) {
         positions[`content_${sectionId}`] = { x: sidebarX, y: sidebarY, w: sidebarW };
         const cs = data?.customSections?.find((c) => `custom_${c.id}` === sectionId);
