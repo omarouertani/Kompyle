@@ -8,8 +8,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "db:up": "docker compose up -d",
-    "db:down": "docker compose down",
+    "db:up": "docker compose up -d db",
+    "db:down": "docker compose stop db",
     "db:seed": "npx tsx scripts/seed.ts"
   },
   "dependencies": {

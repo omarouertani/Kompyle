@@ -1,203 +1,274 @@
 <div align="center">
   <img src="public/logo.svg" alt="Kompyle" height="56">
-  <p><b>A production-grade, open-source AI resume editor and ATS auditor with a Canva-style workspace and total data privacy.</b></p>
+
+  <p><b>An open-source, privacy-first CV editor with a drag-and-drop canvas, AI you bring yourself, and a built-in ATS checker.</b></p>
 
   <p>
-    <a href="#key-features">Features</a> •
-    <a href="#tech-stack">Tech Stack</a> •
-    <a href="#quick-start">Quick Start</a> •
+    <a href="#quick-start-docker">Quick start</a> •
+    <a href="#features">Features</a> •
+    <a href="#screenshots">Screenshots</a> •
+    <a href="#ai-providers-bring-your-own-key">AI providers</a> •
+    <a href="#privacy">Privacy</a> •
     <a href="#local-development">Development</a> •
-    <a href="#security--privacy">Security & Privacy</a> •
-    <a href="#contributing">Contributing</a> •
-    <a href="#license">License</a>
+    <a href="#configuration">Configuration</a> •
+    <a href="#contributing">Contributing</a>
   </p>
 
   <p>
-    <img src="https://img.shields.io/badge/Next.js-16.2.7-black?style=flat-square&logo=next.js" alt="Next.js Version">
-    <img src="https://img.shields.io/badge/React-19.2.4-blue?style=flat-square&logo=react" alt="React Version">
-    <img src="https://img.shields.io/badge/Tailwind-v4.0-38bdf8?style=flat-square&logo=tailwind-css" alt="Tailwind CSS">
+    <img src="https://img.shields.io/badge/Next.js-16-black?style=flat-square&logo=next.js" alt="Next.js 16">
+    <img src="https://img.shields.io/badge/React-19-61dafb?style=flat-square&logo=react&logoColor=black" alt="React 19">
+    <img src="https://img.shields.io/badge/Node.js-22-5fa04e?style=flat-square&logo=node.js&logoColor=white" alt="Node.js 22">
+    <img src="https://img.shields.io/badge/Docker-ready-2496ed?style=flat-square&logo=docker&logoColor=white" alt="Docker ready">
     <img src="https://img.shields.io/badge/License-MIT-green?style=flat-square" alt="MIT License">
   </p>
 </div>
 
----
+<p align="center">
+  <img src="docs/screenshots/editor-light.webp" alt="The Kompyle editor: a CV on a canvas, with the AI panel on the left" width="900">
+</p>
 
-**Kompyle** is a privacy-first, developer-centric web application designed to help you adapt, design, and audit resumes for modern job applications. By decoupling resume data structures from visual layout constraints, Kompyle gives you absolute freedom to position elements on a canvas, refine content using custom AI instructions, verify ATS readiness, and generate high-fidelity, pixel-perfect PDF exports.
+**Kompyle** lets you build a CV the way you would in a design tool: every block sits on a canvas that maps one-to-one to the exported PDF. Import the CV you already have, tailor it to a job offer with the AI provider of your choice, check how an Applicant Tracking System (ATS) will read it, and export it as PDF, Word or plain text.
 
----
-
-## Workspace Showcase
-
-![Kompyle Workspace Demo](public/images/workspace_demo.png)
-
-![ATS Checker Preview](public/images/ats_preview.png)
+The app ships with a **fictional sample CV (Jane Doe)**, so you can try everything before entering any personal data.
 
 ---
 
-## Key Features
+## Quick start (Docker)
 
-- **Canva-Style Interactive Canvas**: Design layout constraints freely with absolute positioning, multi-select lassoing, magnetic snapping guides, floating alignment tools, workspace zooming, and space-pan navigation. Every pixel on the canvas translates 1:1 into a vector PDF generated server-side via `@react-pdf/renderer`.
-- **Integrated ATS Auditor**: Audit how well your resume matches target descriptions. Get automated scores (0–100), formatting readability diagnostics, and a structured keyword reconciliation checklist. The auditor uses a self-healing LLM flow that auto-corrects structural validation issues dynamically.
-- **Privacy-First AI Engine**: Leverage advanced LLMs (Gemini, Groq, OpenRouter, NVIDIA NIM, Claude, OpenAI) with built-in anti-hallucination guardrails that lock and enforce the immutability of vital personal data (such as emails, phone numbers, dates, and locations).
-- **Bilingual UI**: Full English and French localization out of the box via `next-intl`.
-
----
-
-## Tech Stack
-
-| Layer | Technology |
-| --- | --- |
-| Framework | [Next.js 16](https://nextjs.org/) (App Router) + [React 19](https://react.dev/) |
-| Language | [TypeScript](https://www.typescriptlang.org/) |
-| Styling | [Tailwind CSS v4](https://tailwindcss.com/), [shadcn/ui](https://ui.shadcn.com/), [Radix UI](https://www.radix-ui.com/) |
-| PDF Engine | [`@react-pdf/renderer`](https://react-pdf.org/) (server-side vector PDF) |
-| Canvas / DnD | [`dnd-kit`](https://dndkit.com/) |
-| Internationalization | [`next-intl`](https://next-intl.dev/) (English / French) |
-| Database | [PostgreSQL](https://www.postgresql.org/) (via `pg`) |
-| Validation | [Zod](https://zod.dev/) |
-| AI | BYOK multi-provider (Gemini, Groq, OpenRouter, NVIDIA NIM, Claude, OpenAI) |
-
----
-
-## Prerequisites
-
-- **Node.js 20+** and **npm**
-- **Docker** & **Docker Compose** (for the database, or to run the full stack in containers)
-- At least one **AI provider API key** ([see below](#getting-ai-api-keys)) — entered directly in the web UI, no `.env` required
-
----
-
-## Quick Start
-
-You can run Kompyle instantly using Docker. **No environment variables are required in your terminal**, as all AI API keys are managed securely and directly inside the web UI.
-
-### Option A: Docker Compose (Recommended)
-
-Spin up both the Next.js app and the PostgreSQL database container together. The app image is built locally from the included `Dockerfile`:
+The only requirement is [Docker](https://docs.docker.com/get-docker/) with Compose. No account, no API key and no configuration file are needed.
 
 ```bash
-docker compose up -d --build
+git clone https://github.com/omarouertani/Kompyle.git
+cd Kompyle
+docker compose up --build
 ```
 
-### Option B: Separate Manual Containers
+Then open **http://localhost:3000**.
 
-If you prefer to start separate containers manually without Docker Compose:
+`docker compose up` starts two containers:
 
-1. **Build the app image locally**:
-   ```bash
-   docker build -t kompyle:latest .
-   ```
+| Service | Image | Role |
+| --- | --- | --- |
+| `app` | built from the [`Dockerfile`](Dockerfile) (Node 22, Next.js standalone output) | The web app on port `3000` |
+| `db` | `postgres:16-alpine` | Stores your profiles in the `pgdata` volume; the schema ([`scripts/init.sql`](scripts/init.sql)) is created automatically on first start |
 
-2. **Create a shared network**:
-   ```bash
-   docker network create kompyle-net
-   ```
+The app waits for the database to be healthy before starting. Your data survives restarts and rebuilds.
 
-3. **Run the Database Container**:
-   You must mount [`scripts/init.sql`](scripts/init.sql) to set up the database schema on startup:
-   ```bash
-   docker run -d \
-     --name kompyle-db \
-     --network kompyle-net \
-     -e POSTGRES_DB=kompyle \
-     -e POSTGRES_USER=kompyle \
-     -e POSTGRES_PASSWORD=kompyle_dev \
-     -v ./scripts/init.sql:/docker-entrypoint-initdb.d/init.sql \
-     postgres:16-alpine
-   ```
+<details>
+<summary><b>Useful commands</b></summary>
 
-4. **Run the App Container**:
-   Pass the `DATABASE_URL` pointing to the database container name:
-   ```bash
-   docker run -d -p 3000:3000 \
-     --name kompyle-app \
-     --network kompyle-net \
-     -e DATABASE_URL="postgresql://kompyle:kompyle_dev@kompyle-db:5432/kompyle" \
-     kompyle:latest
-   ```
+```bash
+docker compose up --build -d                  # start in the background
+docker compose logs -f app                    # follow the app logs
+docker compose --profile seed run --rm seed   # optional: load the fictional "Jane Doe" profile
+docker compose down                           # stop (your data is kept)
+docker compose down -v                        # stop and DELETE the database volume
+```
+
+If port `3000` or `5432` is already taken, change it without editing any file:
+
+```bash
+APP_PORT=3100 DB_PORT=5433 docker compose up --build
+```
+
+</details>
 
 > [!NOTE]
-> **Database Schema & Table Creation**: The Next.js application does not run migrations or create tables automatically on startup. The schema must be initialized beforehand. If you connect the app container to a blank PostgreSQL database without mounting the `init.sql` script at database startup, you will need to execute the SQL commands inside [`scripts/init.sql`](scripts/init.sql) manually.
+> Without a database the app still works: you can edit and export, but profiles are not saved. This is what happens if you run the app alone (`npm run dev` without PostgreSQL).
 
-After launching, navigate to [http://localhost:3000](http://localhost:3000) in your browser.
-
----
-
-## Local Development
-
-Get the project running locally in a few commands:
-
-### 1. Install Dependencies
-```bash
-npm install
-```
-
-### 2. Launch PostgreSQL (Optional)
-Kompyle persists profiles and CV versions to a PostgreSQL database. You can start the pre-configured Postgres container using Docker Compose:
-```bash
-npm run db:up
-```
-*Note: If a database is not active, the system automatically falls back to an in-memory session mode to permit standard document creation, editing, and PDF downloads.*
-
-### 3. Run Development Server
-```bash
-npm run dev
-```
-Open [http://localhost:3000](http://localhost:3000) to view your workspace.
-
-### Available Scripts
-
-| Script | Description |
-| --- | --- |
-| `npm run dev` | Start the development server |
-| `npm run build` | Build for production |
-| `npm run start` | Run the production build |
-| `npm run lint` | Lint the codebase with ESLint |
-| `npm run db:up` | Start the PostgreSQL container |
-| `npm run db:down` | Stop the PostgreSQL container |
-| `npm run db:seed` | Seed the database with sample data |
+> [!TIP]
+> The database password defaults to `kompyle_dev`, and PostgreSQL is only published on `127.0.0.1`. If you deploy Kompyle on a server, set your own `POSTGRES_PASSWORD` (see [Configuration](#configuration)) before the first `docker compose up`.
 
 ---
 
-## Getting AI API Keys
+## Features
 
-Kompyle uses a **Bring Your Own Key** model — you provide a key for at least one of the supported providers. Keys are entered directly in the web UI and stored only in your browser (see [Security & Privacy](#security--privacy)).
+### Canvas editor
+- **Free-form canvas**: drag, resize and align blocks with snapping guides, multi-select (lasso, <kbd>Shift</kbd>-click), zoom and pan. What you see is what the PDF contains.
+- **Scale a whole selection**: change the text size of every selected block at once, or scale them by dragging a corner; blocks stay inside the page.
+- **Sections by column**: the **Layers** panel lists the sections of each column and reorders them by drag and drop; the page re-lays itself out, keeping your per-block settings.
+- **Rich text** (Tiptap): bold, italic, underline, lists, links, alignment, fonts and sizes, and a size setting per heading.
+- **Skill levels**: in bar mode (Creative template), set a 1–5 level per skill by clicking the bar. The same bars appear in the PDF.
+- **Undo / redo**, multi-page layout, **A4 or US Letter**, and an optional **profile photo** with a crop tool.
+- **7 templates**: Without photo, With photo, Canadian, Elegant, Minimal, Creative and Executive, each with its own theme colors that you can adjust.
+- **Light and dark** themes, and a **bilingual interface** (English / French).
+
+### Import your existing CV
+- Drop a **PDF** (with text), **DOCX** or **TXT** file, or paste the text.
+- The text is extracted **in your browser**; it is only sent to the AI provider you selected, which structures it into the editor. The result is validated (Zod) and shown on a **review screen** before it replaces the sample data. You can cancel at any time, and the import can be undone with <kbd>Ctrl</kbd>+<kbd>Z</kbd>.
+- Scanned PDFs (images) have no text: export them to DOCX, or paste the text.
+
+### AI tailoring (bring your own key)
+- **Adapt the CV to a job offer**: paste the offer, get a new version of your CV, and review the changes as a diff.
+- **Refine** a CV or cover letter with free-form instructions.
+- **Cover letters**: generate and edit a letter for each profile.
+- **Anti-hallucination guardrails**: emails, phone numbers, dates, locations and skill levels are locked and re-imposed after the AI answers.
+
+### ATS checker
+- A score from 0 to 100 with sub-scores (keywords, skills, experience, formatting), the **missing keywords** found in the job posting, and a **concrete action plan**.
+
+### Export
+- **PDF**: vector PDF rendered on the server, identical to the canvas.
+- **DOCX**: single column, formatting kept, editable in Word.
+- **TXT**: plain text, handy for application forms and ATS portals.
+
+### Profiles
+- Keep several CVs, each with its own cover letter and one adapted version per job offer, stored in PostgreSQL.
+
+---
+
+## Screenshots
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/editor-dark.webp" alt="Editor, dark theme"><br><sub><b>Editor</b>, dark theme</sub></td>
+    <td width="50%"><img src="docs/screenshots/ats-checker.png" alt="ATS checker"><br><sub><b>ATS checker</b>: audit a CV against a job posting</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/import-dialog.png" alt="Import my CV dialog"><br><sub><b>Import</b> a PDF, DOCX, TXT or pasted text</sub></td>
+    <td width="50%"><img src="docs/screenshots/templates.png" alt="Template picker" width="260"><br><sub><b>Templates</b></sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/export-menu.png" alt="Export menu" width="400"><br><sub><b>Export</b> to PDF, DOCX or TXT</sub></td>
+    <td></td>
+  </tr>
+</table>
+
+All screenshots use the built-in fictional sample data.
+
+---
+
+## AI providers (bring your own key)
+
+Kompyle has **no AI account and no hidden quota**: you bring a key for the provider you prefer and enter it in the **API Keys** dialog of the app.
 
 | Provider | Free tier | Get an API key |
 | --- | --- | --- |
 | Google Gemini | Yes (Flash / Flash-Lite models) | https://aistudio.google.com/apikey |
 | Groq | Yes (rate-limited) | https://console.groq.com/keys |
-| OpenRouter | Yes (`:free` models, 50 requests/day) | https://openrouter.ai/keys |
+| OpenRouter | Yes (`:free` models, daily limit) | https://openrouter.ai/keys |
 | NVIDIA NIM | Yes (prototyping use) | https://build.nvidia.com/settings/api-keys |
 | Anthropic Claude | No | https://platform.claude.com/settings/keys |
 | OpenAI | No | https://platform.openai.com/api-keys |
 
-Free tiers have rate and daily limits: when one is reached, Kompyle shows a clear message — wait for the reset or switch to another provider. Free models are tried in order within the same provider; Kompyle never sends your CV to a different provider on its own.
-
-> [!TIP]
-> **OpenRouter** can also be configured server-side via an `OPENROUTER_API_KEY` environment variable as a fallback. See [`.env.example`](.env.example) for all optional environment variables.
+Free tiers have rate and daily limits. When one is reached, Kompyle shows a clear message: wait for the reset or switch to another provider. Free models are tried in order within the same provider.
 
 ---
 
-> [!IMPORTANT]
-> ### Security & Privacy
->
-> Kompyle enforces a strict **Bring Your Own Key (BYOK)** model to preserve data autonomy:
-> - **Strictly Client-Side Storage**: Your API keys (Google Gemini, Groq, OpenRouter, NVIDIA NIM, Anthropic Claude, OpenAI) are stored exclusively in your browser's local storage (`window.localStorage`).
-> - **Zero Server Persistence**: Keys are never sent to or cached on any external database. They are only sent in transient request payloads to local API route proxies which route requests directly to official AI endpoints.
+## Privacy
 
-To report a security vulnerability, please see [`SECURITY.md`](SECURITY.md).
+- **Your CV text is only sent to the AI provider you choose**, when you click an AI action (adapt, refine, import, cover letter, ATS check). Kompyle never sends it to another provider on its own, and there is no analytics or tracking.
+- **File extraction is local**: PDF, DOCX and TXT files are read in your browser and are never uploaded as files.
+- **API keys stay in your browser** (`localStorage`). They travel only in the request to Kompyle's own API routes, which forward them to the provider's official endpoint, and are never stored server-side.
+- **Profiles are stored in your own PostgreSQL**: the one running next to the app in Docker, or yours.
+
+To report a vulnerability, see [`SECURITY.md`](SECURITY.md).
+
+---
+
+## Local development
+
+**Requirements:** [Node.js 22](https://nodejs.org/) (see `.nvmrc`) and npm. Docker is optional and only used for the database.
+
+```bash
+git clone https://github.com/omarouertani/Kompyle.git
+cd Kompyle
+npm install
+
+docker compose up -d db     # optional: PostgreSQL on localhost:5432 (schema created automatically)
+npm run db:seed             # optional: load the fictional "Jane Doe" profile
+npm run dev                 # http://localhost:3000
+```
+
+Without PostgreSQL the app still starts: only saving profiles is unavailable.
+
+### Scripts
+
+| Script | Description |
+| --- | --- |
+| `npm run dev` | Development server with hot reload |
+| `npm run build` | Production build (standalone output) |
+| `npm run start` | Serve the production build |
+| `npm run lint` | ESLint |
+| `npm run db:up` / `db:down` | Start / stop the PostgreSQL container (`docker compose up -d db`) |
+| `npm run db:seed` | Insert the fictional sample profile ([`scripts/seed_profiles.sql`](scripts/seed_profiles.sql)) |
+
+Type-check with `npx tsc --noEmit`.
+
+---
+
+## Configuration
+
+Everything has a working default: **no variable is required**. To change a value, copy the template and edit it:
+
+```bash
+cp .env.example .env
+```
+
+Docker Compose reads `.env` automatically; for `npm run dev`, use `.env.local` instead. See [`.env.example`](.env.example) for the full list.
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `DATABASE_URL` | set by Docker Compose | PostgreSQL connection string (local development only) |
+| `POSTGRES_PASSWORD` | `kompyle_dev` | Database password used by Docker Compose |
+| `APP_PORT` / `DB_PORT` | `3000` / `5432` | Ports published on your machine |
+| `NEXT_PUBLIC_SITE_URL` | `http://localhost:3000` | Public URL, for link-preview images |
+| `OPENROUTER_API_KEY` | none | Optional server-side fallback key for OpenRouter |
+
+There is no variable for the other AI providers: their keys are entered in the app.
+
+---
+
+## Architecture
+
+```
+src/
+├─ app/
+│  ├─ [locale]/            Pages (English / French) — the workspace
+│  └─ api/                 Route handlers: adapt-cv, refine-cv, import-cv, ats-check,
+│                          generate-cover-letter, refine-cover-letter, cv-profiles,
+│                          render-pdf, render-docx
+├─ components/
+│  ├─ cv/                  Canvas editor, templates (PDF), import, ATS, cover letter
+│  ├─ ai/                  Model picker
+│  └─ ui/                  shadcn/ui primitives
+├─ lib/                    Layout engine, AI providers and orchestration, CV import,
+│                          skill levels, DOCX export, database access
+├─ schemas/                Zod schemas for CV, cover letter and ATS results
+└─ hooks/                  Profile manager, canvas interactions
+messages/                  en.json / fr.json
+scripts/                   init.sql (schema), seed_profiles.sql, seed.ts
+```
+
+The CV data and its layout are stored separately (JSON in PostgreSQL), so the same content can be laid out on any template. The PDF is rendered server-side with `@react-pdf/renderer` from the same layout the canvas shows.
+
+| Layer | Technology |
+| --- | --- |
+| Framework | [Next.js 16](https://nextjs.org/) (App Router) and [React 19](https://react.dev/) |
+| Language | TypeScript |
+| UI | [Tailwind CSS v4](https://tailwindcss.com/), [shadcn/ui](https://ui.shadcn.com/), Radix UI and Base UI |
+| Editor | [Tiptap](https://tiptap.dev/), [dnd-kit](https://dndkit.com/) |
+| Export | [`@react-pdf/renderer`](https://react-pdf.org/) (PDF), [`docx`](https://docx.js.org/) (Word) |
+| Import | [`unpdf`](https://github.com/unjs/unpdf) (PDF text), DOCX and TXT extraction in the browser |
+| i18n | [`next-intl`](https://next-intl.dev/) |
+| Database | [PostgreSQL](https://www.postgresql.org/) via `pg` |
+| Validation | [Zod](https://zod.dev/) |
+
+---
+
+## Troubleshooting
+
+- **The app starts but profiles cannot be saved** (a "Save failed" notice): PostgreSQL is not reachable. With Docker, check `docker compose ps` and `docker compose logs db`; in local development, start it with `docker compose up -d db`.
+- **Port already in use**: `APP_PORT=3100 DB_PORT=5433 docker compose up --build`.
+- **Start over with an empty database**: `docker compose down -v`, then `docker compose up --build`.
+- **The schema changed after an update** (existing volume): the schema script only runs on an empty database; re-run it with `docker compose exec -T db psql -U kompyle -d kompyle < scripts/init.sql` (it is idempotent).
 
 ---
 
 ## Contributing
 
-Contributions are welcome! Whether it's a bug report, a feature idea, or a pull request, please read [`CONTRIBUTING.md`](CONTRIBUTING.md) to get started.
-
----
+Contributions are welcome: bug reports, ideas and pull requests. Please read [`CONTRIBUTING.md`](CONTRIBUTING.md) first.
 
 ## License
 
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for the full text.
-
-Copyright (c) 2026 Omar Ouertani.
+Released under the [MIT License](LICENSE). Copyright (c) 2026 Omar Ouertani.
