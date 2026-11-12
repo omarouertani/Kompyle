@@ -128,7 +128,7 @@ export function CVPageScaleWrapper({
         </div>
         {pageHeightPx > PAGE_HEIGHT_PX && (
           <div
-            className="absolute left-0 right-0 border-t border-dashed border-amber-400/70 pointer-events-none z-50"
+            className="absolute left-0 right-0 border-t border-dashed border-warning/70 pointer-events-none z-50"
             style={{ top: `${PAGE_HEIGHT_PX * finalScale}px` }}
             title={`Limite page ${page.id === "LETTER" ? "Letter" : "A4"}`}
           />

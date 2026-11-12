@@ -170,7 +170,7 @@ function ATSJobDialogBody({ existingJobDescription, hasExisting, model, onModelC
           <ModelSelect compact elevated menuContainer={dialogEl} model={model} onModelChange={onModelChange} />
         </div>
         {!hasKey && (
-          <span className="text-[10px] text-amber-600 dark:text-amber-400 text-right leading-tight">
+          <span className="text-[10px] text-warning text-right leading-tight">
             {tErr("missing_key")}
           </span>
         )}

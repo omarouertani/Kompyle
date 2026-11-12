@@ -52,7 +52,7 @@ export function ModelSelect({ model, onModelChange, disabled, label, className, 
             <span className="size-2 rounded-full" style={{ backgroundColor: PROVIDER_META[prov].color }} />
             {PROVIDER_META[prov].label}
             {PROVIDER_META[prov].free && (
-              <span className="ml-auto rounded-full bg-emerald-500/15 px-1.5 py-px text-[9px] font-semibold normal-case tracking-normal text-emerald-600 dark:text-emerald-400">
+              <span className="ml-auto rounded-full bg-primary/10 px-1.5 py-px text-[9px] font-semibold normal-case tracking-normal text-primary">
                 {tKeys("free_badge")}
               </span>
             )}
