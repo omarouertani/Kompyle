@@ -149,7 +149,7 @@ export function useCanvasPagination({
    * le CV « s'adapte à l'état actuel » au lieu de revenir à la disposition
    * initiale du template.
    */
-  const relaxPreservingPositions = useCallback((): Record<string, BlockPos> | null => {
+  const relaxPreservingPositions = useCallback((mode: "restack" | "overlapsOnly" = "restack"): Record<string, BlockPos> | null => {
     const { data: d, layout: l, template: tpl } = reflowRefs.current;
     const defaults = computeDefaultPositions(tpl, d);
     const saved = l.absolutePositions ?? {};
@@ -185,7 +185,9 @@ export function useCanvasPagination({
           let y = pos.y;
           if (prevBottom !== null) {
             const gap = getParentSectionId(id) !== prevParent ? SECTION_GAP : BLOCK_GAP;
-            y = prevBottom + gap;
+            // "overlapsOnly" : seul un bloc qui en recouvre un autre descend ;
+            // les espacements choisis par l'utilisateur ne bougent pas.
+            if (mode === "restack" || y < prevBottom) y = prevBottom + gap;
           }
           positions[id] = { ...pos, y: Math.round(y), h: undefined };
           prevBottom = y + h;
@@ -214,6 +216,35 @@ export function useCanvasPagination({
       })
     );
   }, [relaxPreservingPositions]);
+
+  // Auto-correction UNIQUE à l'ouverture : des positions enregistrées peuvent
+  // avoir été calculées avec d'autres hauteurs (police corrigée, retours à la
+  // ligne affichés, texte importé…). Une fois les polices chargées, on ne fait
+  // descendre que les blocs qui en chevauchent un autre ; si rien ne se
+  // chevauche, rien n'est écrit (pas de « modification non enregistrée »).
+  const overlapCheckDone = useRef(false);
+  useEffect(() => {
+    if (!hasSavedPositions || overlapCheckDone.current) return;
+    let cancelled = false;
+    const run = () =>
+      requestAnimationFrame(() =>
+        requestAnimationFrame(() => {
+          if (cancelled || overlapCheckDone.current) return;
+          overlapCheckDone.current = true;
+          const { data: d, layout: l, onChange: oc } = reflowRefs.current;
+          const next = relaxPreservingPositions("overlapsOnly");
+          const saved = l.absolutePositions ?? {};
+          if (!next || !Object.keys(next).some((id) => saved[id] && saved[id].y !== next[id].y)) return;
+          oc({ ...d, layout: { ...l, absolutePositions: { ...saved, ...next } } }, AUTO_REFLOW_KEY);
+        })
+      );
+    if (typeof document !== "undefined" && document.fonts && document.fonts.status !== "loaded") {
+      document.fonts.ready.then(() => { if (!cancelled) run(); });
+    } else {
+      run();
+    }
+    return () => { cancelled = true; };
+  }, [hasSavedPositions, relaxPreservingPositions]);
 
   /**
    * Auto-ajustement « une seule page » : à partir des hauteurs RÉELLES mesurées,
