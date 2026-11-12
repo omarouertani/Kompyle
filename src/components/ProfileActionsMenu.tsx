@@ -52,7 +52,7 @@ export function ProfileActionsMenu({ onRename, onDelete, renameLabel, deleteLabe
       {open && (
         <div
           role="menu"
-          className="absolute right-0 top-7 z-50 min-w-36 rounded-lg border border-border bg-popover p-1 shadow-lg ring-1 ring-foreground/5 animate-in fade-in zoom-in-95 duration-100"
+          className="absolute right-0 top-7 z-50 min-w-36 rounded-lg border border-border bg-popover p-1 text-popover-foreground shadow-lg motion-pop"
         >
           <button
             type="button"

@@ -50,7 +50,7 @@ export function ContextMenu({ x, y, items, onClose }: ContextMenuProps) {
     <div
       ref={ref}
       style={style}
-      className="min-w-[210px] bg-popover border border-border rounded-lg shadow-lg p-1 select-none animate-in fade-in zoom-in-95 duration-100"
+      className="min-w-[210px] bg-popover border border-border rounded-lg shadow-lg p-1 select-none motion-pop"
     >
       {items.map((item, i) => (
         <React.Fragment key={i}>

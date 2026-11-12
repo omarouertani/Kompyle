@@ -4,6 +4,7 @@ import React, { useEffect, useRef, useState } from "react";
 import type { CVTheme, CVFontFamily, PhotoShape, SkillMode } from "@/types/cv";
 import { Palette, Check, AlignLeft, Tags, BarChart3 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { toolbarPill } from "./toolbar-styles";
 import { PHOTO_BORDER_WIDTHS, DEFAULT_PHOTO_BORDER_WIDTH } from "@/lib/photo-frame";
 
 const PRESETS = [
@@ -334,10 +335,7 @@ export function ThemePanel({ theme, onThemeChange, compact = false }: ThemePanel
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className={cn(
-          "flex items-center gap-1 px-2 py-0.5 text-[9px] font-bold rounded-md transition-all shadow-sm h-6",
-          open ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted/80 text-foreground"
-        )}
+        className={toolbarPill(open)}
         title="Thème & dimensions"
       >
         <Palette size={10} />

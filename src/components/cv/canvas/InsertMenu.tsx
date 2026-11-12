@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { Plus, Type, Minus, Square, Circle, ImagePlus, Shapes, ChevronLeft, Icon } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { toolbarPill } from "./toolbar-styles";
 import type { FreeElementKind } from "@/types/cv";
 import { resizeImageToDataUrl } from "@/utils/resize-image";
 import { MAX_FREE_IMAGE_CHARS } from "@/lib/free-elements";
@@ -95,10 +96,7 @@ export function InsertMenu({ onInsert }: { onInsert: InsertHandler }) {
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className={cn(
-          "flex items-center gap-1 px-2 py-0.5 text-[9px] font-bold rounded-md transition-all shadow-sm h-6",
-          open ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted/80 text-foreground"
-        )}
+        className={toolbarPill(open)}
         title={t("insert")}
         aria-haspopup="menu"
         aria-expanded={open}
@@ -120,7 +118,7 @@ export function InsertMenu({ onInsert }: { onInsert: InsertHandler }) {
         <div
           role="menu"
           className={cn(
-            "absolute left-0 top-8 z-50 rounded-xl border border-border/70 bg-popover/95 backdrop-blur-xl shadow-xl p-1 flex flex-col",
+            "absolute left-0 top-8 z-50 rounded-lg border border-border bg-popover shadow-lg motion-pop p-1 flex flex-col",
             iconsOpen ? "w-52" : "w-40"
           )}
           onMouseDown={(e) => e.stopPropagation()}
@@ -129,7 +127,7 @@ export function InsertMenu({ onInsert }: { onInsert: InsertHandler }) {
             <>
               <button
                 type="button"
-                className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs text-left hover:bg-muted/80"
+                className="flex items-center gap-1 rounded-md px-2 py-1 text-xs text-left hover:bg-muted/80"
                 onClick={() => setIconsOpen(false)}
               >
                 <ChevronLeft size={12} />
@@ -159,7 +157,7 @@ export function InsertMenu({ onInsert }: { onInsert: InsertHandler }) {
               key={it.kind}
               type="button"
               role="menuitem"
-              className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-xs text-left hover:bg-muted/80"
+              className="flex items-center gap-2 rounded-md px-2 py-1.5 text-xs text-left hover:bg-muted/80"
               onClick={() => {
                 if (it.kind === "icon") return setIconsOpen(true);
                 setOpen(false);

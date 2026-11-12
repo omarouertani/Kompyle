@@ -58,7 +58,7 @@ export function ModelSelect({ model, onModelChange, disabled, label, className, 
             )}
           </SelectLabel>
           {PROVIDER_MODELS[prov].map((m) => (
-            <SelectItem key={m.model} value={m.model} className="cursor-pointer rounded-lg text-sm">
+            <SelectItem key={m.model} value={m.model} className="cursor-pointer text-sm">
               {m.name}
             </SelectItem>
           ))}
@@ -89,7 +89,7 @@ export function ModelSelect({ model, onModelChange, disabled, label, className, 
           alignItemWithTrigger={false}
           container={menuContainer ?? undefined}
           positionerClassName={elevated ? "z-[110] pointer-events-auto" : undefined}
-          className="w-64 max-h-72 border border-border shadow-xl rounded-lg p-1.5"
+          className="w-64 max-h-72 p-1"
         >
           {options}
         </SelectContent>
@@ -121,7 +121,7 @@ export function ModelSelect({ model, onModelChange, disabled, label, className, 
           alignItemWithTrigger={false}
           container={menuContainer ?? undefined}
           positionerClassName={elevated ? "z-[110] pointer-events-auto" : undefined}
-          className="border border-border shadow-xl rounded-lg p-1.5"
+          className="max-h-80 p-1"
         >
           {options}
         </SelectContent>

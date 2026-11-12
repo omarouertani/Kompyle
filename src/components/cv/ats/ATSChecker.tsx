@@ -2,14 +2,14 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
-import { Sparkles, RotateCcw, ShieldCheck, X } from "lucide-react";
+import { RotateCcw, ShieldCheck } from "lucide-react";
 import type { CVData } from "@/types/cv";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { useATSCheck } from "@/hooks/use-ats-check";
 import { providerForModel, DEFAULT_MODEL } from "@/hooks/use-ai-provider-config";
 import { useApiKeys } from "@/hooks/use-api-keys";
-import AIProgressOverlay from "@/components/cv/AIProgressOverlay";
+import { AIProgressInline, AIProgressOverlay } from "@/components/cv/AIProgress";
 import { ATSEmptyState } from "./ATSEmptyState";
 import { ATSSkeleton } from "./ATSSkeleton";
 import { ATSResultsView } from "./ATSResultsView";
@@ -49,7 +49,7 @@ export function ATSChecker({
   onApplyRefinedCV,
 }: ATSCheckerProps) {
   const t = useTranslations("ATS");
-  const tAdapt = useTranslations("AIAdapt");
+
   const [adapting, setAdapting] = useState(false);
   // Modèle IA propre à l'audit ATS (indépendant du sélecteur global du sidebar).
   const { keys } = useApiKeys();
@@ -129,50 +129,33 @@ export function ATSChecker({
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          {status === "success" && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-9 px-3 text-xs gap-1.5 text-muted-foreground hover:text-foreground"
-              onClick={() => { reset(); }}
-            >
-              <RotateCcw size={14} />
+        {/* Actions UNIQUEMENT après un audit : secondaire (réinitialiser) puis
+            principale (relancer). En idle, seul le CTA central lance l'audit. */}
+        {status === "success" && (
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={reset}>
               {t("btn_reset")}
             </Button>
-          )}
-          {/* Bouton run UNIQUEMENT après un audit (relancer). En idle, seul le
-              CTA central de l'empty-state lance l'audit → pas de doublon. */}
-          {status === "success" && (
-            <Button
-              size="sm"
-              className="h-9 px-4 text-xs gap-1.5 font-semibold shadow-md shadow-primary/25 bg-gradient-to-b from-primary to-primary/90"
-              onClick={openDialog}
-            >
-              <Sparkles size={14} />
+            <Button size="sm" onClick={openDialog}>
+              <RotateCcw />
               {t("btn_run_again")}
             </Button>
-          )}
-        </div>
+          </div>
+        )}
       </div>
 
       <div className="flex-1 min-h-0 overflow-y-auto pr-1">
         {status === "idle" && <ATSEmptyState onStart={openDialog} />}
 
+        {/* Audit en cours : étapes au premier plan, squelette du rapport derrière. */}
         {status === "loading" && (
-          <div className="flex flex-col gap-3">
-            <div className="flex justify-end">
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-8 px-3 text-xs gap-1.5"
-                onClick={cancel}
-              >
-                <X size={13} />
-                {t("adapt_cancel")}
-              </Button>
+          <div className="relative min-h-full">
+            <div className="opacity-50">
+              <ATSSkeleton />
             </div>
-            <ATSSkeleton providerHint={t("loading_hint")} />
+            <div className="absolute inset-x-0 top-10 flex justify-center px-4">
+              <AIProgressInline active kind="ats" onCancel={cancel} />
+            </div>
           </div>
         )}
 
@@ -210,7 +193,7 @@ export function ATSChecker({
         onConfirm={handleConfirm}
       />
 
-      <AIProgressOverlay active={adapting} title={tAdapt("adapting_ats")} />
+      <AIProgressOverlay active={adapting} kind="ats_adapt" />
     </div>
   );
 }

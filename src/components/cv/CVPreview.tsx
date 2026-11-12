@@ -3,13 +3,15 @@
 import React, { useState, useCallback, useSyncExternalStore, useEffect, useRef } from "react";
 import { useTranslations } from "next-intl";
 import CVInteractiveCanvas from "./CVInteractiveCanvas";
-import AIProgressOverlay from "./AIProgressOverlay";
+import { AIProgressOverlay } from "./AIProgress";
+import { Spinner } from "@/components/ui/motion";
+import { DownloadMenu } from "./DownloadMenu";
 import type { CVData } from "@/types/cv";
 import { normalizeTemplate } from "@/lib/cv-layout";
 import { TEMPLATES } from "@/lib/cv-templates";
 import { TemplateThumbnail } from "./TemplateThumbnail";
 import { safeFileName, stripHtml } from "@/utils/strip-html";
-import { Download, Loader2, LayoutPanelLeft, History, AlertTriangle, LayoutTemplate, Trash2, ShieldCheck, FileText, FileType } from "lucide-react";
+import { LayoutPanelLeft, History, AlertTriangle, LayoutTemplate, Trash2, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { cn } from "@/lib/utils";
@@ -258,7 +260,7 @@ export default function CVPreview({
 
       {/* Toolbar */}
       <div className="flex items-center justify-between gap-4 shrink-0 flex-wrap sm:flex-nowrap">
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex min-w-0 flex-1 items-center gap-2 flex-wrap">
           {originalData && (
             <Button
               variant={sideBySide ? "secondary" : "outline"}
@@ -302,7 +304,7 @@ export default function CVPreview({
                   <History size={13} className="text-primary shrink-0" />
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="bg-popover border border-border shadow-md rounded-lg p-1">
+                <SelectContent className="p-1">
                   <SelectGroup>
                     <SelectItem value={mainProfileId} className="cursor-pointer text-xs">
                       <MarqueeText text={t("version_main")} />
@@ -334,7 +336,7 @@ export default function CVPreview({
                   className={cn(
                     "h-9 px-3 gap-1.5 text-xs font-semibold shrink-0 rounded-lg",
                     "text-primary border-primary/30 hover:bg-primary/5 hover:border-primary/50 bg-transparent",
-                    atsButtonShine && "shine-diamond",
+                    atsButtonShine && "motion-attention",
                   )}
                   title={t("ats_button_tooltip")}
                 >
@@ -351,7 +353,7 @@ export default function CVPreview({
               <LayoutTemplate size={13} className="text-primary shrink-0" />
               <SelectValue>{templateLabel}</SelectValue>
             </SelectTrigger>
-            <SelectContent className="bg-popover border border-border shadow-md rounded-lg p-1 w-[300px]" alignItemWithTrigger={false}>
+            <SelectContent className="p-1 w-[300px]" alignItemWithTrigger={false}>
               <SelectGroup className="grid grid-cols-3 gap-1">
                 {TEMPLATE_OPTIONS.map((opt) => (
                   <SelectItem
@@ -380,7 +382,7 @@ export default function CVPreview({
             <SelectTrigger className="h-9 w-[96px] rounded-lg border border-border/60 bg-muted/40 hover:bg-muted/60 transition-colors text-xs gap-1.5" title={t("label_page_size")}>
               <SelectValue />
             </SelectTrigger>
-            <SelectContent className="bg-popover border border-border shadow-md rounded-lg p-1">
+            <SelectContent className="p-1">
               <SelectGroup>
                 <SelectItem value="A4" className="cursor-pointer text-xs">A4</SelectItem>
                 <SelectItem value="LETTER" className="cursor-pointer text-xs">Letter</SelectItem>
@@ -390,7 +392,7 @@ export default function CVPreview({
         </div>
 
         {mounted && (
-          <div className="flex items-center gap-2">
+          <div className="flex shrink-0 items-center gap-2">
             {isOverflowing && (
               <div className="flex items-center gap-1.5 text-amber-600 text-xs font-medium">
                 <AlertTriangle size={13} />
@@ -403,46 +405,18 @@ export default function CVPreview({
                 {downloadError === "too_large" ? t("pdf_too_large") : downloadError === "docx" ? t("download_docx_error") : t("download_error")}
               </div>
             )}
-          <Button
-            onClick={handleDownload}
-            disabled={isDownloading}
-            title={isOverflowing ? t("overflow_warning") : undefined}
-            className="h-9 px-4 text-xs gap-1.5 font-semibold shadow-md shadow-primary/25 bg-gradient-to-b from-primary to-primary/90 hover:shadow-lg hover:shadow-primary/30 transition-all"
-          >
-            {isDownloading ? (
-              <>
-                <Loader2 size={14} className="animate-spin" />
-                {t("downloading")}
-              </>
-            ) : (
-              <>
-                <Download size={14} />
-                {isOverflowing ? t("download_anyway") : t("download")}
-              </>
-            )}
-          </Button>
-          {/* Texte brut (une colonne, sans mise en forme) : le format le plus sûr
-              pour les ATS et pour les formulaires de candidature. */}
-          <Button
-            variant="outline"
-            onClick={handleDownloadText}
-            title={t("download_txt_tooltip")}
-            className="h-9 px-3 text-xs gap-1.5"
-          >
-            <FileText size={14} />
-            TXT
-          </Button>
-          {/* Word (une colonne, gras / italique / couleurs conservés) */}
-          <Button
-            variant="outline"
-            onClick={handleDownloadDocx}
-            disabled={isDownloadingDocx}
-            title={t("download_docx_tooltip")}
-            className="h-9 px-3 text-xs gap-1.5"
-          >
-            {isDownloadingDocx ? <Loader2 size={14} className="animate-spin" /> : <FileType size={14} />}
-            DOCX
-          </Button>
+            {/* Un seul bouton de téléchargement : PDF (mise en page complète),
+                Word (une colonne, mise en forme conservée) et texte brut (le plus
+                sûr pour les ATS et les formulaires de candidature). */}
+            <DownloadMenu
+              label={t("download_menu")}
+              busyLabel={t("downloading")}
+              formats={[
+                { id: "pdf", label: "PDF", description: t("format_pdf_desc"), onSelect: handleDownload, busy: isDownloading },
+                { id: "docx", label: "DOCX", description: t("format_docx_desc"), onSelect: handleDownloadDocx, busy: isDownloadingDocx },
+                { id: "txt", label: "TXT", description: t("format_txt_desc"), onSelect: handleDownloadText },
+              ]}
+            />
           </div>
         )}
       </div>
@@ -512,7 +486,7 @@ export default function CVPreview({
             </div>
           )}
         </div>
-        <AIProgressOverlay active={isAdapting} />
+        <AIProgressOverlay active={isAdapting} kind="cv" />
       </div>
     </div>
   );
@@ -561,7 +535,7 @@ function PdfIframe({ url, loading }: { url: string | null; loading: boolean }) {
     <div className="flex-1 rounded-lg overflow-hidden border border-border bg-card shadow-sm min-h-0 relative">
       {(loading || !url) && (
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 z-10 bg-card">
-          <Loader2 className="animate-spin text-primary" size={28} />
+          <Spinner size={24} className="text-primary" />
           <span className="text-xs text-muted-foreground">{t("generating_pdf")}</span>
         </div>
       )}

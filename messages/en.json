@@ -81,12 +81,30 @@
     "adapting_cv": "AI is working on your CV…",
     "adapting_letter": "AI is writing your letter…",
     "adapting_ats": "Adapting your CV to the ATS report…",
-    "progress_label": "AI progress",
     "hint": "This may take a few seconds depending on the selected model.",
     "toast_cv_success": "Your CV has been adapted",
     "toast_letter_success": "Your cover letter is ready",
     "toast_refine_success": "Changes applied",
-    "toast_ats_adapt_success": "CV adapted to the ATS report"
+    "toast_ats_adapt_success": "CV adapted to the ATS report",
+    "auditing_ats": "Running the ATS audit…",
+    "elapsed": "Elapsed time",
+    "cancel": "Cancel",
+    "steps_cv_1": "Reading the job description",
+    "steps_cv_2": "Analysing your CV",
+    "steps_cv_3": "Rewriting the content for the role",
+    "steps_cv_4": "Checking and laying out",
+    "steps_letter_1": "Reading the job description",
+    "steps_letter_2": "Selecting your key experience",
+    "steps_letter_3": "Writing the letter",
+    "steps_letter_4": "Proofreading and formatting",
+    "steps_ats_1": "Reading the CV and the job description",
+    "steps_ats_2": "Extracting keywords",
+    "steps_ats_3": "Computing the scores",
+    "steps_ats_4": "Writing recommendations",
+    "steps_ats_adapt_1": "Reading the ATS report",
+    "steps_ats_adapt_2": "Adding the missing keywords",
+    "steps_ats_adapt_3": "Rewriting sections",
+    "steps_ats_adapt_4": "Checking and saving"
   },
   "DatePicker": {
     "placeholder": "Add dates",
@@ -123,8 +141,6 @@
     "mode_pdf": "PDF Preview",
     "label_template": "Template",
     "label_page_size": "Page size",
-    "download_txt_tooltip": "Download as plain text (one column, read reliably by ATS)",
-    "download_docx_tooltip": "Download as Word (one column, formatting kept, read reliably by ATS)",
     "download_docx_error": "DOCX download failed. Check your connection and try again.",
     "template_default": "Without photo",
     "template_modern": "With photo",
@@ -135,8 +151,6 @@
     "template_executive": "Executive",
     "version_main": "Main CV",
     "overflow_warning": "Content overflows the page",
-    "download_anyway": "Download anyway",
-    "download": "Download PDF",
     "downloading": "Generating…",
     "generating_pdf": "Generating PDF…",
     "cv_original": "Original CV",
@@ -152,7 +166,11 @@
     "delete": "Delete",
     "delete_version_error": "Could not delete this adapted CV.",
     "ats_button": "ATS Check",
-    "ats_button_tooltip": "Audit the selected CV against a job posting"
+    "ats_button_tooltip": "Audit the selected CV against a job posting",
+    "download_menu": "Download",
+    "format_pdf_desc": "Full layout, ready to send",
+    "format_docx_desc": "Word: single column, formatting kept, editable",
+    "format_txt_desc": "Plain text: for application forms and ATS"
   },
   "ATS": {
     "header_title": "ATS Checker",
@@ -162,7 +180,6 @@
     "btn_run_again": "Run again",
     "btn_reset": "Reset",
     "btn_retry": "Retry",
-
     "empty_title": "Audit your CV against a job posting",
     "empty_subtitle": "Get an instant ATS-compatibility score for the selected CV against any job posting, plus a concrete action plan.",
     "empty_feature1_title": "ATS Score",
@@ -173,7 +190,6 @@
     "empty_feature3_desc": "Precise edits to apply to raise the score.",
     "empty_cta": "Start an audit",
     "empty_selected_cv": "CV being analysed: {name}",
-
     "dialog_title": "Pick the job posting to analyse",
     "dialog_desc_existing": "A job posting is already in the sidebar. Use it, or paste a different one?",
     "dialog_desc_new": "Paste the target job posting — it'll be used as the reference for the ATS audit.",
@@ -186,10 +202,8 @@
     "dialog_cancel": "Cancel",
     "dialog_confirm": "Run ATS audit",
     "dialog_model_label": "AI model",
-
     "loading_title": "Running ATS audit…",
     "loading_hint": "Comparing CV against the posting",
-
     "score_caption": "Overall ATS score",
     "verdict_title": "Verdict",
     "subscores_title": "Score breakdown",
@@ -197,31 +211,24 @@
     "sub_skills": "Skills",
     "sub_experience": "Experience",
     "sub_formatting": "Format & sections",
-
-    "tab_overview": "Overview",
     "tab_keywords": "Keywords",
     "tab_sections": "Sections",
-    "tab_recommendations": "Fixes",
-
     "matched_title": "Matched keywords",
     "matched_subtitle": "{count} found",
     "matched_empty": "No keyword from the posting detected in the CV.",
     "missing_title": "Missing keywords",
     "missing_subtitle": "{count} missing",
     "missing_empty": "No important keyword is missing — well done!",
-
     "sections_empty": "No section to analyse.",
     "status_good": "OK",
     "status_warning": "Partial",
     "status_missing": "Missing",
-
     "recommendations_title": "Recommendations",
     "recommendations_subtitle": "Apply these first",
     "recommendations_empty": "No recommendation — your CV is already optimised.",
     "strengths_title": "Strengths",
     "strengths_subtitle": "What works for this posting",
     "strengths_empty": "No strength identified for this posting.",
-
     "error_title": "Audit failed",
     "error_hint_missing_key": "No API key is set for the selected provider. Add one via the API Keys button — Gemini, Groq, OpenRouter and NVIDIA have free tiers.",
     "error_hint_quota": "A request or free-tier limit was reached (or the credit is exhausted). Wait for the reset — free daily limits reset every 24 h — or switch to another provider, then retry.",
@@ -240,7 +247,6 @@
     "error_reason_server": "Server error",
     "error_reason_empty": "Empty response",
     "error_reason_unknown": "Unknown error",
-
     "adapt_title": "Adapt the CV with these recommendations",
     "adapt_subtitle": "Apply the ATS recommendations to the selected CV. Pick a model, add extra instructions if you like, and run — the current CV will be modified and saved.",
     "adapt_model_label": "AI model",
@@ -252,7 +258,8 @@
     "adapt_cancel": "Cancel",
     "adapt_success_title": "CV updated and saved",
     "adapt_success_hint": "Changes have been applied to the selected version.",
-    "adapt_again": "Adapt again"
+    "adapt_again": "Adapt again",
+    "keywords_coverage": "{matched} of {total} found in the CV"
   },
   "Canvas": {
     "insert": "Insert",

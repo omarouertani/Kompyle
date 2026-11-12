@@ -121,7 +121,7 @@ export function ColorDrawer({ open, value, recent, brand = [], onPick, onClose, 
     <div
       ref={panelRef}
       data-canvas-toolbar
-      className="absolute left-3 top-[60px] z-40 w-[340px] max-h-[calc(100%-72px)] flex flex-col rounded-2xl border border-border/70 bg-popover/95 backdrop-blur-xl shadow-2xl shadow-black/20 ring-1 ring-black/5 overflow-hidden animate-in fade-in slide-in-from-left-2 duration-150"
+      className="absolute left-3 top-[60px] z-40 w-[340px] max-h-[calc(100%-72px)] flex flex-col rounded-2xl border border-border/70 bg-popover/95 backdrop-blur-xl shadow-2xl shadow-black/20 ring-1 ring-black/5 overflow-hidden motion-pop"
       onMouseDown={(e) => e.stopPropagation()}
     >
       {/* Header */}

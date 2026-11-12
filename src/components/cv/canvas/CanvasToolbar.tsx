@@ -3,6 +3,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
+import { toolbarPill } from "./toolbar-styles";
 import {
   Minus,
   Plus,
@@ -244,20 +245,9 @@ export function CanvasToolbar({
             {/* Page controls */}
             <ToolGroup>
               {Array.from({ length: pageCount }, (_, idx) => (
-                <button
-                  key={idx}
-                  type="button"
-                  onClick={() => onSelectPage(idx)}
-                  onMouseDown={(e) => e.preventDefault()}
-                  className={cn(
-                    "px-2 h-7 text-[10px] font-semibold rounded-md transition-all",
-                    activePageIndex === idx
-                      ? "bg-card text-foreground shadow-sm"
-                      : "text-muted-foreground hover:text-foreground"
-                  )}
-                >
+                <ToolButton key={idx} onClick={() => onSelectPage(idx)} active={activePageIndex === idx} className="px-2 font-semibold">
                   P{idx + 1}
-                </button>
+                </ToolButton>
               ))}
               <ToolButton onClick={onAddPage} title={t("add_page")}>
                 <FilePlus size={12} />
@@ -291,15 +281,9 @@ export function CanvasToolbar({
               <ToolButton onClick={() => onZoomChange(Math.min(ZOOM_MAX, zoom + 0.1))} title="+">
                 <Plus size={12} />
               </ToolButton>
-              <button
-                type="button"
-                onClick={onZoomFit}
-                onMouseDown={(e) => e.preventDefault()}
-                className="px-2 h-7 text-[10px] font-semibold rounded-md transition-all bg-background hover:bg-muted/80 text-foreground"
-                title={t("zoom_fit_tooltip")}
-              >
+              <ToolButton onClick={onZoomFit} title={t("zoom_fit_tooltip")} className="px-2 font-semibold text-foreground">
                 {t("zoom_fit")}
-              </button>
+              </ToolButton>
             </ToolGroup>
 
             {/* Info / shortcuts — single icon, tooltip on hover instead of the
@@ -335,10 +319,7 @@ export function CanvasToolbar({
             <button
               type="button"
               onClick={onToggleLayers}
-              className={cn(
-                "flex items-center gap-1 px-2 py-0.5 text-[9px] font-bold rounded-md transition-all shadow-sm h-6",
-                layersOpen ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted/80 text-foreground"
-              )}
+              className={toolbarPill(layersOpen)}
               title={t("layers")}
               aria-pressed={layersOpen}
             >
@@ -526,7 +507,7 @@ function MoreMenu({ title, children }: { title: string; children: React.ReactNod
       {open && (
         <>
           <div className="fixed inset-0 z-30" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 top-9 z-40 rounded-xl border border-border/70 bg-popover shadow-xl p-2 flex flex-wrap items-center gap-2 w-max max-w-[min(92vw,420px)]">
+          <div className="absolute right-0 top-9 z-40 rounded-lg border border-border bg-popover shadow-lg motion-pop p-2 flex flex-wrap items-center gap-2 w-max max-w-[min(92vw,420px)]">
             {children}
           </div>
         </>
@@ -643,7 +624,7 @@ function FontFamilyPicker({
       {open && (
         <>
           <div className="fixed inset-0 z-30" onClick={close} />
-          <div className="absolute left-0 top-8 z-40 w-48 rounded-xl border border-border/70 bg-popover shadow-xl p-1">
+          <div className="absolute left-0 top-8 z-40 w-48 rounded-lg border border-border bg-popover shadow-lg motion-pop p-1">
             <input
               autoFocus
               type="text"
@@ -731,7 +712,7 @@ function ShortcutsHelpButton() {
       {open && (
         <>
           <div className="fixed inset-0 z-30" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 top-9 z-40 w-72 rounded-xl border border-border/70 bg-popover shadow-xl p-3 text-[11px] text-foreground/90 leading-relaxed">
+          <div className="absolute right-0 top-9 z-40 w-72 rounded-lg border border-border bg-popover shadow-lg motion-pop p-3 text-[11px] text-foreground/90 leading-relaxed">
             <div className="font-semibold text-xs text-foreground mb-1.5">{t("shortcuts_title")}</div>
             <div className="text-muted-foreground">{t("hint")}</div>
           </div>
