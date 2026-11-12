@@ -169,6 +169,9 @@ export default function CVPreview({
   // la bannière du canvas propose de le faire tenir, sans bloquer.
   const isPdf = mode === "pdf";
   const needsOriginalPdf = sideBySide && !!originalData;
+  // Positions pas encore mesurées par le canvas (effacées après un import, une
+  // adaptation IA, un changement de modèle) : voir le canvas caché plus bas.
+  const needsLayout = Object.keys(data.layout?.absolutePositions ?? {}).length === 0;
 
   const { url: originalUrl, loading: originalLoading } = useServerPdfUrl(
     originalData ?? null, template, needsOriginalPdf
@@ -461,6 +464,22 @@ export default function CVPreview({
                   />
                 </div>
               )}
+            </div>
+          )}
+
+          {/* Mise en page à recalculer (CV importé, adapté, modèle changé…) alors
+              que l'aperçu PDF est affiché : c'est le canvas qui mesure les
+              hauteurs réelles et écrit les positions. Sans lui, le PDF tombait
+              sur les positions ESTIMÉES (sections qui se chevauchent). On le
+              monte donc, invisible, le temps de ce calcul. */}
+          {mounted && mode === "pdf" && needsLayout && (
+            <div aria-hidden className="pointer-events-none invisible absolute inset-0 -z-10 overflow-hidden">
+              <CVInteractiveCanvas
+                data={data}
+                onChange={handleCanvasChange}
+                template={template}
+                onOverflowChange={setIsOverflowing}
+              />
             </div>
           )}
 
