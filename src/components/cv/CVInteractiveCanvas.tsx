@@ -17,7 +17,12 @@ import {
   hasDuplicateSections,
   getSectionLabel,
   isModernTemplate,
+  isCanadianTemplate,
+  getColumnSections,
+  getSectionBlockIds,
 } from "@/lib/cv-layout";
+import { bakeFreeElementPositions } from "@/lib/free-elements";
+import type { LayerColumn } from "./canvas/LayersPanel";
 import { Lock } from "lucide-react";
 import { stripHtml } from "@/utils/strip-html";
 import { SELECTION_COLOR, PageDimsContext, PT_TO_PX } from "./cv-canvas-primitives";
@@ -299,6 +304,40 @@ export default function CVInteractiveCanvas({ data, onChange: onChangeProp, temp
   const layers = useLayers({ data, layout, headerBlockIds, defaultPositions, onChange, homePageOf });
   const [layersOpen, setLayersOpen] = useState(false);
 
+  // ── Panneau « Sections » : ordre des sections sur la page, par colonne ──────
+  const hasSidebarColumn = !isCanadianTemplate(template);
+  const layerColumns = useMemo(() => {
+    const cols = getColumnSections(layout);
+    const item = (sectionId: string) => ({ id: sectionId, label: stripHtml(getSectionLabel(sectionId, data)) });
+    const withContent = (ids: string[]) => ids.filter((s) => getSectionBlockIds(s, data).length > 0).map(item);
+    return { sidebar: withContent(cols.sidebar), main: withContent(cols.main) };
+  }, [layout, data]);
+  /** Blocs du canvas couverts par une ligne du panneau (section → titre + contenus). */
+  const blocksOfLayer = (id: string): string[] => (isFreeElementId(id) ? [id] : getSectionBlockIds(id, data));
+
+  /** Déplace une section dans l'ordre de la page (et de colonne si besoin), puis
+   *  remet la page en forme à partir des hauteurs réelles : le CV change aussitôt.
+   *  Les réglages des blocs (masqué, verrou, taille du texte…) sont conservés. */
+  const moveSection = (sectionId: string, column: LayerColumn, index: number) => {
+    const cols = getColumnSections(layout);
+    const sidebar = cols.sidebar.filter((s) => s !== sectionId);
+    const main = cols.main.filter((s) => s !== sectionId);
+    const target = column === "sidebar" && hasSidebarColumn ? sidebar : main;
+    target.splice(Math.min(Math.max(0, index), target.length), 0, sectionId);
+    if (sidebar.join() === cols.sidebar.join() && main.join() === cols.main.join()) return;
+    onChange({
+      ...data,
+      layout: {
+        ...layout,
+        pages: [{ sidebar, main }],
+        autoPaginated: false,
+        // Les éléments libres gardent leur place exacte malgré la remise en page.
+        freeElements: bakeFreeElementPositions(layout),
+      },
+    }, "section-order");
+    realignAfterRender();
+  };
+
   // ── Menu contextuel ─────────────────────────────────────────────────────────
   const { menu, setMenu, openBlockMenu, openCanvasMenu, menuItems } = useContextMenu({
     data,
@@ -489,21 +528,21 @@ export default function CVInteractiveCanvas({ data, onChange: onChangeProp, temp
 
       {layersOpen && (
         <LayersPanel
-          pageIndex={activePageIndex}
-          stack={layers.stackOf(activePageIndex)}
+          hasSidebar={hasSidebarColumn}
+          sidebar={layerColumns.sidebar}
+          main={layerColumns.main}
+          free={[...layers.stackOf(activePageIndex)].reverse().filter(isFreeElementId).map((id) => ({ id, label: blockLabel(id) }))}
           selectedIds={selectedIds}
-          labelOf={(id) => {
-            const base = blockLabel(id);
-            if (id.startsWith("title_")) return `${base} · ${t("layer_heading")}`;
-            const n = id.match(/_(\d+)$/);
-            return n && !isFreeElementId(id) ? `${base} ${Number(n[1]) + 1}` : base;
+          isHidden={(id) => blocksOfLayer(id).every((b) => layers.isFlagged(b, "hidden"))}
+          isLocked={(id) => blocksOfLayer(id).every((b) => layers.isFlagged(b, "locked"))}
+          onSelect={(id) => setSelectedIds(blocksOfLayer(id))}
+          onMoveSection={moveSection}
+          onMoveFree={(id, overId) => {
+            const stack = layers.stackOf(activePageIndex);
+            layers.moveTo(activePageIndex, id, stack.indexOf(overId));
           }}
-          isHidden={(id) => layers.isFlagged(id, "hidden")}
-          isLocked={(id) => layers.isFlagged(id, "locked")}
-          onSelect={(id) => setSelectedIds([id])}
-          onMove={(id, to) => layers.moveTo(activePageIndex, id, to)}
-          onToggleHidden={(id) => layers.toggleFlag([id], "hidden")}
-          onToggleLocked={(id) => layers.toggleFlag([id], "locked")}
+          onToggleHidden={(id) => layers.toggleFlag(blocksOfLayer(id), "hidden")}
+          onToggleLocked={(id) => layers.toggleFlag(blocksOfLayer(id), "locked")}
           onClose={() => setLayersOpen(false)}
         />
       )}

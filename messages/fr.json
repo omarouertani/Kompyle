@@ -391,8 +391,6 @@
     "menu_send_backward": "Reculer",
     "menu_send_back": "Arrière-plan",
     "layers": "Calques",
-    "layers_title": "Calques · page {page}",
-    "layers_hint": "Haut de la liste = devant. Glisser pour réordonner.",
     "layer_hide": "Masquer",
     "layer_show": "Afficher",
     "layer_lock": "Verrouiller",
@@ -424,7 +422,13 @@
     "block_techline": "Technologies",
     "block_contactline": "Coordonnées",
     "ms_text_smaller": "Réduire le texte (sélection)",
-    "ms_text_larger": "Agrandir le texte (sélection)"
+    "ms_text_larger": "Agrandir le texte (sélection)",
+    "sections_title": "Sections",
+    "sections_hint": "Glissez une section pour changer sa place sur la page (même entre colonnes). Œil : masquer · cadenas : verrouiller.",
+    "column_sidebar": "Colonne latérale",
+    "column_main": "Colonne principale",
+    "free_elements": "Éléments libres",
+    "free_elements_hint": "Haut de la liste = devant."
   },
   "Builder": {
     "photo_error": "Impossible de lire cette image. Essayez un fichier JPEG ou PNG de moins de 15 Mo.",

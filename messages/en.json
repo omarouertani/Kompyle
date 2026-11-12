@@ -391,8 +391,6 @@
     "menu_send_backward": "Send backward",
     "menu_send_back": "Send to back",
     "layers": "Layers",
-    "layers_title": "Layers · page {page}",
-    "layers_hint": "Top of the list = front. Drag to reorder.",
     "layer_hide": "Hide",
     "layer_show": "Show",
     "layer_lock": "Lock",
@@ -424,7 +422,13 @@
     "block_techline": "Technologies",
     "block_contactline": "Contact details",
     "ms_text_smaller": "Smaller text (selection)",
-    "ms_text_larger": "Larger text (selection)"
+    "ms_text_larger": "Larger text (selection)",
+    "sections_title": "Sections",
+    "sections_hint": "Drag a section to change its place on the page (even across columns). Eye: hide · lock: lock.",
+    "column_sidebar": "Side column",
+    "column_main": "Main column",
+    "free_elements": "Free elements",
+    "free_elements_hint": "Top of the list = front."
   },
   "Builder": {
     "photo_error": "This image could not be read. Try a JPEG or PNG file under 15 MB.",
