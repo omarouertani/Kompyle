@@ -67,6 +67,9 @@ function expandGroups(ids: string[], positions: Record<string, BlockPos>): strin
   return Array.from(result);
 }
 
+/** Marge minimale (pt) entre un bloc redimensionné et le bord de la page. */
+const PAGE_EDGE_PT = 12;
+
 /** Sélection (simple ou multiple) + drag / resize / snap des blocs absolus.
  *  Pendant un geste, seules les propriétés CSS des blocs sont mises à jour
  *  (RAF) ; le state React n'est commité qu'au mouseup — d'où la fluidité. */
@@ -436,7 +439,25 @@ export function useCanvasInteractions({ data, template, defaultPositions, onChan
           }
 
           if (isCorner && startW > 0) {
+            // Échelle du texte : suit le geste, même si la largeur est bornée ci-dessous.
             pendingFontScale = Math.max(0.4, Math.min(3, startFontScale * (pendingW / startW)));
+          }
+
+          // Le bloc reste DANS la page : avant, tirer une poignée pouvait le faire
+          // déborder du bord (texte coupé à l'écran comme dans le PDF). Un bloc
+          // déjà hors limites n'est jamais rétréci de force.
+          if (resizesW) {
+            const pageW = getPageDims(dataRef.current.layout).widthPt;
+            if (isLeft) {
+              const right = pendingX + pendingW;
+              const minX = Math.min(PAGE_EDGE_PT, currentPos.x);
+              if (pendingX < minX) { pendingX = minX; pendingW = right - minX; }
+            } else {
+              const allowedRight = pageW - PAGE_EDGE_PT;
+              // Déjà au-delà du bord : peut rétrécir, pas s'élargir davantage.
+              const maxW = currentPos.x + startW > allowedRight ? startW : Math.max(40, allowedRight - pendingX);
+              pendingW = Math.min(pendingW, maxW);
+            }
           }
 
           if (blockEl) {
@@ -495,7 +516,8 @@ export function useCanvasInteractions({ data, template, defaultPositions, onChan
             ...(isCorner ? { fontScale: Math.round(pendingFontScale * 100) / 100 } : {}),
           },
         });
-        if (group.length > 0 && ratio !== 1) onGroupScaled?.();
+        // Texte agrandi/réduit (un bloc ou toute la sélection) : réalignement.
+        if (isCorner && ratio !== 1) onGroupScaled?.();
       };
 
       window.addEventListener("mousemove", handleMouseMove);
