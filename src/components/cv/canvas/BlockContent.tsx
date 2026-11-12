@@ -12,6 +12,7 @@ import { photoFrame } from "@/lib/photo-frame";
 import { getSkillLevel, renameSkillLevel, setSkillLevel, skillFill } from "@/lib/skill-levels";
 import { stripHtml } from "@/utils/strip-html";
 import { SkillLevelBar } from "./SkillLevelBar";
+import { headingSizeOf, withHeadingSize } from "@/lib/heading-size";
 
 export interface BlockTheme {
   isChaima: boolean;
@@ -45,9 +46,6 @@ export function BlockContent({ blockId, data, theme, onChange, onThemeReflow }: 
 
   const updatePersonalInfo = (field: string, value: string) =>
     onChange({ ...data, personalInfo: { ...personalInfo, [field]: value } });
-
-  const updateTheme = (updates: Partial<CVTheme>) =>
-    onChange({ ...data, layout: { ...data.layout!, theme: { ...data.layout?.theme, ...updates } } });
 
   const updateItem = <T,>(list: T[], index: number, patch: Partial<T>): T[] => {
     const next = [...list];
@@ -175,13 +173,15 @@ export function BlockContent({ blockId, data, theme, onChange, onThemeReflow }: 
   // --- Titres de section (built-in, renommables) ---
   if (blockId.startsWith("title_")) {
     const sectionId = blockId.substring(6);
+    const title = getSectionLabel(sectionId, data);
     return (
       <CanvasSectionHeading
-        title={getSectionLabel(sectionId, data)}
+        title={title}
         blockId={blockId}
-        headingFontSize={headingFontSize}
+        headingFontSize={headingSizeOf(title, headingFontSize)}
         primaryColor={primaryColor}
-        onFontSizeChange={(s) => { updateTheme({ headingSize: s }); onThemeReflow?.(); }}
+        // −/+ du titre : CE titre seulement (taille de tous les titres : panneau Thème).
+        onFontSizeChange={(s) => { onChange(renameSection(data, sectionId, withHeadingSize(title, s))); onThemeReflow?.(); }}
         onTitleChange={(title) => onChange(renameSection(data, sectionId, title))}
       />
     );

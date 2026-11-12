@@ -54,11 +54,12 @@ export const CanvasSectionHeading = React.memo(function CanvasSectionHeading({
           était rogné par le bord de la page : on ne voyait qu'un « − » coupé. */}
       <span
         data-no-print
+        title="Taille de ce titre (tous les titres : panneau Thème)"
         className="pointer-events-none absolute right-0 top-1/2 z-30 flex -translate-y-1/2 items-center gap-0.5 rounded-md border border-border bg-popover px-0.5 py-0.5 text-[10px] font-medium normal-case leading-none tracking-normal text-popover-foreground opacity-0 shadow-sm transition-opacity duration-150 select-none group-hover/h2:pointer-events-auto group-hover/h2:opacity-100 focus-within:pointer-events-auto focus-within:opacity-100"
       >
         <button
           type="button"
-          aria-label="−"
+          aria-label="Réduire ce titre"
           onClick={() => onFontSizeChange(Math.max(9, headingFontSize - 0.5))}
           className="flex size-4 items-center justify-center rounded hover:bg-muted"
         >
@@ -67,7 +68,7 @@ export const CanvasSectionHeading = React.memo(function CanvasSectionHeading({
         <span className="min-w-8 text-center tabular-nums">{headingFontSize}pt</span>
         <button
           type="button"
-          aria-label="+"
+          aria-label="Agrandir ce titre"
           onClick={() => onFontSizeChange(Math.min(18, headingFontSize + 0.5))}
           className="flex size-4 items-center justify-center rounded hover:bg-muted"
         >
