@@ -15,6 +15,8 @@ import {
   Ungroup,
   Bold,
   Italic,
+  AArrowDown,
+  AArrowUp,
   ChevronDown,
 } from "lucide-react";
 import type { CVFontFamily } from "@/types/cv";
@@ -45,7 +47,12 @@ interface MultiSelectToolbarProps {
   onToggle?: (command: "bold" | "italic") => void;
   /** Au moins un bloc sélectionné expose-t-il du texte formatable ? */
   canFormat?: boolean;
+  /** Agrandit (> 1) ou réduit (< 1) le texte de tous les blocs sélectionnés. */
+  onScaleText?: (factor: number) => void;
 }
+
+/** Pas d'agrandissement / réduction du texte d'une sélection (+10 % par clic). */
+const TEXT_SCALE_STEP = 1.1;
 
 function Btn({ onClick, title, children }: { onClick: () => void; title: string; children: React.ReactNode }) {
   return (
@@ -62,7 +69,7 @@ function Btn({ onClick, title, children }: { onClick: () => void; title: string;
 
 /** Barre flottante d'alignement / distribution / groupement, affichée dès que
  *  2 blocs (ou plus) sont sélectionnés ensemble (style Canva). */
-export function MultiSelectToolbar({ count, hasGroup, onAlign, onGroup, onUngroup, onApplyColor, onApplyFont, onToggle, canFormat }: MultiSelectToolbarProps) {
+export function MultiSelectToolbar({ count, hasGroup, onAlign, onGroup, onUngroup, onApplyColor, onApplyFont, onToggle, canFormat, onScaleText }: MultiSelectToolbarProps) {
   const t = useTranslations("Canvas");
   if (count < 2) return null;
 
@@ -76,6 +83,13 @@ export function MultiSelectToolbar({ count, hasGroup, onAlign, onGroup, onUngrou
     >
       <span className="px-1.5 text-[10px] font-semibold text-muted-foreground tabular-nums">{count}</span>
       <div className="w-px h-4 bg-border/60 mx-0.5" />
+      {onScaleText && (
+        <>
+          <Btn onClick={() => onScaleText(1 / TEXT_SCALE_STEP)} title={t("ms_text_smaller")}><AArrowDown size={14} /></Btn>
+          <Btn onClick={() => onScaleText(TEXT_SCALE_STEP)} title={t("ms_text_larger")}><AArrowUp size={14} /></Btn>
+          <div className="w-px h-4 bg-border/60 mx-0.5" />
+        </>
+      )}
       {showFormat && (
         <>
           <SelectionFontPicker onPick={(stack) => onApplyFont!(stack)} title={t("ms_apply_font")} />

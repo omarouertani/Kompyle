@@ -422,7 +422,9 @@
     "block_name": "Nom",
     "block_role": "Titre",
     "block_techline": "Technologies",
-    "block_contactline": "Coordonnées"
+    "block_contactline": "Coordonnées",
+    "ms_text_smaller": "Réduire le texte (sélection)",
+    "ms_text_larger": "Agrandir le texte (sélection)"
   },
   "Builder": {
     "photo_error": "Impossible de lire cette image. Essayez un fichier JPEG ou PNG de moins de 15 Mo.",

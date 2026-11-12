@@ -206,6 +206,27 @@ export default function CVInteractiveCanvas({ data, onChange: onChangeProp, temp
     absolutePositions,
   });
 
+  /** Sélection multiple : agrandit / réduit le texte de TOUS les blocs choisis
+   *  d'un coup (même mécanisme que la poignée d'angle : `fontScale`, rendu aussi
+   *  dans le PDF), puis réaligne pour éviter les chevauchements. Des clics
+   *  rapprochés forment un seul pas d'annulation. */
+  const scaleSelectedText = (factor: number) => {
+    const saved = layout.absolutePositions ?? {};
+    const next = { ...saved };
+    let changed = false;
+    for (const id of new Set(selectedIds)) {
+      const pos = absolutePositions[id];
+      if (!pos || id === "photo" || pos.locked) continue;
+      const scale = Math.min(3, Math.max(0.4, Math.round((pos.fontScale ?? 1) * factor * 100) / 100));
+      if (scale === (pos.fontScale ?? 1)) continue;
+      next[id] = { ...(saved[id] ?? pos), fontScale: scale };
+      changed = true;
+    }
+    if (!changed) return;
+    onChange({ ...data, layout: { ...layout, absolutePositions: next } }, "text-scale");
+    realignPreservingAfterRender();
+  };
+
   // Bannière de débordement : « Réduire l'espacement » baisse d'un pas l'écart
   // entre sections (−2 pt, min 2) et l'interligne (−0,05, min 1,0), puis ré-empile
   // les blocs sur les hauteurs re-mesurées (le placement manuel qui débordait
@@ -498,6 +519,7 @@ export default function CVInteractiveCanvas({ data, onChange: onChangeProp, temp
         onApplyColor={(c) => { applyStyles(selectedIds, { color: c }); realignPreservingAfterRender(); }}
         onApplyFont={(stack) => { applyStyles(selectedIds, { "font-family": stack }); realignPreservingAfterRender(); }}
         onToggle={(cmd) => { toggleCommand(selectedIds, cmd); realignPreservingAfterRender(); }}
+        onScaleText={scaleSelectedText}
       />
 
       <div

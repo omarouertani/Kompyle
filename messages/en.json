@@ -422,7 +422,9 @@
     "block_name": "Name",
     "block_role": "Title",
     "block_techline": "Technologies",
-    "block_contactline": "Contact details"
+    "block_contactline": "Contact details",
+    "ms_text_smaller": "Smaller text (selection)",
+    "ms_text_larger": "Larger text (selection)"
   },
   "Builder": {
     "photo_error": "This image could not be read. Try a JPEG or PNG file under 15 MB.",
