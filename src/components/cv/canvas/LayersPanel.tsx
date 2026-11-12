@@ -111,16 +111,21 @@ interface LayerRowProps {
 function LayerRow({ id, label, selected, hidden, locked, onSelect, onToggleHidden, onToggleLocked, hideLabel, showLabel, lockLabel, unlockLabel }: LayerRowProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
   return (
+    // Toute la ligne se glisse (pas seulement la poignée ⋮⋮) : c'est le geste
+    // attendu. Un simple clic sélectionne toujours (le glisser ne démarre
+    // qu'après 4 px de mouvement, cf. activationConstraint).
     <li
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition }}
       className={cn(
-        "group flex items-center gap-1 rounded-md px-1 py-1 text-xs",
+        "group flex items-center gap-1 rounded-md px-1 py-1 text-xs touch-none cursor-grab active:cursor-grabbing",
         selected ? "bg-primary/10 text-foreground" : "hover:bg-muted/70",
-        isDragging && "opacity-60 shadow",
+        isDragging && "relative z-10 opacity-80 shadow-md bg-popover",
       )}
+      {...attributes}
+      {...listeners}
     >
-      <span className="cursor-grab text-muted-foreground touch-none" {...attributes} {...listeners}>
+      <span className="text-muted-foreground" aria-hidden>
         <GripVertical size={12} />
       </span>
       <button type="button" className={cn("flex-1 truncate text-left", hidden && "opacity-50 line-through")} onClick={onSelect}>
