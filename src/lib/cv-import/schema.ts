@@ -82,8 +82,9 @@ export type ImportWarning =
 const MAX_ITEMS = 40;
 const MAX_BULLETS = 20;
 
-/** Texte propre : balises retirées, espaces normalisés (sauts de ligne gardés). */
-function clean(s: string): string {
+/** Texte propre : balises retirées, espaces normalisés (sauts de ligne gardés).
+ *  Pour les contenus libres (sections libres), où les lignes ont un sens. */
+function block(s: string): string {
   return s
     .replace(/<[^>]*>/g, "")
     .replace(/[^\S\n]+/g, " ")
@@ -92,9 +93,21 @@ function clean(s: string): string {
     .trim();
 }
 
+/** Champ d'une seule ligne (nom, poste, entreprise, dates, puce…) : un retour à
+ *  la ligne n'y vient que du découpage du PDF → espace. */
+function line(s: string): string {
+  return block(s).replace(/\s*\n\s*/g, " ");
+}
+
+/** Paragraphe (résumé, description) : les retours simples viennent du retour
+ *  automatique du PDF → espace ; une ligne vide (vrai paragraphe) → un retour. */
+function para(s: string): string {
+  return block(s).replace(/([^\n])\n(?!\n)/g, "$1 ").replace(/\n{2,}/g, "\n");
+}
+
 /** Puce sans son marqueur (•, -, *, ▪…) : le modèle de CV dessine déjà les puces. */
 function cleanBullet(s: string): string {
-  return clean(s).replace(/^[•\-*▪◦●·–—]\s*/, "").trim();
+  return line(s).replace(/^[•\-*▪◦●·–—]\s*/, "").trim();
 }
 
 const newId = (): string => crypto.randomUUID();
@@ -106,49 +119,49 @@ const newId = (): string => crypto.randomUUID();
 export function normalizeImportedCV(raw: ImportedCVRaw): ImportedCV {
   const pi = raw.personalInfo;
   const opt = (s: string) => {
-    const c = clean(s);
+    const c = line(s);
     return c ? c : undefined;
   };
   return {
     personalInfo: {
-      name: clean(pi.name),
-      role: clean(pi.role),
-      techLine: clean(pi.techLine),
-      email: clean(pi.email).replace(/^mailto:/i, ""),
-      phone: clean(pi.phone),
-      location: clean(pi.location),
-      linkedin: clean(pi.linkedin).replace(/^https?:\/\/(www\.)?/i, "").replace(/\/$/, ""),
+      name: line(pi.name),
+      role: line(pi.role),
+      techLine: line(pi.techLine),
+      email: line(pi.email).replace(/^mailto:/i, ""),
+      phone: line(pi.phone),
+      location: line(pi.location),
+      linkedin: line(pi.linkedin).replace(/^https?:\/\/(www\.)?/i, "").replace(/\/$/, ""),
       portfolio: opt(pi.portfolio)?.replace(/^https?:\/\/(www\.)?/i, "").replace(/\/$/, ""),
-      summary: clean(pi.summary),
+      summary: para(pi.summary),
       birthDate: opt(pi.birthDate),
       certifications: opt(pi.certifications),
       interests: opt(pi.interests),
     },
     skills: raw.skills
-      .map((s) => ({ id: newId(), category: clean(s.category), items: clean(s.items) }))
+      .map((s) => ({ id: newId(), category: line(s.category), items: line(s.items) }))
       .filter((s) => s.items)
       .slice(0, MAX_ITEMS),
-    spokenLanguages: raw.spokenLanguages.map(clean).filter(Boolean).slice(0, MAX_ITEMS),
+    spokenLanguages: raw.spokenLanguages.map(line).filter(Boolean).slice(0, MAX_ITEMS),
     education: raw.education
-      .map((e) => ({ id: newId(), degree: clean(e.degree), institution: clean(e.institution), date: clean(e.date) }))
+      .map((e) => ({ id: newId(), degree: line(e.degree), institution: line(e.institution), date: line(e.date) }))
       .filter((e) => e.degree || e.institution)
       .slice(0, MAX_ITEMS),
     experiences: raw.experiences
       .map((e) => ({
         id: newId(),
-        title: clean(e.title),
-        org: clean(e.org),
-        date: clean(e.date),
+        title: line(e.title),
+        org: line(e.org),
+        date: line(e.date),
         bullets: e.bullets.map(cleanBullet).filter(Boolean).slice(0, MAX_BULLETS),
       }))
       .filter((e) => e.title || e.org || e.bullets.length > 0)
       .slice(0, MAX_ITEMS),
     projects: raw.projects
-      .map((p) => ({ id: newId(), title: clean(p.title), description: clean(p.description), stack: opt(p.stack) }))
+      .map((p) => ({ id: newId(), title: line(p.title), description: para(p.description), stack: opt(p.stack) }))
       .filter((p) => p.title || p.description)
       .slice(0, MAX_ITEMS),
     customSections: raw.customSections
-      .map((c) => ({ id: newId(), title: clean(c.title), content: clean(c.content) }))
+      .map((c) => ({ id: newId(), title: line(c.title), content: block(c.content) }))
       .filter((c) => c.content)
       .slice(0, MAX_ITEMS),
   };
