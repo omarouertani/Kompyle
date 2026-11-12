@@ -15,7 +15,13 @@ import { stripHtml } from "@/utils/strip-html";
 export function cvForAiPrompt(cvData: CVData): Omit<CVData, "layout"> {
   const { layout: _layout, personalInfo, ...rest } = cvData;
   const { photo: _photo, ...personalInfoNoPhoto } = personalInfo;
-  return { ...rest, personalInfo: personalInfoNoPhoto };
+  // Niveaux des barres de compétences : purement visuels, ré-imposés à la sortie.
+  const skills = rest.skills.map((g) => {
+    const copy = { ...g };
+    delete copy.levels;
+    return copy;
+  });
+  return { ...rest, skills, personalInfo: personalInfoNoPhoto };
 }
 
 /** Découpe une chaîne de compétences/stack en tokens propres (virgules, '·', '/', '|'). */

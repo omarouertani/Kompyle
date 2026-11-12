@@ -13,6 +13,7 @@ import type { CVData } from "@/types/cv";
 import { defaultLayout, getDefaultPositions, getDefaultPhotoPosition, getPageBlockIds, dedupePages } from "@/lib/cv-layout";
 import { DiffText, RichText } from "@/utils/pdf-text-utils";
 import { getStyles } from "./template/modern-styles";
+import { makeScaledStyles, scaleOf } from "./template/scaled-styles";
 import {
   SECTION_RENDERERS,
   renderColumn,
@@ -45,6 +46,8 @@ const CVTemplateModern: React.FC<CVTemplateModernProps> = ({ data, originalData 
   const layout = data.layout ?? defaultLayout();
   const sidebarWidth = layout.sidebarWidth ?? 175;
   const styles = getStyles(layout.theme, sidebarWidth);
+  // Bloc agrandi/réduit dans le canvas (fontScale) : mêmes proportions ici.
+  const stylesFor = makeScaledStyles((th) => getStyles(th, sidebarWidth), layout.theme, 9.5, styles);
   // Police du thème (canvas) → famille PDF enregistrée, injectée via le
   // contexte du thème PDF (toutes les primitives en héritent).
   const pdfFontFamily = resolvePdfFontFamily(layout.theme?.fontFamily);
@@ -95,6 +98,7 @@ const CVTemplateModern: React.FC<CVTemplateModernProps> = ({ data, originalData 
             const namePos = absolutePositions.name || { x: 200, y: 20, w: 370 };
             const rolePos = absolutePositions.role || { x: 200, y: 48, w: 370 };
             const techPos = absolutePositions.techLine || { x: 200, y: 66, w: 370 };
+            const styles = stylesFor(scaleOf(({ name: namePos, role: rolePos, techLine: techPos } as Record<string, unknown>)[id]));
             if (id === "photo") return (
                 <View key="photo" style={{ position: "absolute", left: photoPos.x, top: photoPos.y, width: photoPos.w ?? 65, alignItems: "center" }}>
                   <View style={[styles.avatarCircle, avatarFrame(photoPos.w ?? 65)]}>
@@ -143,6 +147,7 @@ const CVTemplateModern: React.FC<CVTemplateModernProps> = ({ data, originalData 
             // Position hors page A4 : on ignore le bloc plutôt que de casser le
             // rendu PDF (page blanche / boucle de pagination).
             if (isBlockOutOfPage(pos, pageDims)) return null;
+            const styles = stylesFor(scaleOf(pos));
 
             let rendered: React.ReactNode = null;
             // STEP: custom sections support

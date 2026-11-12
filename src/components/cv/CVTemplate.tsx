@@ -13,6 +13,7 @@ import type { CVData } from "@/types/cv";
 import { defaultLayout, DEFAULT_SIDEBAR_WIDTH, getDefaultPositions, dedupePages, getPageBlockIds } from "@/lib/cv-layout";
 import { DiffText, RichText, formatUrl, displayUrl, hasInlineHtml } from "@/utils/pdf-text-utils";
 import { getStyles, type CVTemplateVariant } from "./template/classic-styles";
+import { makeScaledStyles, scaleOf } from "./template/scaled-styles";
 import {
   SECTION_RENDERERS,
   renderColumn,
@@ -49,6 +50,8 @@ const CVTemplate: React.FC<CVTemplateProps> = ({ data, originalData, variant = "
   const layout = data.layout ?? defaultLayout();
   const sidebarWidth = layout.sidebarWidth ?? DEFAULT_SIDEBAR_WIDTH;
   const styles = getStyles(layout.theme, sidebarWidth, variant);
+  // Bloc agrandi/réduit dans le canvas (fontScale) : mêmes proportions ici.
+  const stylesFor = makeScaledStyles((th) => getStyles(th, sidebarWidth, variant), layout.theme, 10, styles);
   // Ce template (« Sans photo » + Canadien) n'affiche JAMAIS de photo.
   // Seul le template Moderne (CVTemplateModern) gère la photo.
   // Police du thème (canvas) → famille PDF enregistrée, injectée via le
@@ -96,6 +99,7 @@ const CVTemplate: React.FC<CVTemplateProps> = ({ data, originalData, variant = "
     // Position hors page A4 : on ignore le bloc plutôt que de casser le rendu
     // PDF (page blanche). Le canvas signale la limite (ligne ambre).
     if (isBlockOutOfPage(pos, pageDims)) return null;
+    const styles = stylesFor(scaleOf(pos));
 
     let rendered: React.ReactNode = null;
     if (blockId.startsWith("title_custom_") || blockId.startsWith("content_custom_")) {
@@ -169,6 +173,7 @@ const CVTemplate: React.FC<CVTemplateProps> = ({ data, originalData, variant = "
     };
     const pos = absolutePositions[id] || fallback[id];
     if (!pos) return null;
+    const styles = stylesFor(scaleOf(pos));
     let content: React.ReactNode = null;
     if (id === "name") content = <Text style={styles.h1}>{personalInfo.name}</Text>;
     else if (id === "role") content = <Text style={styles.role}>{personalInfo.role}</Text>;

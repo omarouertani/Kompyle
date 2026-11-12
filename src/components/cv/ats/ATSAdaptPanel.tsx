@@ -229,7 +229,7 @@ Preserve every existing experience, project and skill item (no deletions); refra
           </PromptInputToolbar>
         </PromptInput>
         {!apiKey && (
-          <span className="text-[10px] text-amber-600 dark:text-amber-400">{tErr("missing_key")}</span>
+          <span className="text-[10px] text-warning">{tErr("missing_key")}</span>
         )}
         <span className="text-[10px] text-muted-foreground">{t("adapt_extra_hint")}</span>
       </div>

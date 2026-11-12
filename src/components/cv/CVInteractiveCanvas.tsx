@@ -17,7 +17,13 @@ import {
   hasDuplicateSections,
   getSectionLabel,
   isModernTemplate,
+  isCanadianTemplate,
+  getColumnSections,
+  getSectionBlockIds,
+  computeDefaultPositions,
 } from "@/lib/cv-layout";
+import { bakeFreeElementPositions } from "@/lib/free-elements";
+import type { LayerColumn } from "./canvas/LayersPanel";
 import { Lock } from "lucide-react";
 import { stripHtml } from "@/utils/strip-html";
 import { SELECTION_COLOR, PageDimsContext, PT_TO_PX } from "./cv-canvas-primitives";
@@ -131,6 +137,7 @@ export default function CVInteractiveCanvas({ data, onChange: onChangeProp, temp
   const resolveDropRef = useRef<((primaryId: string, clientX: number, clientY: number, grab: GrabOffset, members: DropMember[]) => boolean) | null>(null);
 
   // ── Interactions de base (sélection / drag / resize / lasso) ────────────────
+  const groupScaledRef = useRef<(() => void) | null>(null);
   const {
     selectedIds,
     setSelectedIds,
@@ -142,7 +149,7 @@ export default function CVInteractiveCanvas({ data, onChange: onChangeProp, temp
     startDrag,
     startResize,
     startSidebarResize,
-  } = useCanvasInteractions({ data, template, defaultPositions, onChange, resolveDropRef });
+  } = useCanvasInteractions({ data, template, defaultPositions, onChange, resolveDropRef, onGroupScaled: () => groupScaledRef.current?.() });
 
   const { autoHeight, resetPosition, canDuplicate, duplicateItem, pasteItems, canDeleteBlock, deleteBlock, hideSectionOf } =
     useBlockActions({ data, defaultPositions, onChange });
@@ -205,6 +212,33 @@ export default function CVInteractiveCanvas({ data, onChange: onChangeProp, temp
     onOverflowChange,
     absolutePositions,
   });
+
+  // Après un resize d'angle sur une sélection multiple : réalignement (le
+  // hook d'interactions est créé avant la pagination → passage par une ref).
+  useEffect(() => {
+    groupScaledRef.current = realignPreservingAfterRender;
+  }, [realignPreservingAfterRender]);
+
+  /** Sélection multiple : agrandit / réduit le texte de TOUS les blocs choisis
+   *  d'un coup (même mécanisme que la poignée d'angle : `fontScale`, rendu aussi
+   *  dans le PDF), puis réaligne pour éviter les chevauchements. Des clics
+   *  rapprochés forment un seul pas d'annulation. */
+  const scaleSelectedText = (factor: number) => {
+    const saved = layout.absolutePositions ?? {};
+    const next = { ...saved };
+    let changed = false;
+    for (const id of new Set(selectedIds)) {
+      const pos = absolutePositions[id];
+      if (!pos || id === "photo" || pos.locked) continue;
+      const scale = Math.min(3, Math.max(0.4, Math.round((pos.fontScale ?? 1) * factor * 100) / 100));
+      if (scale === (pos.fontScale ?? 1)) continue;
+      next[id] = { ...(saved[id] ?? pos), fontScale: scale };
+      changed = true;
+    }
+    if (!changed) return;
+    onChange({ ...data, layout: { ...layout, absolutePositions: next } }, "text-scale");
+    realignPreservingAfterRender();
+  };
 
   // Bannière de débordement : « Réduire l'espacement » baisse d'un pas l'écart
   // entre sections (−2 pt, min 2) et l'interligne (−0,05, min 1,0), puis ré-empile
@@ -270,6 +304,49 @@ export default function CVInteractiveCanvas({ data, onChange: onChangeProp, temp
   const headerBlockIds = useMemo(() => getHeaderBlockIds(data, template), [data, template]);
   const layers = useLayers({ data, layout, headerBlockIds, defaultPositions, onChange, homePageOf });
   const [layersOpen, setLayersOpen] = useState(false);
+
+  // ── Panneau « Sections » : ordre des sections sur la page, par colonne ──────
+  const hasSidebarColumn = !isCanadianTemplate(template);
+  const layerColumns = useMemo(() => {
+    const cols = getColumnSections(layout);
+    const item = (sectionId: string) => ({ id: sectionId, label: stripHtml(getSectionLabel(sectionId, data)) });
+    const withContent = (ids: string[]) => ids.filter((s) => getSectionBlockIds(s, data).length > 0).map(item);
+    return { sidebar: withContent(cols.sidebar), main: withContent(cols.main) };
+  }, [layout, data]);
+  /** Blocs du canvas couverts par une ligne du panneau (section → titre + contenus). */
+  const blocksOfLayer = (id: string): string[] => (isFreeElementId(id) ? [id] : getSectionBlockIds(id, data));
+
+  /** Déplace une section dans l'ordre de la page (et de colonne si besoin), puis
+   *  remet la page en forme à partir des hauteurs réelles : le CV change aussitôt.
+   *  Les réglages des blocs (masqué, verrou, taille du texte…) sont conservés. */
+  const moveSection = (sectionId: string, column: LayerColumn, index: number) => {
+    const cols = getColumnSections(layout);
+    const sidebar = cols.sidebar.filter((s) => s !== sectionId);
+    const main = cols.main.filter((s) => s !== sectionId);
+    const target = column === "sidebar" && hasSidebarColumn ? sidebar : main;
+    target.splice(Math.min(Math.max(0, index), target.length), 0, sectionId);
+    if (sidebar.join() === cols.sidebar.join() && main.join() === cols.main.join()) return;
+    const nextLayout = {
+      ...layout,
+      pages: [{ sidebar, main }],
+      autoPaginated: false,
+      // Les éléments libres gardent leur place exacte malgré la remise en page.
+      freeElements: bakeFreeElementPositions(layout),
+    };
+    // La section prend TOUT DE SUITE la position horizontale et la largeur de sa
+    // colonne d'arrivée : la remise en page mesure les hauteurs dans le DOM, et
+    // des blocs encore à l'ancienne largeur donnaient de fausses hauteurs
+    // (chevauchements dans la colonne étroite, trous au retour).
+    const columnDefaults = computeDefaultPositions(template, { ...data, layout: nextLayout });
+    const saved = layout.absolutePositions ?? defaultPositions;
+    const positions = { ...saved };
+    for (const blockId of getSectionBlockIds(sectionId, data)) {
+      const d = columnDefaults[blockId];
+      if (d) positions[blockId] = { ...(saved[blockId] ?? d), x: d.x, w: d.w };
+    }
+    onChange({ ...data, layout: { ...nextLayout, absolutePositions: positions } }, "section-order");
+    realignAfterRender();
+  };
 
   // ── Menu contextuel ─────────────────────────────────────────────────────────
   const { menu, setMenu, openBlockMenu, openCanvasMenu, menuItems } = useContextMenu({
@@ -461,21 +538,21 @@ export default function CVInteractiveCanvas({ data, onChange: onChangeProp, temp
 
       {layersOpen && (
         <LayersPanel
-          pageIndex={activePageIndex}
-          stack={layers.stackOf(activePageIndex)}
+          hasSidebar={hasSidebarColumn}
+          sidebar={layerColumns.sidebar}
+          main={layerColumns.main}
+          free={[...layers.stackOf(activePageIndex)].reverse().filter(isFreeElementId).map((id) => ({ id, label: blockLabel(id) }))}
           selectedIds={selectedIds}
-          labelOf={(id) => {
-            const base = blockLabel(id);
-            if (id.startsWith("title_")) return `${base} · ${t("layer_heading")}`;
-            const n = id.match(/_(\d+)$/);
-            return n && !isFreeElementId(id) ? `${base} ${Number(n[1]) + 1}` : base;
+          isHidden={(id) => blocksOfLayer(id).every((b) => layers.isFlagged(b, "hidden"))}
+          isLocked={(id) => blocksOfLayer(id).every((b) => layers.isFlagged(b, "locked"))}
+          onSelect={(id) => setSelectedIds(blocksOfLayer(id))}
+          onMoveSection={moveSection}
+          onMoveFree={(id, overId) => {
+            const stack = layers.stackOf(activePageIndex);
+            layers.moveTo(activePageIndex, id, stack.indexOf(overId));
           }}
-          isHidden={(id) => layers.isFlagged(id, "hidden")}
-          isLocked={(id) => layers.isFlagged(id, "locked")}
-          onSelect={(id) => setSelectedIds([id])}
-          onMove={(id, to) => layers.moveTo(activePageIndex, id, to)}
-          onToggleHidden={(id) => layers.toggleFlag([id], "hidden")}
-          onToggleLocked={(id) => layers.toggleFlag([id], "locked")}
+          onToggleHidden={(id) => layers.toggleFlag(blocksOfLayer(id), "hidden")}
+          onToggleLocked={(id) => layers.toggleFlag(blocksOfLayer(id), "locked")}
           onClose={() => setLayersOpen(false)}
         />
       )}
@@ -498,6 +575,7 @@ export default function CVInteractiveCanvas({ data, onChange: onChangeProp, temp
         onApplyColor={(c) => { applyStyles(selectedIds, { color: c }); realignPreservingAfterRender(); }}
         onApplyFont={(stack) => { applyStyles(selectedIds, { "font-family": stack }); realignPreservingAfterRender(); }}
         onToggle={(cmd) => { toggleCommand(selectedIds, cmd); realignPreservingAfterRender(); }}
+        onScaleText={scaleSelectedText}
       />
 
       <div

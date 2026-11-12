@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import type { CoverLetterData } from "@/types/cv";
 import CVBuilder from "@/components/cv/CVBuilder";
@@ -22,6 +22,7 @@ import {
   Plus,
   X,
   ShieldCheck,
+  FileUp,
 } from "lucide-react";
 import { ATSChecker } from "@/components/cv/ats/ATSChecker";
 import { useATSCheckedVersions } from "@/hooks/use-ats-checked-versions";
@@ -43,6 +44,12 @@ import { ProfileActionsMenu } from "@/components/ProfileActionsMenu";
 import { useApiKeys } from "@/hooks/use-api-keys";
 import { useAISubmission } from "@/hooks/use-ai-submission";
 import { StatusBanner } from "@/components/cv/status-banner";
+import { toast } from "sonner";
+import { CVImportDialog, type ImportTarget } from "@/components/cv/import/CVImportDialog";
+import { applyImportedCV, isSampleCV } from "@/lib/cv-import/apply";
+import type { ImportedCV } from "@/lib/cv-import/schema";
+import { markUndoableChange } from "@/lib/undoable-change";
+import { mockCV } from "@/lib/mock-cv";
 
 const CVPreview = dynamic(() => import("@/components/cv/CVPreview"), {
   ssr: false,
@@ -89,6 +96,7 @@ export default function AdaptPage() {
   const tp = useTranslations("Profiles");
   const tAdapt = useTranslations("AIAdapt");
   const te = useTranslations("AIErrors");
+  const ti = useTranslations("CVImport");
   const locale = useLocale();
 
   const [activeLeftTab, setActiveLeftTab] = useState<LeftTab>("ai");
@@ -108,6 +116,11 @@ export default function AdaptPage() {
   const [renameValue, setRenameValue] = useState("");
   const [profileActionError, setProfileActionError] = useState<string | null>(null);
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+  /** Import d'un CV existant : dialog + fichier éventuellement déposé sur l'éditeur. */
+  const [importOpen, setImportOpen] = useState(false);
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [fileDragOver, setFileDragOver] = useState(false);
+  const dragDepth = useRef(0);
 
   const profile = useProfileManager(locale, t);
 
@@ -161,6 +174,77 @@ export default function AdaptPage() {
     if (!activeMainProfile) return;
     const ok = await profile.deleteProfile(activeMainProfile.id);
     if (!ok) setProfileActionError(tp("delete_error"));
+  };
+
+  const openImport = (file: File | null = null) => {
+    setImportFile(file);
+    setImportOpen(true);
+  };
+
+  /** Applique un CV importé : remplace TOUT le contenu du CV courant (aucune
+   *  donnée d'exemple ne survit) en gardant modèle et thème, annulable par
+   *  Ctrl+Z ou par le bouton du toast ; ou crée un nouveau profil. */
+  const handleImportApply = async (imported: ImportedCV, target: ImportTarget): Promise<boolean> => {
+    if (target.mode === "new") {
+      const sample = mockCV(profile.selectedTemplate);
+      const base = {
+        ...sample,
+        layout: sample.layout && { ...sample.layout, theme: profile.currentCV.layout?.theme ?? sample.layout.theme },
+      };
+      const ok = await profile.createProfile(target.profileName, profile.selectedTemplate, applyImportedCV(base, imported));
+      if (!ok) {
+        toast.error(ti("toast_new_error"));
+        return false;
+      }
+      setActiveRightTab("cv");
+      toast.success(ti("toast_new_success", { name: target.profileName }));
+      return true;
+    }
+    const previousCV = profile.currentCV;
+    const previousLetter = profile.coverLetterData;
+    profile.setCurrentCV(markUndoableChange(applyImportedCV(previousCV, imported)));
+    // La lettre reprend le modèle vierge : elle utilise le nom et le contact importés.
+    profile.setCoverLetterData(null);
+    setActiveRightTab("cv");
+    toast.success(ti("toast_applied"), {
+      description: ti("toast_applied_hint"),
+      duration: 10_000,
+      action: {
+        label: ti("undo"),
+        onClick: () => {
+          profile.setCurrentCV(previousCV);
+          profile.setCoverLetterData(previousLetter);
+        },
+      },
+    });
+    return true;
+  };
+
+  /** Glisser-déposer d'un fichier sur l'aperçu : ouvre l'import (lecture locale). */
+  const hasFiles = (e: React.DragEvent) => Array.from(e.dataTransfer.types).includes("Files");
+  const fileDropHandlers = {
+    onDragEnter: (e: React.DragEvent) => {
+      if (!hasFiles(e)) return;
+      e.preventDefault();
+      dragDepth.current++;
+      setFileDragOver(true);
+    },
+    onDragOver: (e: React.DragEvent) => {
+      if (hasFiles(e)) e.preventDefault();
+    },
+    onDragLeave: (e: React.DragEvent) => {
+      if (!hasFiles(e)) return;
+      dragDepth.current = Math.max(0, dragDepth.current - 1);
+      if (dragDepth.current === 0) setFileDragOver(false);
+    },
+    onDrop: (e: React.DragEvent) => {
+      if (!hasFiles(e)) return;
+      e.preventDefault();
+      dragDepth.current = 0;
+      setFileDragOver(false);
+      const file = e.dataTransfer.files?.[0];
+      if (file) openImport(file);
+    },
   };
   const aiConfig = useAIProviderConfig();
   const apiKeys = useApiKeys();
@@ -328,7 +412,7 @@ export default function AdaptPage() {
 
             {/* Alerte clé API manquante pour le provider du modèle choisi. */}
             {!apiKeys.keys[aiConfig.provider] && (
-              <span className="flex items-center gap-1.5 text-[11px] font-medium text-amber-600 dark:text-amber-400 leading-tight pl-0.5">
+              <span className="flex items-center gap-1.5 text-[11px] font-medium text-warning leading-tight pl-0.5">
                 {te("missing_key")}
               </span>
             )}
@@ -339,7 +423,7 @@ export default function AdaptPage() {
               <div className="flex flex-col gap-1.5">
                 {refineHistory.map((instruction, i) => (
                   <div key={i} className="flex items-start gap-2 text-xs text-muted-foreground bg-muted/40 rounded-lg px-2.5 py-1.5">
-                    <Check size={12} className="text-emerald-500 mt-0.5 shrink-0" />
+                    <Check size={12} className="text-success mt-0.5 shrink-0" />
                     <span className="leading-snug">{instruction}</span>
                   </div>
                 ))}
@@ -388,6 +472,17 @@ export default function AdaptPage() {
         onConfirm={confirmDeleteProfile}
       />
 
+      <CVImportDialog
+        open={importOpen}
+        onOpenChange={(o) => { setImportOpen(o); if (!o) setImportFile(null); }}
+        initialFile={importFile}
+        provider={aiConfig.provider}
+        model={aiConfig.model}
+        apiKey={apiKeys.keys[aiConfig.provider]}
+        canCreateProfile={!!profile.mainProfileId}
+        onApply={handleImportApply}
+      />
+
       {/* Feedback global : barre de progression pendant une action IA */}
       <div className="relative h-0.5 shrink-0 z-30">
         {profile.status === "loading" && (
@@ -401,7 +496,7 @@ export default function AdaptPage() {
         style={{ "--sidebar-width": "480px" } as React.CSSProperties}
         className="flex-1 flex overflow-hidden w-full !min-h-0 !h-full"
       >
-        <Sidebar side="left" variant="sidebar" className="border-r border-border !top-14 !h-[calc(100svh-3.5rem)]">
+        <Sidebar side="left" variant="sidebar" className="overflow-hidden border-r border-border !top-14 !h-[calc(100svh-3.5rem)]">
           <SidebarHeader className="px-3 pt-3 pb-2 border-b border-border shrink-0 bg-sidebar flex flex-col gap-2.5">
             <div className="flex flex-col gap-2.5 rounded-xl bg-card/60 p-2.5 border border-border/60 shadow-sm">
               {/* Ligne 1 : libellé + statut de sauvegarde (intégré, plus de barre flottante) */}
@@ -416,7 +511,7 @@ export default function AdaptPage() {
                       </span>
                     )}
                     {profile.saveStatus === "saved" && (
-                      <span className="flex items-center gap-1 text-emerald-500">
+                      <span className="flex items-center gap-1 text-success">
                         <Check size={12} />
                         {tp("saved")}
                       </span>
@@ -502,6 +597,16 @@ export default function AdaptPage() {
                     >
                       <Plus size={14} />
                     </Button>
+                    <Button
+                      variant="ghost"
+                      size="xs"
+                      className="size-7 p-0 text-muted-foreground hover:text-foreground hover:bg-muted"
+                      onClick={() => openImport()}
+                      title={ti("open_tooltip")}
+                      aria-label={ti("open_tooltip")}
+                    >
+                      <FileUp size={14} />
+                    </Button>
                     {activeMainProfile && !isRenamingProfile && (
                       <ProfileActionsMenu
                         onRename={() => { setProfileActionError(null); setRenameValue(activeMainProfile.name); setIsRenamingProfile(true); }}
@@ -509,6 +614,8 @@ export default function AdaptPage() {
                         renameLabel={tp("rename_tooltip")}
                         deleteLabel={tp("delete_tooltip")}
                         menuLabel={tp("more_actions")}
+                        onImport={() => openImport()}
+                        importLabel={ti("menu_import")}
                       />
                     )}
                   </>
@@ -596,13 +703,23 @@ export default function AdaptPage() {
             </Tabs>
           </div>
 
-          <div className="flex-1 overflow-hidden p-5 flex flex-col">
+          <div className="relative flex-1 overflow-hidden p-5 flex flex-col" {...fileDropHandlers}>
+            {fileDragOver && (
+              <div className="pointer-events-none absolute inset-3 z-40 flex flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-primary bg-background/85 text-center backdrop-blur-sm">
+                <FileUp size={30} className="text-primary" />
+                <p className="text-sm font-semibold text-foreground">{ti("drop_overlay")}</p>
+                <p className="text-xs text-muted-foreground">{ti("drop_formats")}</p>
+              </div>
+            )}
             {/* Tant que le vrai CV n'est pas résolu au DÉMARRAGE (localStorage →
                 BD), on affiche un loader au lieu du CV d'EXEMPLE : c'est ce flash
                 du mauvais contenu qui donnait l'impression de « désordre ». Les
                 changements de profil ultérieurs se font sur place (pas de loader). */}
             {activeRightTab === "cv" && profile.initialLoading && <LoadingSpinner type="cv" />}
             {activeRightTab === "cv" && !profile.initialLoading && (
+              // Conteneur flex : le bandeau « CV d'exemple » au-dessus ne doit
+              // pas pousser l'aperçu (h-full) hors de la zone visible.
+              <div className="flex min-h-0 flex-1 flex-col">
               <CVPreview
                 data={profile.currentCV}
                 onChange={profile.setCurrentCV}
@@ -620,7 +737,9 @@ export default function AdaptPage() {
                   setAtsTriggerKey((k) => k + 1);
                 }}
                 atsButtonShine={!atsChecked.isChecked(currentCvVersionId)}
+                onImportSample={isSampleCV(profile.currentCV) ? () => openImport() : undefined}
               />
+              </div>
             )}
 
             {activeRightTab === "letter" && (

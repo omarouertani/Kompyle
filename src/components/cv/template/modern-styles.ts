@@ -237,7 +237,10 @@ export const getStyles = (theme?: CVTheme, sidebarWidth = 165) => {
     /* ---------- Summary ---------- */
     summary: {
       textAlign: "justify",
-      fontSize: baseFontSize + 1,
+      // Même taille que le canvas (BlockContent : baseFontSize). Le +1 d'avant
+      // rendait le résumé plus haut dans le PDF que la hauteur mesurée à
+      // l'écran : il recouvrait la section suivante.
+      fontSize: baseFontSize,
       lineHeight: lh,
       color: "#3f3f46",
     },

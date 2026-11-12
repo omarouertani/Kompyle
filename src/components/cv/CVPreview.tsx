@@ -11,7 +11,7 @@ import { normalizeTemplate } from "@/lib/cv-layout";
 import { TEMPLATES } from "@/lib/cv-templates";
 import { TemplateThumbnail } from "./TemplateThumbnail";
 import { safeFileName, stripHtml } from "@/utils/strip-html";
-import { LayoutPanelLeft, History, AlertTriangle, LayoutTemplate, Trash2, ShieldCheck } from "lucide-react";
+import { LayoutPanelLeft, History, AlertTriangle, LayoutTemplate, Trash2, ShieldCheck, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { cn } from "@/lib/utils";
@@ -50,6 +50,8 @@ interface CVPreviewProps {
   /** Si true, applique l'effet diamant au bouton ATS pour attirer l'œil
    *  (jamais audité pour cette version de CV). */
   atsButtonShine?: boolean;
+  /** CV d'exemple affiché : ouvre l'import (pastille « CV d'exemple · Importer le mien »). */
+  onImportSample?: () => void;
 }
 
 /**
@@ -140,8 +142,10 @@ export default function CVPreview({
   onDeleteVersion,
   onOpenATS,
   atsButtonShine = false,
+  onImportSample,
 }: CVPreviewProps) {
   const t = useTranslations("CVPreview");
+  const ti = useTranslations("CVImport");
   const [sideBySide, setSideBySide] = useState(false);
   const [mode, setMode] = useState<"canvas" | "pdf">("canvas");
   const [isDownloading, setIsDownloading] = useState(false);
@@ -169,6 +173,9 @@ export default function CVPreview({
   // la bannière du canvas propose de le faire tenir, sans bloquer.
   const isPdf = mode === "pdf";
   const needsOriginalPdf = sideBySide && !!originalData;
+  // Positions pas encore mesurées par le canvas (effacées après un import, une
+  // adaptation IA, un changement de modèle) : voir le canvas caché plus bas.
+  const needsLayout = Object.keys(data.layout?.absolutePositions ?? {}).length === 0;
 
   const { url: originalUrl, loading: originalLoading } = useServerPdfUrl(
     originalData ?? null, template, needsOriginalPdf
@@ -393,8 +400,22 @@ export default function CVPreview({
 
         {mounted && (
           <div className="flex shrink-0 items-center gap-2">
+            {/* CV d'exemple : rappel discret (au lieu d'un grand bandeau) qui ouvre l'import. */}
+            {onImportSample && (
+              <button
+                type="button"
+                onClick={onImportSample}
+                title={ti("sample_banner_text")}
+                className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-dashed border-primary/40 bg-primary/5 px-3 text-xs transition-colors hover:border-primary/70 hover:bg-primary/10"
+              >
+                <Info size={13} className="shrink-0 text-primary" />
+                <span className="text-muted-foreground">{ti("sample_chip_label")}</span>
+                <span className="text-muted-foreground/60" aria-hidden>·</span>
+                <span className="font-semibold text-primary">{ti("sample_chip_cta")}</span>
+              </button>
+            )}
             {isOverflowing && (
-              <div className="flex items-center gap-1.5 text-amber-600 text-xs font-medium">
+              <div className="flex items-center gap-1.5 text-warning text-xs font-medium">
                 <AlertTriangle size={13} />
                 {t("overflow_warning")}
               </div>
@@ -461,6 +482,22 @@ export default function CVPreview({
                   />
                 </div>
               )}
+            </div>
+          )}
+
+          {/* Mise en page à recalculer (CV importé, adapté, modèle changé…) alors
+              que l'aperçu PDF est affiché : c'est le canvas qui mesure les
+              hauteurs réelles et écrit les positions. Sans lui, le PDF tombait
+              sur les positions ESTIMÉES (sections qui se chevauchent). On le
+              monte donc, invisible, le temps de ce calcul. */}
+          {mounted && mode === "pdf" && needsLayout && (
+            <div aria-hidden className="pointer-events-none invisible absolute inset-0 -z-10 overflow-hidden">
+              <CVInteractiveCanvas
+                data={data}
+                onChange={handleCanvasChange}
+                template={template}
+                onOverflowChange={setIsOverflowing}
+              />
             </div>
           )}
 

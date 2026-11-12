@@ -402,19 +402,24 @@ export function useProfileManager(locale: string, t: (key: string, values?: Reco
 
   /** Crée un nouveau profil principal à partir d'un template VIDE, le
    *  sauvegarde en base, puis bascule dessus — les données se remplissent
-   *  ensuite via l'onglet "Edit CV". */
+   *  ensuite via l'onglet "Edit CV".
+   *  `initial` (import d'un CV) : le profil est créé directement avec ces
+   *  données ; si la base est indisponible, rien n'est ouvert (renvoie false)
+   *  pour ne pas perdre le CV importé au profit du CV d'exemple. */
   const createProfile = useCallback(
-    async (name: string, template = "default"): Promise<boolean> => {
+    async (name: string, template = "default", initial?: CVData): Promise<boolean> => {
       const trimmed = name.trim();
       if (!trimmed) return false;
-      const slug = slugify(trimmed);
+      const baseSlug = slugify(trimmed);
+      // Un import ne doit jamais écraser un profil existant du même nom.
+      const slug = initial && allRows.some((r) => r.slug === baseSlug) ? `${baseSlug}-${Date.now()}` : baseSlug;
 
       // Nouveau profil : pré-rempli avec des données d'EXEMPLE (mock) pour que
       // les templates ne s'affichent jamais vides. L'utilisateur remplace chaque
       // champ par ses vraies données — l'exemple disparaît au fur et à mesure.
       // Le nom saisi à la création prime sur le nom d'exemple.
-      const blank = injectIds(mockCV(template));
-      blank.personalInfo = { ...blank.personalInfo, name: trimmed };
+      const blank = initial ? injectIds(initial) : injectIds(mockCV(template));
+      if (!initial) blank.personalInfo = { ...blank.personalInfo, name: trimmed };
 
       try {
         const res = await fetch("/api/cv-profiles", {
@@ -436,13 +441,14 @@ export function useProfileManager(locale: string, t: (key: string, values?: Reco
         setSelectedProfile(slug); // le useEffect recharge le profil créé
         return true;
       } catch {
+        if (initial) return false;
         // DB indisponible : on ouvre quand même un CV vierge en mémoire
         setCoverLetterData(null);
         setSelectedProfile(slug);
         return false;
       }
     },
-    [locale, fetchProfiles]
+    [locale, fetchProfiles, allRows]
   );
 
   /** Bascule entre CV principal et une adaptation (dropdown de versions). */

@@ -1,56 +1,59 @@
 # syntax=docker/dockerfile:1
-FROM node:20-alpine AS base
+#
+# Kompyle — production image (Next.js 16 "standalone" output, Node 22).
+#   docker build -t kompyle .
+#   docker run -p 3000:3000 -e DATABASE_URL=... kompyle
+# The simplest way to run everything (app + PostgreSQL) is `docker compose up`.
 
-# Install dependencies only when needed
+ARG NODE_VERSION=22
+FROM node:${NODE_VERSION}-alpine AS base
+
+# ── Dependencies ──────────────────────────────────────────────────────────────
 FROM base AS deps
-# Check https://github.com/nodejs/docker-node/tree/b4117f9333da4138b03a546ec926ef50a31506c3#nodealpine to understand why libc6-compat might be needed.
+# libc6-compat: some native binaries (e.g. the Tailwind/PostCSS toolchain) expect glibc.
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
+COPY package.json package-lock.json ./
+# Retries and a persistent npm cache make the install resilient to flaky networks.
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci --fetch-retries=5 --fetch-retry-mintimeout=2000 --fetch-retry-maxtimeout=30000
 
-# Install dependencies based on the preferred package manager
-COPY package.json package-lock.json* ./
-RUN npm ci
-
-# Rebuild the source code only when needed
+# ── Build ─────────────────────────────────────────────────────────────────────
 FROM base AS builder
 WORKDIR /app
+ENV NEXT_TELEMETRY_DISABLED=1
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-
-# Environment variables must be present at build time
-# If you use NEXT_PUBLIC_ variables, you should pass them here.
-# Since we only have server-side keys (GEMINI_API_KEY, GROQ_API_KEY), we don't strictly need them at build.
-
+# Public URL used for link-preview (OpenGraph) images; inlined at build time.
+ARG NEXT_PUBLIC_SITE_URL=http://localhost:3000
+ENV NEXT_PUBLIC_SITE_URL=${NEXT_PUBLIC_SITE_URL}
+# No secret is needed at build time: AI keys are entered in the web UI (BYOK).
 RUN npm run build
 
-# Production image, copy all the files and run next
+# ── Runtime ───────────────────────────────────────────────────────────────────
 FROM base AS runner
 WORKDIR /app
 
-ENV NODE_ENV=production
-# Uncomment the following line in case you want to disable telemetry during runtime.
-ENV NEXT_TELEMETRY_DISABLED=1
+ENV NODE_ENV=production \
+    NEXT_TELEMETRY_DISABLED=1 \
+    PORT=3000 \
+    # Listen on every interface: inside a container, the default (the container
+    # hostname) would not be reachable through the published port.
+    HOSTNAME=0.0.0.0
 
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 nextjs
+RUN addgroup --system --gid 1001 nodejs \
+ && adduser --system --uid 1001 nextjs
 
-COPY --from=builder /app/public ./public
-
-# Set the correct permission for prerender cache
-RUN mkdir .next
-RUN chown nextjs:nodejs .next
-
-# Automatically leverage output traces to reduce image size
-# https://nextjs.org/docs/advanced-features/output-file-tracing
+# public/ holds the PDF fonts, which are read from disk at render time.
+COPY --from=builder --chown=nextjs:nodejs /app/public ./public
+# The standalone output already contains the traced node_modules and server.js.
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
 USER nextjs
-
 EXPOSE 3000
 
-ENV PORT=3000
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+  CMD wget -qO- http://127.0.0.1:3000/ >/dev/null || exit 1
 
-# server.js is created by next build from the standalone output
-# https://nextjs.org/docs/pages/api-reference/next-config-js/output
 CMD ["node", "server.js"]

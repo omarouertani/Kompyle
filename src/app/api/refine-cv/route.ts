@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import { carrySkillLevels } from "@/lib/skill-levels";
 import type { RefineCVRequest, RefineCVResponse, CVData } from "@/types/cv";
 import { z } from "zod";
 import { resumeSchema, formatZodIssues } from "@/schemas/resumeSchema";
@@ -178,7 +179,7 @@ Apply this instruction surgically and return only the modified JSON.`;
       next.length === prev.length ? next.map((item, i) => ({ ...item, id: prev[i]?.id ?? item.id })) : next;
 
     refinedCV.experiences = preserveIds(refinedCV.experiences, cvData.experiences);
-    refinedCV.skills = preserveIds(refinedCV.skills, cvData.skills);
+    refinedCV.skills = carrySkillLevels(preserveIds(refinedCV.skills, cvData.skills), cvData.skills);
     refinedCV.projects = preserveIds(refinedCV.projects, cvData.projects);
     refinedCV.education = preserveIds(refinedCV.education, cvData.education);
     // Sections libres : on garde le contenu raffiné par l'IA mais on RÉ-IMPOSE

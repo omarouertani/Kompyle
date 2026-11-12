@@ -37,13 +37,13 @@ function KeyRow({ provider }: { provider: AIProvider }) {
           <span className="size-2.5 rounded-full shrink-0" style={{ backgroundColor: meta.color }} />
           {meta.label}
           {meta.free && (
-            <span className="rounded-full bg-emerald-500/15 px-1.5 py-px text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
+            <span className="rounded-full bg-primary/10 px-1.5 py-px text-[10px] font-semibold text-primary">
               {t("free_badge")}
             </span>
           )}
         </span>
         {saved ? (
-          <span className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
+          <span className="inline-flex items-center gap-1 text-[11px] font-medium text-success">
             <Check size={12} /> {t("saved")}
           </span>
         ) : (
@@ -98,7 +98,7 @@ function RetiredKeysNotice() {
   if (retired.length === 0) return null;
   const names = retired.map((p) => p.charAt(0).toUpperCase() + p.slice(1)).join(", ");
   return (
-    <div className="flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-300">
+    <div className="flex items-start gap-2 rounded-lg border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning">
       <Info size={14} className="mt-0.5 shrink-0" />
       <p className="flex-1 leading-relaxed">{t("retired_notice", { providers: names })}</p>
       <button
@@ -134,7 +134,7 @@ export function ApiKeysDialog({ className, iconOnly }: { className?: string; ico
           >
             <KeyRound size={15} />
             {configuredCount > 0 && (
-              <span className="absolute -top-0.5 -right-0.5 size-2 rounded-full bg-emerald-500 ring-2 ring-sidebar" />
+              <span className="absolute -top-0.5 -right-0.5 size-2 rounded-full bg-primary ring-2 ring-sidebar" />
             )}
           </Button>
         ) : (
@@ -142,7 +142,7 @@ export function ApiKeysDialog({ className, iconOnly }: { className?: string; ico
             <KeyRound size={14} />
             {t("manage_button")}
             {configuredCount > 0 && (
-              <span className="ml-0.5 inline-flex items-center justify-center rounded-full bg-emerald-500/15 px-1.5 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
+              <span className="ml-0.5 inline-flex items-center justify-center rounded-full bg-primary/10 px-1.5 text-[10px] font-semibold text-primary">
                 {configuredCount}
               </span>
             )}

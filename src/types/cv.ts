@@ -24,6 +24,9 @@ export interface SkillGroup {
   id?: string;
   category: string;
   items: string;
+  /** Niveau (1 à 5) de chaque compétence pour l'affichage en barres, indexé par
+   *  le libellé de la compétence. Absent = niveau par défaut (barre aux 3/4). */
+  levels?: Record<string, number>;
 }
 
 export interface Experience {

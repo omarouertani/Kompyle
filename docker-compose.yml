@@ -1,3 +1,12 @@
+# Kompyle — `docker compose up` starts the app AND its PostgreSQL database.
+#
+#   docker compose up --build            # app on http://localhost:3000
+#   docker compose --profile seed up -d  # same, plus the fictional "Jane Doe" profile
+#
+# Optional settings (copy .env.example to .env to change them): every value
+# below has a working default, so no file is required.
+name: kompyle
+
 services:
   db:
     image: postgres:16-alpine
@@ -6,25 +15,54 @@ services:
     environment:
       POSTGRES_DB: kompyle
       POSTGRES_USER: kompyle
-      POSTGRES_PASSWORD: kompyle_dev
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-kompyle_dev}
     ports:
-      - "5432:5432"
+      # Bound to localhost only: handy for `npm run dev`, never exposed to the network.
+      - "127.0.0.1:${DB_PORT:-5432}:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
-      - ./scripts/init.sql:/docker-entrypoint-initdb.d/init.sql
+      # The schema is created automatically the first time the volume is empty.
+      - ./scripts/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kompyle -d kompyle"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
   app:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-http://localhost:3000}
+    image: kompyle:latest
     container_name: kompyle-app
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "${APP_PORT:-3000}:3000"
     environment:
-      - DATABASE_URL=postgresql://kompyle:kompyle_dev@db:5432/kompyle
+      DATABASE_URL: postgresql://kompyle:${POSTGRES_PASSWORD:-kompyle_dev}@db:5432/kompyle
+      # No AI key is required: keys are entered in the web UI (BYOK).
+      # Optional server-side fallback for OpenRouter only:
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
     depends_on:
-      - db
+      db:
+        condition: service_healthy
+
+  # Optional: loads the fictional sample profile ("Jane Doe") into the database.
+  # Run once with:  docker compose --profile seed run --rm seed
+  seed:
+    profiles: ["seed"]
+    image: postgres:16-alpine
+    restart: "no"
+    environment:
+      PGPASSWORD: ${POSTGRES_PASSWORD:-kompyle_dev}
+    volumes:
+      - ./scripts/seed_profiles.sql:/seed_profiles.sql:ro
+    entrypoint: ["psql", "-h", "db", "-U", "kompyle", "-d", "kompyle", "-v", "ON_ERROR_STOP=1", "-f", "/seed_profiles.sql"]
+    depends_on:
+      db:
+        condition: service_healthy
 
 volumes:
   pgdata:

@@ -416,6 +416,21 @@ export function computeDefaultPositions(template: string, data: CVData): Record<
         positions["content_summary"] = { x: sidebarX, y: sidebarY, w: sidebarW };
         const summaryLen = data?.personalInfo?.summary?.length ?? 100;
         sidebarY += Math.ceil(summaryLen / 45) * 12 + 15;
+      } else if (sectionId === "experience") {
+        // Expériences / projets placés en colonne latérale (panneau Sections) :
+        // sans position de base ici, la remise en page les ignorait et ils
+        // restaient empilés les uns sur les autres.
+        (data?.experiences ?? []).forEach((exp, idx) => {
+          positions[`experience_${idx}`] = { x: sidebarX, y: sidebarY, w: sidebarW };
+          const bulletChars = (exp.bullets ?? []).reduce((n, b) => n + (b?.length ?? 0), 0);
+          sidebarY += 30 + Math.ceil(bulletChars / 35) * 12 + (exp.customMarginBottom ?? 5) + 10;
+        });
+      } else if (sectionId === "projects") {
+        (data?.projects ?? []).forEach((proj, idx) => {
+          positions[`project_${idx}`] = { x: sidebarX, y: sidebarY, w: sidebarW };
+          const descLen = proj.description?.length ?? 100;
+          sidebarY += 18 + Math.ceil(descLen / 35) * 12 + (proj.stack ? 14 : 0) + (proj.customMarginBottom ?? 5) + 10;
+        });
       } else if (sectionId.startsWith("custom_")) {
         positions[`content_${sectionId}`] = { x: sidebarX, y: sidebarY, w: sidebarW };
         const cs = data?.customSections?.find((c) => `custom_${c.id}` === sectionId);
@@ -553,13 +568,45 @@ export function computeFlowPositions(
     headerY += (h ?? 16) + 3;
   }
 
+  const firstStart = isChaima ? 100 : 95;
+  const starts = firstPageColumnStarts(template, data, positions, headerY, firstStart);
   layout.pages.forEach((page, pageIndex) => {
-    const startY = pageIndex === 0 ? (isChaima ? 100 : 95) : 20;
-    stackColumn(page.sidebar, startY);
-    stackColumn(page.main, startY);
+    stackColumn(page.sidebar, pageIndex === 0 ? starts.sidebar : 20);
+    stackColumn(page.main, pageIndex === 0 ? starts.main : 20);
   });
 
   return positions;
+}
+
+/** Espace entre le bas de l'en-tête et la première section. */
+const HEADER_GAP_PT = 10;
+
+/**
+ * Haut des colonnes sur la PREMIÈRE page. Par défaut une valeur fixe (sous un
+ * en-tête d'une ligne par champ) ; mais un titre ou une ligne de mots-clés
+ * sur deux lignes allonge l'en-tête, qui recouvrait alors la première section
+ * (« Résumé » sous « Core expertise… »), à l'écran comme dans le PDF. Chaque
+ * colonne que l'en-tête recouvre horizontalement commence donc sous son bas
+ * RÉEL (`headerBottom`, issu des hauteurs mesurées).
+ */
+function firstPageColumnStarts(
+  template: string,
+  data: CVData,
+  positions: Record<string, { x: number; w: number }>,
+  headerBottom: number,
+  firstStart: number,
+): { sidebar: number; main: number } {
+  const isChaima = isModernTemplate(template);
+  const sidebarWidth = data.layout?.sidebarWidth ?? (isChaima ? 175 : 165);
+  const ids = getHeaderStackIds(isCanadianTemplate(template)).filter((id) => positions[id]);
+  if (ids.length === 0) return { sidebar: firstStart, main: firstStart };
+  const left = Math.min(...ids.map((id) => positions[id].x));
+  const right = Math.max(...ids.map((id) => positions[id].x + positions[id].w));
+  const below = Math.max(firstStart, Math.round(headerBottom + HEADER_GAP_PT));
+  return {
+    sidebar: left < sidebarWidth ? below : firstStart,
+    main: right > sidebarWidth ? below : firstStart,
+  };
 }
 
 /** Sections présentes dans chaque colonne, dans l'ordre, dédupliquées sur
@@ -619,10 +666,11 @@ export function computePaginatedFlow(
     headerY += (measureHeightPt(id) ?? 16) + 3;
   }
   if (positions["photo"]) positions["photo"].page = 0;
+  const starts = firstPageColumnStarts(template, data, positions, headerY, FIRST_START);
 
   let maxPage = 0;
 
-  const paginate = (sectionIds: string[]) => {
+  const paginate = (sectionIds: string[], firstStart: number) => {
     const blocks: { id: string; h: number }[] = [];
     sectionIds.forEach((sectionId) => {
       getSectionBlockIds(sectionId, data).forEach((id) => {
@@ -643,7 +691,7 @@ export function computePaginatedFlow(
       return h;
     };
 
-    const capacityFirst = PAGE_BOTTOM - FIRST_START;
+    const capacityFirst = PAGE_BOTTOM - firstStart;
 
     // Compression adaptative : si la colonne déborde d'une page, on resserre
     // l'espacement inter-sections (jusqu'à MIN_SECTION_GAP) pour tenter de
@@ -660,8 +708,8 @@ export function computePaginatedFlow(
     const fitsOnePage = columnHeight(sectionGap) <= capacityFirst + OVERFLOW_TOL;
 
     let page = 0;
-    let y = FIRST_START;
-    const startOf = (p: number) => (p === 0 ? FIRST_START : NEXT_START);
+    let y = firstStart;
+    const startOf = (p: number) => (p === 0 ? firstStart : NEXT_START);
 
     for (let i = 0; i < blocks.length; i++) {
       const b = blocks[i];
@@ -690,8 +738,8 @@ export function computePaginatedFlow(
     maxPage = Math.max(maxPage, page);
   };
 
-  paginate(sidebarSections);
-  paginate(mainSections);
+  paginate(sidebarSections, starts.sidebar);
+  paginate(mainSections, starts.main);
 
   return { positions, pageCount: maxPage + 1 };
 }

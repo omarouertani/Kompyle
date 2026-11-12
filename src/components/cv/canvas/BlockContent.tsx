@@ -9,6 +9,10 @@ import { ExperienceDatePicker } from "../ExperienceDatePicker";
 import { CanvasSectionHeading } from "../canvas-section-heading";
 import { getSectionLabel, renameSection } from "@/lib/cv-layout";
 import { photoFrame } from "@/lib/photo-frame";
+import { getSkillLevel, renameSkillLevel, setSkillLevel, skillFill } from "@/lib/skill-levels";
+import { stripHtml } from "@/utils/strip-html";
+import { SkillLevelBar } from "./SkillLevelBar";
+import { headingSizeOf, withHeadingSize } from "@/lib/heading-size";
 
 export interface BlockTheme {
   isChaima: boolean;
@@ -42,9 +46,6 @@ export function BlockContent({ blockId, data, theme, onChange, onThemeReflow }: 
 
   const updatePersonalInfo = (field: string, value: string) =>
     onChange({ ...data, personalInfo: { ...personalInfo, [field]: value } });
-
-  const updateTheme = (updates: Partial<CVTheme>) =>
-    onChange({ ...data, layout: { ...data.layout!, theme: { ...data.layout?.theme, ...updates } } });
 
   const updateItem = <T,>(list: T[], index: number, patch: Partial<T>): T[] => {
     const next = [...list];
@@ -172,13 +173,15 @@ export function BlockContent({ blockId, data, theme, onChange, onThemeReflow }: 
   // --- Titres de section (built-in, renommables) ---
   if (blockId.startsWith("title_")) {
     const sectionId = blockId.substring(6);
+    const title = getSectionLabel(sectionId, data);
     return (
       <CanvasSectionHeading
-        title={getSectionLabel(sectionId, data)}
+        title={title}
         blockId={blockId}
-        headingFontSize={headingFontSize}
+        headingFontSize={headingSizeOf(title, headingFontSize)}
         primaryColor={primaryColor}
-        onFontSizeChange={(s) => { updateTheme({ headingSize: s }); onThemeReflow?.(); }}
+        // −/+ du titre : CE titre seulement (taille de tous les titres : panneau Thème).
+        onFontSizeChange={(s) => { onChange(renameSection(data, sectionId, withHeadingSize(title, s))); onThemeReflow?.(); }}
         onTitleChange={(title) => onChange(renameSection(data, sectionId, title))}
       />
     );
@@ -219,8 +222,18 @@ export function BlockContent({ blockId, data, theme, onChange, onThemeReflow }: 
     const updateItemAt = (i: number, v: string) => {
       const next = [...items];
       next[i] = v;
-      commitItems(next);
+      // Le niveau (barres) suit la compétence renommée.
+      const renamed = renameSkillLevel(group, items[i] ?? "", v);
+      onChange({
+        ...data,
+        skills: updateItem(data.skills, idx, {
+          items: next.map((s) => s.trim()).filter(Boolean).join(", "),
+          levels: renamed.levels,
+        }),
+      });
     };
+    const setLevelOf = (item: string, level: number) =>
+      updateSkillGroup(idx, "levels", setSkillLevel(group, item, level).levels);
 
     return (
       <div className="flex flex-col w-full text-left">
@@ -263,9 +276,13 @@ export function BlockContent({ blockId, data, theme, onChange, onThemeReflow }: 
             {items.map((item, i) => (
               <div key={`${i}_${item}`} className="flex items-center gap-2">
                 <EditableText value={item} onChange={(v) => updateItemAt(i, v)} className="text-zinc-700 flex-1 min-w-0" style={{ fontSize: toPx(baseFontSize - 0.5), lineHeight: lh }} placeholder="Compétence" />
-                <div className="h-[3px] w-12 shrink-0 rounded-full overflow-hidden" style={{ backgroundColor: `${primaryColor}26` }}>
-                  <div className="h-full rounded-full" style={{ width: "75%", backgroundColor: primaryColor }} />
-                </div>
+                <SkillLevelBar
+                  fill={skillFill(group, item)}
+                  level={getSkillLevel(group, item)}
+                  color={primaryColor}
+                  label={`Niveau — ${stripHtml(item)}`}
+                  onChange={(level) => setLevelOf(item, level)}
+                />
               </div>
             ))}
           </div>
@@ -310,7 +327,7 @@ export function BlockContent({ blockId, data, theme, onChange, onThemeReflow }: 
 
   if (blockId === "content_summary") {
     return (
-      <EditableText value={personalInfo.summary} onChange={(v) => updatePersonalInfo("summary", v)} className="text-justify text-zinc-700 font-sans w-full" style={{ fontSize: toPx(baseFontSize), lineHeight: lh }} multiline placeholder="Rédigez votre résumé professionnel ici..." />
+      <EditableText value={personalInfo.summary} onChange={(v) => updatePersonalInfo("summary", v)} className="text-justify text-zinc-700 w-full" style={{ fontSize: toPx(baseFontSize), lineHeight: lh }} multiline placeholder="Rédigez votre résumé professionnel ici..." />
     );
   }
 

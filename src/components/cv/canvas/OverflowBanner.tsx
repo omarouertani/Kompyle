@@ -15,11 +15,11 @@ interface OverflowBannerProps {
 export function OverflowBanner({ canTighten, onTighten, onAddPage }: OverflowBannerProps) {
   const t = useTranslations("Canvas");
   const btn =
-    "h-7 px-2.5 inline-flex items-center gap-1.5 rounded-md text-xs font-medium border border-amber-500/30 bg-background/80 hover:bg-background transition-colors disabled:opacity-40 disabled:pointer-events-none";
+    "h-7 px-2.5 inline-flex items-center gap-1.5 rounded-md text-xs font-medium border border-warning/30 bg-background/80 hover:bg-background transition-colors disabled:opacity-40 disabled:pointer-events-none";
   return (
     <div
       role="status"
-      className="mx-3 mt-2 flex flex-wrap items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-400"
+      className="mx-3 mt-2 flex flex-wrap items-center gap-2 rounded-lg border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning"
     >
       <AlertTriangle size={14} className="shrink-0" />
       <span className="font-medium mr-auto">{t("overflow_banner")}</span>
