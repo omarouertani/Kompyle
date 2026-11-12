@@ -32,7 +32,7 @@ const MONTHS: Record<string, number> = {
 
 // Mots signalant une période en cours → on borne la fin au mois courant.
 const PRESENT_RE =
-  /\b(present|now|current|currently|today|ongoing|actuel|actuelle|aujourd\s?hui|en\s?cours|depuis|a\s?ce\s?jour)\b/;
+  /\b(present|now|current|currently|today|ongoing|actuel|actuelle|aujourd[\s'’]?hui|en\s?cours|depuis|a\s?ce\s?jour)\b/;
 
 // Plage des diacritiques combinants U+0300–U+036F (construite par code-point
 // pour éviter d'embarquer des caractères combinants littéraux dans la source).
