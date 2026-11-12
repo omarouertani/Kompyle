@@ -43,6 +43,9 @@ interface UseCanvasInteractionsArgs {
    *  page (la position est alors gérée par l'appelant, pas par commitPositions).
    *  Le repositionnement utilise le CURSEUR comme pivot (grab + offsets relatifs)
    *  plutôt que le coin supérieur gauche du bloc → aucun saut de référentiel. */
+  /** Appelé après un redimensionnement d'angle appliqué à plusieurs blocs (le
+   *  texte a grandi / rétréci partout : l'appelant réaligne les blocs). */
+  onGroupScaled?: () => void;
   resolveDropRef?: {
     current: ((primaryId: string, clientX: number, clientY: number, grab: GrabOffset, members: DropMember[]) => boolean) | null;
   };
@@ -67,7 +70,7 @@ function expandGroups(ids: string[], positions: Record<string, BlockPos>): strin
 /** Sélection (simple ou multiple) + drag / resize / snap des blocs absolus.
  *  Pendant un geste, seules les propriétés CSS des blocs sont mises à jour
  *  (RAF) ; le state React n'est commité qu'au mouseup — d'où la fluidité. */
-export function useCanvasInteractions({ data, template, defaultPositions, onChange, resolveDropRef }: UseCanvasInteractionsArgs) {
+export function useCanvasInteractions({ data, template, defaultPositions, onChange, resolveDropRef, onGroupScaled }: UseCanvasInteractionsArgs) {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [snapGuides, setSnapGuides] = useState<SnapGuide[]>([]);
   const [isDragging, setIsDragging] = useState(false);
@@ -174,14 +177,24 @@ export function useCanvasInteractions({ data, template, defaultPositions, onChan
   const startDrag = useCallback(
     (e: React.MouseEvent, id: string, currentPos: BlockPos) => {
       const target = e.target as HTMLElement;
-      if (target.closest("button") || target.closest("span[contenteditable]") || target.closest("input")) return;
-      e.preventDefault();
+      if (target.closest("button") || target.closest("input")) return;
 
-      // Ctrl/Cmd/Shift + clic : ajoute/retire de la sélection, sans drag
-      if (e.ctrlKey || e.metaKey || e.shiftKey) {
+      // Ctrl/Cmd/Shift + clic : ajoute/retire de la sélection, sans drag — y
+      // compris sur le TEXTE d'un bloc (avant, seul un clic dans sa marge
+      // comptait, le texte ouvrant l'édition). Exception : dans un éditeur déjà
+      // ouvert, Maj+clic étend la sélection de texte comme d'habitude.
+      if ((e.ctrlKey || e.metaKey || e.shiftKey) && !target.closest(".ProseMirror")) {
+        e.preventDefault(); // pas de focus → l'édition ne s'ouvre pas
+        // Le bloc en cours d'édition fait partie de la sélection de départ.
+        const active = document.activeElement as HTMLElement | null;
+        const editing = active?.closest?.("[data-block-id]")?.getAttribute("data-block-id");
+        active?.blur?.();
+        if (editing && editing !== id) setSelectedIds((prev) => (prev.includes(editing) ? prev : [...prev, editing]));
         toggleSelect(id);
         return;
       }
+      if (target.closest("span[contenteditable]")) return;
+      e.preventDefault();
 
       // Bloc verrouillé : sélectionnable (pour le déverrouiller) mais pas déplaçable
       if (currentPos.locked) {
@@ -388,6 +401,16 @@ export function useCanvasInteractions({ data, template, defaultPositions, onChan
       const startFontScale = currentPos.fontScale ?? 1;
       let pendingFontScale = startFontScale;
 
+      // Sélection multiple : le resize d'ANGLE d'un des blocs sélectionnés
+      // applique la même échelle de texte à tous les autres (largeur inchangée,
+      // le texte se réajuste). Photo et blocs verrouillés exclus.
+      const group = isCorner && selectedIdsRef.current.length > 1 && selectedIdsRef.current.includes(id)
+        ? selectedIdsRef.current
+            .filter((other) => other !== id && other !== "photo")
+            .map((other) => ({ id: other, pos: resolveSavedPos(other), el: document.querySelector(`[data-block-id="${other}"]`) as HTMLElement | null }))
+            .filter((m): m is { id: string; pos: BlockPos; el: HTMLElement | null } => !!m.pos && !m.pos.locked)
+        : [];
+
       const handleMouseMove = (moveEvent: MouseEvent) => {
         if (rafId) return;
         rafId = requestAnimationFrame(() => {
@@ -433,6 +456,13 @@ export function useCanvasInteractions({ data, template, defaultPositions, onChan
               if (content) content.style.zoom = String(pendingFontScale / startFontScale);
             }
           }
+          if (isCorner) {
+            const ratio = pendingFontScale / startFontScale;
+            for (const m of group) {
+              const content = m.el?.firstElementChild as HTMLElement | null;
+              if (content) content.style.zoom = String(ratio);
+            }
+          }
         });
       };
 
@@ -446,7 +476,16 @@ export function useCanvasInteractions({ data, template, defaultPositions, onChan
         setIsResizing(false);
         window.removeEventListener("mousemove", handleMouseMove);
         window.removeEventListener("mouseup", handleMouseUp);
+        const ratio = pendingFontScale / startFontScale;
+        const groupUpdates: Record<string, BlockPos> = {};
+        for (const m of group) {
+          const content = m.el?.firstElementChild as HTMLElement | null;
+          if (content) content.style.zoom = "";
+          const scale = Math.max(0.4, Math.min(3, Math.round((m.pos.fontScale ?? 1) * ratio * 100) / 100));
+          groupUpdates[m.id] = { ...m.pos, fontScale: scale };
+        }
         commitPositions({
+          ...groupUpdates,
           [id]: {
             ...currentPos,
             x: Math.round(pendingX),
@@ -456,12 +495,13 @@ export function useCanvasInteractions({ data, template, defaultPositions, onChan
             ...(isCorner ? { fontScale: Math.round(pendingFontScale * 100) / 100 } : {}),
           },
         });
+        if (group.length > 0 && ratio !== 1) onGroupScaled?.();
       };
 
       window.addEventListener("mousemove", handleMouseMove);
       window.addEventListener("mouseup", handleMouseUp);
     },
-    [commitPositions, mouseDeltaToPts]
+    [commitPositions, mouseDeltaToPts, resolveSavedPos, onGroupScaled]
   );
 
   const startSidebarResize = useCallback(

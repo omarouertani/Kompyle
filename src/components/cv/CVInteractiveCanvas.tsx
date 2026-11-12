@@ -131,6 +131,7 @@ export default function CVInteractiveCanvas({ data, onChange: onChangeProp, temp
   const resolveDropRef = useRef<((primaryId: string, clientX: number, clientY: number, grab: GrabOffset, members: DropMember[]) => boolean) | null>(null);
 
   // ── Interactions de base (sélection / drag / resize / lasso) ────────────────
+  const groupScaledRef = useRef<(() => void) | null>(null);
   const {
     selectedIds,
     setSelectedIds,
@@ -142,7 +143,7 @@ export default function CVInteractiveCanvas({ data, onChange: onChangeProp, temp
     startDrag,
     startResize,
     startSidebarResize,
-  } = useCanvasInteractions({ data, template, defaultPositions, onChange, resolveDropRef });
+  } = useCanvasInteractions({ data, template, defaultPositions, onChange, resolveDropRef, onGroupScaled: () => groupScaledRef.current?.() });
 
   const { autoHeight, resetPosition, canDuplicate, duplicateItem, pasteItems, canDeleteBlock, deleteBlock, hideSectionOf } =
     useBlockActions({ data, defaultPositions, onChange });
@@ -205,6 +206,12 @@ export default function CVInteractiveCanvas({ data, onChange: onChangeProp, temp
     onOverflowChange,
     absolutePositions,
   });
+
+  // Après un resize d'angle sur une sélection multiple : réalignement (le
+  // hook d'interactions est créé avant la pagination → passage par une ref).
+  useEffect(() => {
+    groupScaledRef.current = realignPreservingAfterRender;
+  }, [realignPreservingAfterRender]);
 
   /** Sélection multiple : agrandit / réduit le texte de TOUS les blocs choisis
    *  d'un coup (même mécanisme que la poignée d'angle : `fontScale`, rendu aussi
