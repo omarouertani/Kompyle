@@ -9,6 +9,7 @@ import { SECTION_LABELS_EN } from "@/lib/cv-layout";
 import { describeExperienceForPrompt } from "@/lib/cv-analysis";
 import { cvForAiPrompt } from "@/lib/cv-payload";
 import { detectJobLanguage } from "@/lib/detect-language";
+import { carrySkillLevels } from "@/lib/skill-levels";
 
 // ─── System Prompt ──────────────────────────────────────────────────────────
 
@@ -334,6 +335,8 @@ ${JSON.stringify(cvForAi, null, 2)}
       id: cvData.skills[i]?.id ?? group.id,
       category: cvData.skills[i]?.category ?? group.category,
     }));
+    // Niveaux des barres : choisis par l'utilisateur, jamais par l'IA.
+    adaptedCV.skills = carrySkillLevels(adaptedCV.skills, cvData.skills);
 
     // Preserve immutable project fields
     adaptedCV.projects = adaptedCV.projects.map((proj, i) => ({

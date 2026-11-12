@@ -32,6 +32,10 @@ export const skillGroupSchema = z.object({
   id: z.string().optional(),
   category: z.string().describe("Catégorie de compétences (immuable)."),
   items: z.string().describe("Compétences séparées par des virgules (adaptable : réordonner/prioriser)."),
+  levels: z
+    .record(z.string(), z.number())
+    .optional()
+    .describe("Niveau 1-5 par compétence (piloté par l'utilisateur, ré-imposé côté serveur)."),
 });
 
 export const experienceSchema = z.object({

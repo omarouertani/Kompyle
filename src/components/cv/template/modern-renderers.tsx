@@ -4,6 +4,7 @@ import type { CVData } from "@/types/cv";
 import { wrapText, formatUrl, displayUrl, DiffText, RichText, hasInlineHtml } from "@/utils/pdf-text-utils";
 import { sectionTitle } from "./shared";
 import type { ModernStyles } from "./modern-styles";
+import { skillFill } from "@/lib/skill-levels";
 
 export type SectionRenderer = (
   data: CVData,
@@ -90,7 +91,7 @@ export const renderSkills: SectionRenderer = (data, isSidebar, styles, originalD
             <View key={idx} style={styles.skillBarRow}>
               <Text style={styles.skillBarLabel}>{item}</Text>
               <View style={styles.skillBarTrack}>
-                <View style={styles.skillBarFill} />
+                <View style={[styles.skillBarFill, { width: `${skillFill(group, item) * 100}%` }]} />
               </View>
             </View>
           ))}
