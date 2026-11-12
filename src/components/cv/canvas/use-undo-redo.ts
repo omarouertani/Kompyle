@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { CVData } from "@/types/cv";
-import { HISTORY_LIMIT, HISTORY_COALESCE_MS } from "./constants";
+import { HISTORY_LIMIT, HISTORY_COALESCE_MS, AUTO_REFLOW_KEY } from "./constants";
+import { isUndoableChange } from "@/lib/undoable-change";
 
 /** Undo / Redo basé sur une pile de snapshots CVData.
  *
@@ -21,9 +22,6 @@ import { HISTORY_LIMIT, HISTORY_COALESCE_MS } from "./constants";
  *  ainsi que `undo` / `redo`. */
 export function useUndoRedo(data: CVData, onChangeProp: (newData: CVData) => void) {
   const presentRef = useRef(data);
-  useEffect(() => {
-    presentRef.current = data;
-  }, [data]);
   const undoStack = useRef<CVData[]>([]);
   const redoStack = useRef<CVData[]>([]);
   const lastPushTs = useRef(0);
@@ -35,8 +33,34 @@ export function useUndoRedo(data: CVData, onChangeProp: (newData: CVData) => voi
     []
   );
 
+  useEffect(() => {
+    // Changement EXTERNE marqué annulable (import d'un CV) : l'état précédent
+    // devient UN pas d'annulation. Les autres changements externes (profil,
+    // adaptation IA) remplacent simplement le présent.
+    if (data !== presentRef.current && isUndoableChange(data)) {
+      undoStack.current.push(presentRef.current);
+      if (undoStack.current.length > HISTORY_LIMIT) undoStack.current.shift();
+      redoStack.current = [];
+      lastPushTs.current = 0;
+      lastKeyRef.current = undefined;
+      presentRef.current = data;
+      syncSizes();
+      return;
+    }
+    presentRef.current = data;
+  }, [data, syncSizes]);
+
   const onChange = useCallback(
     (next: CVData, coalesceKey?: string) => {
+      // Mise en page automatique (reflow après un changement de contenu) : état
+      // dérivé, pas une action de l'utilisateur → aucun pas d'annulation. Sinon
+      // Ctrl+Z ramènerait le CV « non mis en page », aussitôt re-paginé, et
+      // l'utilisateur ne pourrait jamais remonter plus loin.
+      if (coalesceKey === AUTO_REFLOW_KEY) {
+        presentRef.current = next;
+        onChangeProp(next);
+        return;
+      }
       const now = Date.now();
       const keyChanged = coalesceKey !== lastKeyRef.current;
       const tooOld = now - lastPushTs.current > HISTORY_COALESCE_MS;

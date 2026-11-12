@@ -14,6 +14,7 @@ import { PT_TO_PX } from "../cv-canvas-primitives";
 import { getPageDims, PAGE_BOTTOM_MARGIN_PT } from "@/lib/page-size";
 import type { BlockPos } from "./snap";
 import { freePositionsOf } from "@/lib/free-elements";
+import { AUTO_REFLOW_KEY } from "./constants";
 
 // ─── Auto-ajustement « tenir sur une page » ──────────────────────────────────
 // Bornes de lisibilité : on ne réduit jamais en deçà de ces seuils, même si le
@@ -114,7 +115,7 @@ export function useCanvasPagination({
         // Garde anti-boucle : ne jamais écrire un layout vide (sinon
         // hasSavedPositions resterait false et l'effet se relancerait).
         if (!nextLayout) return;
-        oc({ ...d, layout: nextLayout });
+        oc({ ...d, layout: nextLayout }, AUTO_REFLOW_KEY);
       });
     };
 
