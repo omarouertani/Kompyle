@@ -446,7 +446,7 @@
     "photo_crop_cancel": "Cancel",
     "photo_crop_apply": "Use this photo",
     "field_birthdate": "Date of birth",
-    "field_birthdate_ph": "e.g. 10/02/2001",
+    "field_birthdate_ph": "e.g. 01/01/2000",
     "field_certifications": "Certifications (comma-separated)",
     "field_certifications_ph": "e.g. CCNA 1, CCNA 2, ITIL",
     "field_interests": "Interests (separated by · or commas)",

@@ -446,7 +446,7 @@
     "photo_crop_cancel": "Annuler",
     "photo_crop_apply": "Utiliser cette photo",
     "field_birthdate": "Date de naissance",
-    "field_birthdate_ph": "ex : 10/02/2001",
+    "field_birthdate_ph": "ex : 01/01/2000",
     "field_certifications": "Certifications (séparées par des virgules)",
     "field_certifications_ph": "ex : CCNA 1, CCNA 2, ITIL",
     "field_interests": "Centres d'intérêt (séparés par des points · ou virgules)",
