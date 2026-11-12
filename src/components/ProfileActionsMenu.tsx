@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { MoreVertical, Pencil, Trash2 } from "lucide-react";
+import { FileUp, MoreVertical, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface ProfileActionsMenuProps {
@@ -10,6 +10,9 @@ interface ProfileActionsMenuProps {
   renameLabel: string;
   deleteLabel: string;
   menuLabel: string;
+  /** Entrée « Importer un CV » (optionnelle). */
+  onImport?: () => void;
+  importLabel?: string;
 }
 
 /**
@@ -17,7 +20,7 @@ interface ProfileActionsMenuProps {
  * icônes inline pour alléger le bruit visuel de la zone profils. Ferme au clic
  * extérieur et à Échap.
  */
-export function ProfileActionsMenu({ onRename, onDelete, renameLabel, deleteLabel, menuLabel }: ProfileActionsMenuProps) {
+export function ProfileActionsMenu({ onRename, onDelete, renameLabel, deleteLabel, menuLabel, onImport, importLabel }: ProfileActionsMenuProps) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -54,6 +57,17 @@ export function ProfileActionsMenu({ onRename, onDelete, renameLabel, deleteLabe
           role="menu"
           className="absolute right-0 top-7 z-50 min-w-36 rounded-lg border border-border bg-popover p-1 text-popover-foreground shadow-lg motion-pop"
         >
+          {onImport && importLabel && (
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => { setOpen(false); onImport(); }}
+              className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs text-foreground hover:bg-muted"
+            >
+              <FileUp size={13} />
+              {importLabel}
+            </button>
+          )}
           <button
             type="button"
             role="menuitem"
