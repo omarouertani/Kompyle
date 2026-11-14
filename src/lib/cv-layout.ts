@@ -1,6 +1,7 @@
 import type { CVData, CVLayout, LayoutPage, SectionId } from "@/types/cv";
 import { getPageDims, PAGE_BOTTOM_MARGIN_PT } from "@/lib/page-size";
 import { getTemplateDef, getTemplateEngine } from "@/lib/cv-templates";
+import { builtInSectionTitle, cvDocText, cvLanguage, sectionLabels } from "@/lib/cv-i18n";
 
 /** Vrai pour les modèles du moteur « Moderne » (photo + colonne latérale),
  *  y compris l'ancien identifiant "chaima" des CV déjà enregistrés. */
@@ -22,37 +23,13 @@ export const normalizeTemplate = (template?: string | null): string =>
  * la page (initialisation). Modèle inspiré de Reactive Resume (layout.pages).
  */
 
-/** Libellés FR affichés dans le builder pour chaque section. */
-export const SECTION_LABELS: Record<SectionId, string> = {
-  summary: "Résumé",
-  experience: "Expériences",
-  projects: "Projets",
-  contact: "Contact",
-  skills: "Compétences",
-  languages: "Langues",
-  education: "Formations",
-  certifications: "Certifications",
-  interests: "Intérêts",
-};
-
 /**
  * Libellés de sections en anglais, formulés EXACTEMENT comme les en-têtes que
  * les ATS anglophones recherchent ("Experience", "Education", "Skills"…).
  * Utilisé par /api/adapt-cv pour aligner les titres de section sur la langue de
- * l'offre quand celle-ci est en anglais (un en-tête "Éducation" n'est pas
- * reconnu comme "Education" par l'ATS → section considérée manquante).
+ * l'offre quand celle-ci est en anglais. Source : messages/en.json (CVDocument).
  */
-export const SECTION_LABELS_EN: Record<SectionId, string> = {
-  summary: "Summary",
-  experience: "Experience",
-  projects: "Projects",
-  contact: "Contact",
-  skills: "Skills",
-  languages: "Languages",
-  education: "Education",
-  certifications: "Certifications",
-  interests: "Interests",
-};
+export const SECTION_LABELS_EN: Record<SectionId, string> = sectionLabels("en");
 
 /** Toutes les sections connues (sert à lister les sections masquées). */
 export const ALL_SECTION_IDS: SectionId[] = [
@@ -104,12 +81,8 @@ export function canadianLayout(): CVLayout {
         main: ["summary", "skills", "experience", "education"],
       },
     ],
-    sectionTitles: {
-      summary: "Résumé professionnel",
-      skills: "Compétences clés",
-      experience: "Expériences professionnelles",
-      education: "Éducation",
-    },
+    // Titres propres au CV canadien : résolus dans la langue du CV
+    // (messages/*.json → CVDocument.sections_canadian), jamais stockés ici.
     theme: { skillMode: "text" },
   };
 }
@@ -218,10 +191,10 @@ export function emptyCV(template = "default"): CVData {
 export function getSectionLabel(sectionId: string, data?: CVData): string {
   if (sectionId.startsWith("custom_")) {
     const cs = data?.customSections?.find((c) => `custom_${c.id}` === sectionId);
-    return cs?.title || "Section personnalisée";
+    return cs?.title || cvDocText(data ? cvLanguage(data) : "fr").custom_section;
   }
-  const override = data?.layout?.sectionTitles?.[sectionId];
-  return override ?? SECTION_LABELS[sectionId as SectionId] ?? sectionId;
+  if (!data) return sectionLabels("fr")[sectionId as SectionId] ?? sectionId;
+  return builtInSectionTitle(data, sectionId);
 }
 
 /** Renomme une section (built-in via sectionTitles, custom via customSections). */
@@ -244,6 +217,7 @@ export function renameSection(data: CVData, sectionId: string, title: string): C
 /** Crée une section libre et l'ajoute à la colonne principale de la 1re page. */
 export function addCustomSection(data: CVData): CVData {
   const id = crypto.randomUUID();
+  const doc = cvDocText(cvLanguage(data));
   const layout = data.layout ?? defaultLayout();
   const pages = layout.pages.length > 0 ? layout.pages : [emptyLayoutPage()];
   const first = pages[0];
@@ -251,7 +225,7 @@ export function addCustomSection(data: CVData): CVData {
     ...data,
     customSections: [
       ...(data.customSections ?? []),
-      { id, title: "Nouvelle section", content: "Votre contenu ici..." },
+      { id, title: doc.new_section_title, content: doc.new_section_content },
     ],
     layout: {
       ...layout,

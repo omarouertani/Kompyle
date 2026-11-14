@@ -18,6 +18,7 @@ interface HeaderProps {
 }
 
 export default function Header({ toggleSidebar, isSidebarCollapsed }: HeaderProps) {
+  const tu = useTranslations("UI");
   const t = useTranslations("Header");
   const locale = useLocale();
   const { theme, setTheme } = useTheme();
@@ -88,7 +89,7 @@ export default function Header({ toggleSidebar, isSidebarCollapsed }: HeaderProp
             size="icon"
             onClick={toggleSidebar}
             className="size-8 text-muted-foreground hover:text-foreground mr-1"
-            title="Toggle Sidebar"
+            title={tu("toggle_sidebar")}
           >
             <PanelLeftOpen size={18} />
           </Button>

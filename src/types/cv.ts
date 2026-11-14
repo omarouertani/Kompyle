@@ -195,7 +195,12 @@ export interface CustomSection {
   content: string;
 }
 
+/** Langue du contenu d'un CV (le document), indépendante de la langue de l'UI. */
+export type CVLang = "fr" | "en";
+
 export interface CVData {
+  /** Langue du contenu. Absente sur les anciens CV : détectée depuis le texte. */
+  language?: CVLang;
   personalInfo: PersonalInfo;
   skills: SkillGroup[];
   spokenLanguages: string[];

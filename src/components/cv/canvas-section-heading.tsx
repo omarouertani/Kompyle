@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import React from "react";
 import { Plus, Minus } from "lucide-react";
 import { EditableText, ptsToPx } from "./cv-canvas-primitives";
@@ -22,6 +23,7 @@ export const CanvasSectionHeading = React.memo(function CanvasSectionHeading({
   onFontSizeChange,
   onTitleChange,
 }: CanvasSectionHeadingProps) {
+  const tu = useTranslations("UI");
   return (
     <h2
       className="font-bold border-b border-zinc-300 uppercase tracking-wide group/h2 select-none relative flex items-center w-full"
@@ -42,7 +44,7 @@ export const CanvasSectionHeading = React.memo(function CanvasSectionHeading({
         <EditableText
           value={title}
           onChange={onTitleChange}
-          placeholder="Titre de section"
+          placeholder={tu("section_title")}
           className="uppercase tracking-wide"
           style={{ color: primaryColor }}
         />
@@ -54,12 +56,12 @@ export const CanvasSectionHeading = React.memo(function CanvasSectionHeading({
           était rogné par le bord de la page : on ne voyait qu'un « − » coupé. */}
       <span
         data-no-print
-        title="Taille de ce titre (tous les titres : panneau Thème)"
+        title={tu("heading_size")}
         className="pointer-events-none absolute right-0 top-1/2 z-30 flex -translate-y-1/2 items-center gap-0.5 rounded-md border border-border bg-popover px-0.5 py-0.5 text-[10px] font-medium normal-case leading-none tracking-normal text-popover-foreground opacity-0 shadow-sm transition-opacity duration-150 select-none group-hover/h2:pointer-events-auto group-hover/h2:opacity-100 focus-within:pointer-events-auto focus-within:opacity-100"
       >
         <button
           type="button"
-          aria-label="Réduire ce titre"
+          aria-label={tu("heading_smaller")}
           onClick={() => onFontSizeChange(Math.max(9, headingFontSize - 0.5))}
           className="flex size-4 items-center justify-center rounded hover:bg-muted"
         >
@@ -68,7 +70,7 @@ export const CanvasSectionHeading = React.memo(function CanvasSectionHeading({
         <span className="min-w-8 text-center tabular-nums">{headingFontSize}pt</span>
         <button
           type="button"
-          aria-label="Agrandir ce titre"
+          aria-label={tu("heading_larger")}
           onClick={() => onFontSizeChange(Math.min(18, headingFontSize + 0.5))}
           className="flex size-4 items-center justify-center rounded hover:bg-muted"
         >

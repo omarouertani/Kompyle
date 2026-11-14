@@ -61,6 +61,7 @@ export function LayersPanel({
   onToggleLocked,
   onClose,
 }: LayersPanelProps) {
+  const tu = useTranslations("UI");
   const t = useTranslations("Canvas");
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
@@ -125,7 +126,7 @@ export function LayersPanel({
     >
       <div className="flex items-center justify-between px-2.5 py-1.5 border-b border-border/60">
         <span className="text-xs font-semibold">{t("sections_title")}</span>
-        <button type="button" className="p-0.5 rounded hover:bg-muted" onClick={onClose} aria-label="Close">
+        <button type="button" className="p-0.5 rounded hover:bg-muted" onClick={onClose} aria-label={tu("close")}>
           <X size={12} />
         </button>
       </div>

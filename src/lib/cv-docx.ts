@@ -10,6 +10,7 @@ import {
 } from "docx";
 import type { CVData } from "@/types/cv";
 import { getSectionLabel } from "@/lib/cv-layout";
+import { cvDocText, cvLanguage } from "@/lib/cv-i18n";
 import { readingOrderSectionIds } from "@/lib/cv-text";
 import { parseInlineHtml, type RichTextRun } from "@/utils/inline-html";
 import { stripHtml } from "@/utils/strip-html";
@@ -125,7 +126,7 @@ function sectionParagraphs(id: string, data: CVData, base: RunBase): Paragraph[]
         ...entryHeader([p.title], undefined, base),
         ...richPara(p.description, base),
         ...(plain(p.stack)
-          ? [para([new TextRun({ text: "Stack : ", font: FONT, size: base.size, bold: true }), ...richChildren(p.stack, base)])]
+          ? [para([new TextRun({ text: cvDocText(cvLanguage(data)).stack, font: FONT, size: base.size, bold: true }), ...richChildren(p.stack, base)])]
           : []),
       ]);
     case "skills":

@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import React from "react";
 import type { CVData, CVLayout } from "@/types/cv";
 import { getPageBlockIds } from "@/lib/cv-layout";
@@ -63,6 +64,7 @@ export function CanvasPage({
   renderBlock,
   freeElementIds = [],
 }: CanvasPageProps) {
+  const tu = useTranslations("UI");
   const { sidebar: sidebarBlocks, main: mainBlocks } = getPageBlockIds(layout, data, pageIndex);
   const hasSidebar = sidebarBlocks.length > 0;
   const pageBlockIds = pageStack(layout, pageIndex, headerBlockIds, [...sidebarBlocks, ...mainBlocks], freeElementIds);
@@ -106,7 +108,7 @@ export function CanvasPage({
           <div
             className="absolute hover:bg-primary/40 hover:opacity-100 bg-transparent opacity-0 cursor-col-resize h-full transition-all duration-100 z-[500]"
             style={{ left: ptsToPx(sidebarWidth), width: "6px" }}
-            title="Ajuster largeur sidebar"
+            title={tu("sidebar_resize")}
             onMouseDown={(e) => {
               e.stopPropagation();
               onSidebarResize(e, sidebarWidth);

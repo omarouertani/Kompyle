@@ -4,13 +4,14 @@ import { z } from "zod";
 import { resumeSchema, formatZodIssues } from "@/schemas/resumeSchema";
 import { coverLetterSchema } from "@/schemas/coverLetterSchema";
 import { extractAndValidate } from "@/utils/ai-helpers";
+import { enforceExperienceYearsInLetter, experienceYearsPolicy, experienceYearsPromptRule } from "@/lib/experience-years";
 import { callWithFallback, AllProvidersFailedError, providerForModel } from "@/lib/ai-orchestrator";
 import { checkRateLimit } from "@/lib/rate-limiter";
 import { cvForAiPrompt } from "@/lib/cv-payload";
 
 let COVER_LETTER_SCHEMA_JSON = "";
 try {
-  COVER_LETTER_SCHEMA_JSON = JSON.stringify(z.toJSONSchema(coverLetterSchema), null, 2);
+  COVER_LETTER_SCHEMA_JSON = JSON.stringify(z.toJSONSchema(coverLetterSchema));
 } catch {
   COVER_LETTER_SCHEMA_JSON = "";
 }
@@ -98,7 +99,10 @@ export async function POST(req: NextRequest) {
 ${jobDescription}
 
 === CANDIDATE'S CV (JSON) ===
-${JSON.stringify(cvForAi, null, 2)}
+${JSON.stringify(cvForAi)}
+
+=== FIXED FACTS ===
+${experienceYearsPromptRule(experienceYearsPolicy(cvData))}
 
 Write the cover letter in the language of the job posting. Return only the JSON object.`;
 
@@ -147,6 +151,9 @@ Write the cover letter in the language of the job posting. Return only the JSON 
         { status: 502 }
       );
     }
+
+    const yearFixes = enforceExperienceYearsInLetter(validation.data, experienceYearsPolicy(cvData));
+    if (yearFixes.length > 0) console.warn("[cover-letter] invented years of experience corrected:", yearFixes);
 
     return NextResponse.json({
       coverLetter: validation.data,

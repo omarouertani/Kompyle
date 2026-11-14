@@ -3,17 +3,18 @@
 import React, { useEffect, useRef, useState } from "react";
 import type { CVTheme, CVFontFamily, PhotoShape, SkillMode } from "@/types/cv";
 import { Palette, Check, AlignLeft, Tags, BarChart3 } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 import { toolbarPill } from "./toolbar-styles";
 import { PHOTO_BORDER_WIDTHS, DEFAULT_PHOTO_BORDER_WIDTH } from "@/lib/photo-frame";
 
 const PRESETS = [
-  { name: "Ambre Doré", primary: "#fbbf24", sidebarBg: "#f4f4f5", textColor: "#27272a" },
-  { name: "Bleu Corporate", primary: "#2563eb", sidebarBg: "#f8fafc", textColor: "#1e293b" },
-  { name: "Vert Émeraude", primary: "#059669", sidebarBg: "#f0fdf4", textColor: "#0f5132" },
-  { name: "Rouge Rubis", primary: "#dc2626", sidebarBg: "#fef2f2", textColor: "#7f1d1d" },
-  { name: "Violet Indigo", primary: "#6366f1", sidebarBg: "#eef2ff", textColor: "#312e81" },
-  { name: "Sombre Minimal", primary: "#18181b", sidebarBg: "#fafafa", textColor: "#27272a" },
+  { name: "preset_amber", primary: "#fbbf24", sidebarBg: "#f4f4f5", textColor: "#27272a" },
+  { name: "preset_blue", primary: "#2563eb", sidebarBg: "#f8fafc", textColor: "#1e293b" },
+  { name: "preset_green", primary: "#059669", sidebarBg: "#f0fdf4", textColor: "#0f5132" },
+  { name: "preset_red", primary: "#dc2626", sidebarBg: "#fef2f2", textColor: "#7f1d1d" },
+  { name: "preset_indigo", primary: "#6366f1", sidebarBg: "#eef2ff", textColor: "#312e81" },
+  { name: "preset_dark", primary: "#18181b", sidebarBg: "#fafafa", textColor: "#27272a" },
 ];
 
 /** Teintes rapides proposées sous chaque champ couleur. */
@@ -75,16 +76,16 @@ export function fontKeyFromStack(css: string): CVFontFamily | null {
 
 /** Mode d'affichage des compétences — chaque mode a sa propre vignette visuelle. */
 const SKILL_MODES: Array<{ value: SkillMode; label: string; icon: React.ElementType }> = [
-  { value: "text", label: "Texte", icon: AlignLeft },
-  { value: "tags", label: "Tags", icon: Tags },
-  { value: "bars", label: "Barres", icon: BarChart3 },
+  { value: "text", label: "skill_text", icon: AlignLeft },
+  { value: "tags", label: "skill_tags", icon: Tags },
+  { value: "bars", label: "skill_bars", icon: BarChart3 },
 ];
 
 /** Formes de photo proposées (vignette = carré aux coins arrondis en CSS). */
 const PHOTO_SHAPE_OPTIONS: Array<{ value: PhotoShape; label: string; radius: string }> = [
-  { value: "circle", label: "Rond", radius: "9999px" },
-  { value: "rounded", label: "Arrondi", radius: "6px" },
-  { value: "square", label: "Carré", radius: "0" },
+  { value: "circle", label: "shape_circle", radius: "9999px" },
+  { value: "rounded", label: "shape_rounded", radius: "6px" },
+  { value: "square", label: "shape_square", radius: "0" },
 ];
 
 const HEX_RE = /^#?([0-9a-fA-F]{6})$/;
@@ -100,6 +101,7 @@ function ColorField({
   swatches: string[];
   onChange: (v: string) => void;
 }) {
+  const t = useTranslations("Theme");
   const [draft, setDraft] = useState(value);
   const [lastValue, setLastValue] = useState(value);
   const pickerRef = useRef<HTMLInputElement>(null);
@@ -126,7 +128,7 @@ function ColorField({
           type="button"
           className="size-7 rounded-lg border border-border/70 shrink-0 cursor-pointer shadow-sm ring-1 ring-inset ring-white/20 transition-transform hover:scale-105"
           style={{ backgroundColor: value }}
-          title="Choisir une couleur"
+          title={t("pick_color")}
           onClick={() => pickerRef.current?.click()}
         />
         <input
@@ -216,11 +218,11 @@ function SliderField({
 
 /** Fonds de sidebar proposés en un clic (dont « Aucun » = transparent). */
 const SIDEBAR_BG_PRESETS: Array<{ label: string; value: string }> = [
-  { label: "Aucun", value: "transparent" },
-  { label: "Gris clair", value: "#f4f4f5" },
-  { label: "Gris", value: "#e5e7eb" },
-  { label: "Bleu nuit", value: "#1e293b" },
-  { label: "Ardoise", value: "#0f172a" },
+  { label: "bg_none", value: "transparent" },
+  { label: "bg_light_gray", value: "#f4f4f5" },
+  { label: "bg_gray", value: "#e5e7eb" },
+  { label: "bg_navy", value: "#1e293b" },
+  { label: "bg_slate", value: "#0f172a" },
 ];
 
 /** Édition du style de la barre latérale : couleur de fond + option « aucun
@@ -232,6 +234,7 @@ function SidebarStyle({
   theme: CVTheme;
   onThemeChange: (updates: Partial<CVTheme>, opts?: { reflow?: boolean }) => void;
 }) {
+  const t = useTranslations("Theme");
   const raw = theme.sidebarBg ?? "";
   const transparent = raw === "" || raw.toLowerCase() === "transparent";
   const current = transparent ? "#f4f4f5" : raw;
@@ -248,12 +251,12 @@ function SidebarStyle({
             : "border-border/70 text-muted-foreground hover:text-foreground hover:bg-muted/50"
         )}
       >
-        {transparent ? "Activer un fond" : "Retirer le fond"}
+        {transparent ? t("enable_bg") : t("remove_bg")}
       </button>
 
       {!transparent && (
         <ColorField
-          label="Couleur de fond"
+          label={t("bg_color")}
           value={current}
           swatches={QUICK_SWATCHES.sidebar}
           onChange={(v) => onThemeChange({ sidebarBg: v })}
@@ -268,7 +271,7 @@ function SidebarStyle({
               key={p.value}
               type="button"
               onClick={() => onThemeChange({ sidebarBg: p.value })}
-              title={p.label}
+              title={t(p.label)}
               className={cn(
                 "size-6 rounded-md border transition-transform hover:scale-110 relative",
                 active ? "border-foreground ring-2 ring-offset-1 ring-offset-popover ring-primary" : "border-border/60"
@@ -308,6 +311,7 @@ interface ThemePanelProps {
 /** Bouton "Thème" de la toolbar canvas + popover de personnalisation
  *  (presets, couleurs, police, compétences, tailles, espacements). */
 export function ThemePanel({ theme, onThemeChange, compact = false }: ThemePanelProps) {
+  const t = useTranslations("Theme");
   const [open, setOpen] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
 
@@ -336,10 +340,10 @@ export function ThemePanel({ theme, onThemeChange, compact = false }: ThemePanel
         type="button"
         onClick={() => setOpen((o) => !o)}
         className={toolbarPill(open)}
-        title="Thème & dimensions"
+        title={t("button_title")}
       >
         <Palette size={10} />
-        <span className="hidden sm:inline">Thème</span>
+        <span className="hidden sm:inline">{t("button")}</span>
       </button>
 
       {open && (
@@ -352,11 +356,11 @@ export function ThemePanel({ theme, onThemeChange, compact = false }: ThemePanel
             <span className="flex size-6 items-center justify-center rounded-lg bg-primary/10 text-primary">
               <Palette size={13} />
             </span>
-            <span className="text-sm font-semibold text-foreground">Personnaliser le thème</span>
+            <span className="text-sm font-semibold text-foreground">{t("heading")}</span>
           </div>
 
           {/* Presets — palettes 2 couleurs (accent + fond) */}
-          <Section title="Palettes">
+          <Section title={t("palettes")}>
             <div className="grid grid-cols-3 gap-2">
               {PRESETS.map((preset) => {
                 const isActive =
@@ -377,13 +381,13 @@ export function ThemePanel({ theme, onThemeChange, compact = false }: ThemePanel
                         textColor: preset.textColor,
                       })
                     }
-                    title={preset.name}
+                    title={t(preset.name)}
                   >
                     <span className="flex h-7 w-full rounded-lg overflow-hidden border border-border/30 shadow-inner">
                       <span className="flex-[2]" style={{ backgroundColor: preset.primary }} />
                       <span className="flex-[3]" style={{ backgroundColor: preset.sidebarBg }} />
                     </span>
-                    <span className="text-[9px] font-medium text-muted-foreground truncate leading-tight">{preset.name}</span>
+                    <span className="text-[9px] font-medium text-muted-foreground truncate leading-tight">{t(preset.name)}</span>
                     {isActive && (
                       <span className="absolute -top-1.5 -right-1.5 size-4 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-md ring-2 ring-popover">
                         <Check size={9} strokeWidth={3.5} />
@@ -396,23 +400,23 @@ export function ThemePanel({ theme, onThemeChange, compact = false }: ThemePanel
           </Section>
 
           {/* Couleurs — aération accrue entre les blocs */}
-          <Section title="Couleurs">
+          <Section title={t("colors")}>
             <div className="grid grid-cols-2 gap-x-5 gap-y-4">
-              <ColorField label="Accent" value={theme.primaryColor || "#fbbf24"} swatches={QUICK_SWATCHES.accent} onChange={(v) => onThemeChange({ primaryColor: v })} />
-              <ColorField label="Texte" value={theme.textColor || "#27272a"} swatches={QUICK_SWATCHES.text} onChange={(v) => onThemeChange({ textColor: v })} />
-              <ColorField label="Fond de page" value={theme.pageBg || "#ffffff"} swatches={QUICK_SWATCHES.page} onChange={(v) => onThemeChange({ pageBg: v })} />
+              <ColorField label={t("accent")} value={theme.primaryColor || "#fbbf24"} swatches={QUICK_SWATCHES.accent} onChange={(v) => onThemeChange({ primaryColor: v })} />
+              <ColorField label={t("text")} value={theme.textColor || "#27272a"} swatches={QUICK_SWATCHES.text} onChange={(v) => onThemeChange({ textColor: v })} />
+              <ColorField label={t("page_bg")} value={theme.pageBg || "#ffffff"} swatches={QUICK_SWATCHES.page} onChange={(v) => onThemeChange({ pageBg: v })} />
             </div>
           </Section>
 
           {/* Sidebar — fond de la barre latérale (modern / classic), avec option
               « aucun fond » (transparent) pour la retirer. Canvas + PDF synchros. */}
-          <Section title="Barre latérale (sidebar)">
+          <Section title={t("sidebar")}>
             <SidebarStyle theme={theme} onThemeChange={onThemeChange} />
           </Section>
 
           {/* Police — masquée en mode compact (déplacée inline dans la toolbar) */}
           {!compact && (
-            <Section title="Police">
+            <Section title={t("font")}>
               <div className="grid grid-cols-4 gap-1.5">
                 {(Object.entries(FONT_FAMILIES) as Array<[CVFontFamily, { label: string; stack: string }]>).map(([key, font]) => (
                   <button
@@ -433,7 +437,7 @@ export function ThemePanel({ theme, onThemeChange, compact = false }: ThemePanel
           )}
 
           {/* Compétences — vignettes illustrées plutôt que boutons texte */}
-          <Section title="Style des compétences">
+          <Section title={t("skill_style")}>
             <div className="grid grid-cols-3 gap-2">
               {SKILL_MODES.map(({ value, label, icon: Icon }) => {
                 const active = activeSkillMode === value;
@@ -446,13 +450,13 @@ export function ThemePanel({ theme, onThemeChange, compact = false }: ThemePanel
                       "flex flex-col items-center gap-1.5 px-1 py-2.5 rounded-xl border transition-all",
                       active ? "border-primary bg-primary/5 text-foreground shadow-sm" : "border-border/60 bg-card hover:border-border hover:bg-muted/40 text-muted-foreground"
                     )}
-                    title={label}
+                    title={t(label)}
                   >
                     {/* Mini illustration du rendu */}
                     <span className={cn("flex items-center justify-center size-7 rounded-lg", active ? "bg-primary/10 text-primary" : "bg-muted/60")}>
                       <Icon size={15} />
                     </span>
-                    <span className="text-[9px] font-medium">{label}</span>
+                    <span className="text-[9px] font-medium">{t(label)}</span>
                   </button>
                 );
               })}
@@ -460,7 +464,7 @@ export function ThemePanel({ theme, onThemeChange, compact = false }: ThemePanel
           </Section>
 
           {/* Photo de profil (template Moderne) : forme + bordure */}
-          <Section title="Photo">
+          <Section title={t("photo")}>
             <div className="flex flex-col gap-3">
               <div className="grid grid-cols-3 gap-2">
                 {PHOTO_SHAPE_OPTIONS.map(({ value, label, radius }) => {
@@ -474,16 +478,16 @@ export function ThemePanel({ theme, onThemeChange, compact = false }: ThemePanel
                         "flex flex-col items-center gap-1.5 px-1 py-2.5 rounded-xl border transition-all",
                         active ? "border-primary bg-primary/5 text-foreground shadow-sm" : "border-border/60 bg-card hover:border-border hover:bg-muted/40 text-muted-foreground"
                       )}
-                      title={label}
+                      title={t(label)}
                     >
                       <span className={cn("size-6 border-2", active ? "border-primary bg-primary/10" : "border-muted-foreground/50 bg-muted/60")} style={{ borderRadius: radius }} />
-                      <span className="text-[9px] font-medium">{label}</span>
+                      <span className="text-[9px] font-medium">{t(label)}</span>
                     </button>
                   );
                 })}
               </div>
               <div className="flex flex-col gap-1.5">
-                <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Bordure</span>
+                <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">{t("border")}</span>
                 <div className="flex gap-1">
                   {PHOTO_BORDER_WIDTHS.map((w) => {
                     const active = (theme.photoBorderWidth ?? DEFAULT_PHOTO_BORDER_WIDTH) === w;
@@ -497,14 +501,14 @@ export function ThemePanel({ theme, onThemeChange, compact = false }: ThemePanel
                           active ? "border-primary bg-primary/10 text-foreground" : "border-border/60 hover:bg-muted/60 text-muted-foreground"
                         )}
                       >
-                        {w === 0 ? "Aucune" : `${w} pt`}
+                        {w === 0 ? t("border_none") : `${w} pt`}
                       </button>
                     );
                   })}
                 </div>
               </div>
               <ColorField
-                label="Couleur de la bordure"
+                label={t("border_color")}
                 value={theme.photoBorderColor || theme.primaryColor || "#1a1a1a"}
                 swatches={QUICK_SWATCHES.accent}
                 onChange={(v) => onThemeChange({ photoBorderColor: v })}
@@ -513,10 +517,10 @@ export function ThemePanel({ theme, onThemeChange, compact = false }: ThemePanel
           </Section>
 
           {/* Dimensions */}
-          <Section title="Dimensions">
+          <Section title={t("dimensions")}>
             <div className="flex flex-col gap-4">
               <SliderField
-                label="Taille du texte"
+                label={t("font_size")}
                 value={theme.fontSize ?? 10}
                 unit="pt"
                 min={8}
@@ -526,7 +530,7 @@ export function ThemePanel({ theme, onThemeChange, compact = false }: ThemePanel
                 onCommit={() => onThemeChange({}, { reflow: true })}
               />
               <SliderField
-                label="Taille des titres"
+                label={t("heading_size")}
                 value={theme.headingSize ?? 12}
                 unit="pt"
                 min={9}
@@ -536,7 +540,7 @@ export function ThemePanel({ theme, onThemeChange, compact = false }: ThemePanel
                 onCommit={() => onThemeChange({}, { reflow: true })}
               />
               <SliderField
-                label="Espacement des sections"
+                label={t("section_spacing")}
                 value={theme.sectionMargin ?? 8}
                 unit="pt"
                 min={2}
@@ -546,7 +550,7 @@ export function ThemePanel({ theme, onThemeChange, compact = false }: ThemePanel
                 onCommit={() => onThemeChange({}, { reflow: true })}
               />
               <SliderField
-                label="Hauteur de ligne"
+                label={t("line_height")}
                 value={theme.lineHeight ?? 1.15}
                 min={1.0}
                 max={1.6}

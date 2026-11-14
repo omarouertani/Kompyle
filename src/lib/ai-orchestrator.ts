@@ -112,6 +112,9 @@ export function classifyFailure(model: string, err: unknown): ProviderFailure {
  * Raisons qui valent pour TOUTE la clé (pas seulement ce modèle) : inutile
  * d'essayer les modèles suivants avec la même clé.
  */
+/** Temps total max pour un appel IA, modèles de secours compris. */
+const TOTAL_BUDGET_MS = 120_000;
+
 const KEY_WIDE_REASONS: ReadonlySet<ProviderFailureReason> = new Set(["missing_key", "auth", "quota"]);
 
 async function dispatch(
@@ -184,8 +187,12 @@ export async function callWithFallback(
   }
 
   const failures: ProviderFailure[] = [];
+  // Budget global : après un délai dépassé, on ne lance pas une chaîne de
+  // modèles de secours qui ferait attendre l'utilisateur plusieurs minutes.
+  const deadline = Date.now() + TOTAL_BUDGET_MS;
 
   for (const model of modelsToTry) {
+    if (failures.length > 0 && Date.now() > deadline) break;
     const startedAt = Date.now();
     try {
       const text = await dispatch(provider, systemPrompt, userPrompt, model, temperature, apiKey);

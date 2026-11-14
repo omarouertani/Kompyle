@@ -30,8 +30,7 @@ import {
 import { blockTextAlign, isBlockOutOfPage, pdfMetadata } from "./template/shared";
 import { renderFreeElementsPdf, renderStackedPdf } from "./template/free-elements-pdf";
 import { getPageDims } from "@/lib/page-size";
-import { detectJobLanguage } from "@/lib/detect-language";
-import { stripHtml } from "@/utils/strip-html";
+import { cvLanguage } from "@/lib/cv-i18n";
 
 registerPdfFont(ACTIVE_PDF_FONT);
 
@@ -59,7 +58,7 @@ const CVTemplate: React.FC<CVTemplateProps> = ({ data, originalData, variant = "
   const pdfFontFamily = resolvePdfFontFamily(layout.theme?.fontFamily);
   // Format de page (A4 / Letter) et langue du document (métadonnées PDF).
   const pageDims = getPageDims(layout);
-  const cvLanguage = detectJobLanguage(stripHtml(`${data.personalInfo?.role ?? ""} ${data.personalInfo?.summary ?? ""}`));
+  const cvLang = cvLanguage(data);
 
   // Le PDF rend depuis les positions absolues dès qu'elles existent, afin que la
   // sortie PDF corresponde EXACTEMENT à ce que l'utilisateur voit dans le canvas
@@ -197,7 +196,7 @@ const CVTemplate: React.FC<CVTemplateProps> = ({ data, originalData, variant = "
 
   return (
     <PdfThemeProvider value={{ ...defaultPdfTheme, fontFamily: pdfFontFamily }}>
-    <Document {...pdfMetadata(data, cvLanguage)}>
+    <Document {...pdfMetadata(data, cvLang)}>
       {dedupePages(layout.pages).map((page, pageIndex) => {
         // Pas de section en colonne latérale → la colonne principale occupe
         // toute la largeur (équivalent du `fullWidth` de Reactive Resume).

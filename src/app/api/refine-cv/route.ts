@@ -4,6 +4,7 @@ import type { RefineCVRequest, RefineCVResponse, CVData } from "@/types/cv";
 import { z } from "zod";
 import { resumeSchema, formatZodIssues } from "@/schemas/resumeSchema";
 import { extractAndValidate } from "@/utils/ai-helpers";
+import { enforceExperienceYears, experienceYearsPolicy, experienceYearsPromptRule } from "@/lib/experience-years";
 import { callWithFallback, AllProvidersFailedError, providerForModel } from "@/lib/ai-orchestrator";
 import { checkRateLimit } from "@/lib/rate-limiter";
 import { cvForAiPrompt } from "@/lib/cv-payload";
@@ -12,7 +13,7 @@ import { cvForAiPrompt } from "@/lib/cv-payload";
 
 let RESUME_SCHEMA_JSON = "";
 try {
-  RESUME_SCHEMA_JSON = JSON.stringify(z.toJSONSchema(resumeSchema), null, 2);
+  RESUME_SCHEMA_JSON = JSON.stringify(z.toJSONSchema(resumeSchema));
 } catch {
   RESUME_SCHEMA_JSON = "";
 }
@@ -39,7 +40,7 @@ const SYSTEM_PROMPT = `You are an elite professional CV editor. The user already
 4. Single A4 page: do not significantly increase total text length unless explicitly asked.
 
 ## Output contract
-- Return ONLY one raw JSON object — no markdown fences, no comments, no prose before or after.
+- Return ONLY one raw JSON object containing the COMPLETE CV (every top-level key, even unchanged sections) — no markdown fences, no comments, no prose before or after.
 - It MUST validate against this exact JSON schema:
 
 ${RESUME_SCHEMA_JSON}
@@ -97,6 +98,7 @@ export async function POST(request: NextRequest) {
     // Layout (user-controlled) ET photo (image volumineuse) jamais envoyés à l'IA,
     // ré-imposés à la sortie.
     const cvForAi = cvForAiPrompt(cvData);
+    const yearsPolicy = experienceYearsPolicy(cvData);
 
     const jobContext = jobDescription?.trim()
       ? `## Original target job posting (context only — keep the CV aligned with it):
@@ -108,13 +110,16 @@ ${jobDescription.trim()}
 
     const userPrompt = `${jobContext}## Current CV (JSON):
 
-${JSON.stringify(cvForAi, null, 2)}
+${JSON.stringify(cvForAi)}
+
+## Fixed facts (never change):
+${experienceYearsPromptRule(yearsPolicy)}
 
 ## User instruction to apply:
 
 ${instruction.trim()}
 
-Apply this instruction surgically and return only the modified JSON.`;
+Apply this instruction surgically and return the COMPLETE CV as one JSON object (every top-level key, even unchanged sections).`;
 
     let result;
     try {
@@ -143,14 +148,14 @@ Apply this instruction surgically and return only the modified JSON.`;
     const { text: rawResponse, model: usedModel } = result;
 
     // Extract + repair + validate avec self-healing retry (même pipeline que /api/adapt-cv)
-    let validation = extractAndValidate(rawResponse, resumeSchema);
+    let validation = extractAndValidate(rawResponse, resumeSchema, cvForAi);
 
     if (!validation.success) {
       console.warn("Refined CV failed validation, retrying with self-correction...", validation.issues);
       try {
         const correctionPrompt = buildCorrectionPrompt(userPrompt, validation.issues);
         const retryResult = await callWithFallback(SYSTEM_PROMPT, correctionPrompt, { provider, model: usedModel, apiKey });
-        validation = extractAndValidate(retryResult.text, resumeSchema);
+        validation = extractAndValidate(retryResult.text, resumeSchema, cvForAi);
       } catch (retryError) {
         console.error("Self-correction retry failed:", retryError);
       }
@@ -170,6 +175,9 @@ Apply this instruction surgically and return only the modified JSON.`;
 
     // Champs jamais pilotés par l'IA, ré-imposés depuis le CV d'entrée.
     refinedCV.layout = cvData.layout;
+    const yearFixes = enforceExperienceYears(refinedCV, yearsPolicy);
+    if (yearFixes.length > 0) console.warn("[refine-cv] invented years of experience corrected:", yearFixes);
+    if (cvData.language) refinedCV.language = cvData.language;
     refinedCV.personalInfo.photo = cvData.personalInfo.photo;
 
     // Stabilité des ids (clés React / positions canvas) : quand les longueurs

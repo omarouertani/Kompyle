@@ -1,11 +1,16 @@
 import type { BlockTextAlign, CVData } from "@/types/cv";
 import type { PageDims } from "@/lib/page-size";
 import { stripHtml } from "@/utils/strip-html";
+import { builtInSectionTitle, cvDocText, cvLanguage } from "@/lib/cv-i18n";
 
-/** Titre d'une section dans le PDF : renommage utilisateur sinon libellé par défaut.
- *  Partagé par tous les templates PDF. */
-export const sectionTitle = (data: CVData, id: string, fallback: string): string =>
-  data.layout?.sectionTitles?.[id] ?? fallback;
+/** Titre d'une section dans le PDF : renommage utilisateur, sinon libellé par
+ *  défaut dans la langue du CV (messages/*.json). Partagé par tous les templates
+ *  PDF et identique au canvas (même résolution que getSectionLabel). */
+export const sectionTitle = (data: CVData, id: string): string => builtInSectionTitle(data, id);
+
+/** Libellé imprimé dans le CV (contact, stack…) dans la langue du CV. */
+export const docLabel = (data: CVData, key: "contact_email" | "contact_phone" | "contact_location" | "contact_linkedin" | "contact_portfolio" | "contact_birth" | "stack"): string =>
+  cvDocText(cvLanguage(data))[key];
 
 /** Un bloc positionné hors de la page (A4 ou Letter) est ignoré au rendu PDF
  *  (sinon page blanche / boucle de pagination). Le canvas signale la limite. */

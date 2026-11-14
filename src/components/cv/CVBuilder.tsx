@@ -216,6 +216,7 @@ function SortableSection<T extends { id?: string }>({
 }
 
 export default function CVBuilder({ data, onChange }: CVBuilderProps) {
+  const tu = useTranslations("UI");
   const t = useTranslations("Builder");
   // Photo choisie, en attente de recadrage (dialogue ouvert tant que non nulle).
   const [cropFile, setCropFile] = useState<File | null>(null);
@@ -298,7 +299,7 @@ export default function CVBuilder({ data, onChange }: CVBuilderProps) {
               {data.personalInfo.photo ? (
                 <div className="relative size-14 rounded-full overflow-hidden border border-border bg-card shadow-sm shrink-0">
                   {/* eslint-disable-next-line @next/next/no-img-element -- data URL, next/image inadapté */}
-                  <img src={data.personalInfo.photo} alt="Avatar" className="size-full object-cover" />
+                  <img src={data.personalInfo.photo} alt={tu("photo_alt")} className="size-full object-cover" />
                   <button
                     type="button"
                     onClick={() => updatePersonalInfo("photo", "")}

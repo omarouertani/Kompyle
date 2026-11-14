@@ -13,6 +13,7 @@ import {
   type ImportCVResponse,
   type ImportErrorCode,
 } from "@/lib/cv-import/schema";
+import { detectCVLanguage } from "@/lib/cv-i18n";
 import { MAX_IMPORT_BODY_BYTES, MAX_IMPORT_TEXT_CHARS, MIN_IMPORT_TEXT_CHARS, meaningfulLength } from "@/lib/cv-import/limits";
 
 /**
@@ -146,6 +147,9 @@ export async function POST(request: NextRequest) {
 
     const cv = normalizeImportedCV(validation.data);
     if (isEmptyImport(cv)) return errorResponse(422, "not_a_cv");
+    // Langue du CV importé : le client bascule l'app dans cette langue et
+    // génère la version dans l'autre langue (/api/translate-cv).
+    cv.language = detectCVLanguage(cv);
 
     const response: ImportCVResponse = { cv, warnings: importWarnings(cv), provider, model: usedModel };
     return Response.json(response);

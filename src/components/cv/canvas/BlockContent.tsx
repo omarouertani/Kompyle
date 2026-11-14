@@ -2,7 +2,9 @@
 
 import React from "react";
 import type { CVData, CVTheme, Experience, Project, Education, SkillGroup, SkillMode } from "@/types/cv";
+import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
+import { cvDocText, cvLanguage } from "@/lib/cv-i18n";
 import { Trash2, PlusCircle } from "lucide-react";
 import { EditableText, ptsToPx } from "../cv-canvas-primitives";
 import { ExperienceDatePicker } from "../ExperienceDatePicker";
@@ -43,6 +45,9 @@ export function BlockContent({ blockId, data, theme, onChange, onThemeReflow }: 
   const { isChaima, primaryColor, baseFontSize, headingFontSize, lineHeight: lh, photoSize, skillMode, cvTheme } = theme;
   const { personalInfo } = data;
   const toPx = ptsToPx;
+  // Indications de saisie : langue de l'interface. Texte inséré dans le CV : langue du CV.
+  const tf = useTranslations("CanvasFields");
+  const doc = cvDocText(cvLanguage(data));
 
   const updatePersonalInfo = (field: string, value: string) =>
     onChange({ ...data, personalInfo: { ...personalInfo, [field]: value } });
@@ -71,19 +76,19 @@ export function BlockContent({ blockId, data, theme, onChange, onThemeReflow }: 
   // --- Header ---
   if (blockId === "name") {
     return (
-      <EditableText value={personalInfo.name} onChange={(v) => updatePersonalInfo("name", v)} className={cn("font-bold tracking-tight select-text text-zinc-900 leading-snug", isChaima && "uppercase")} style={{ fontSize: toPx(baseFontSize * 2.4) }} placeholder="Nom complet" />
+      <EditableText value={personalInfo.name} onChange={(v) => updatePersonalInfo("name", v)} className={cn("font-bold tracking-tight select-text text-zinc-900 leading-snug", isChaima && "uppercase")} style={{ fontSize: toPx(baseFontSize * 2.4) }} placeholder={tf("full_name")} />
     );
   }
 
   if (blockId === "role") {
     return (
-      <EditableText value={personalInfo.role} onChange={(v) => updatePersonalInfo("role", v)} className={cn("font-bold tracking-wider", isChaima && "uppercase")} style={{ fontSize: toPx(baseFontSize + 2), color: primaryColor, lineHeight: 1.25 }} placeholder="Titre professionnel" />
+      <EditableText value={personalInfo.role} onChange={(v) => updatePersonalInfo("role", v)} className={cn("font-bold tracking-wider", isChaima && "uppercase")} style={{ fontSize: toPx(baseFontSize + 2), color: primaryColor, lineHeight: 1.25 }} placeholder={tf("job_title")} />
     );
   }
 
   if (blockId === "techLine") {
     return (
-      <EditableText value={personalInfo.techLine} onChange={(v) => updatePersonalInfo("techLine", v)} className="text-zinc-500 leading-snug" style={{ fontSize: toPx(baseFontSize - 1) }} placeholder="Technologies clés" />
+      <EditableText value={personalInfo.techLine} onChange={(v) => updatePersonalInfo("techLine", v)} className="text-zinc-500 leading-snug" style={{ fontSize: toPx(baseFontSize - 1) }} placeholder={tf("key_tech")} />
     );
   }
 
@@ -91,10 +96,10 @@ export function BlockContent({ blockId, data, theme, onChange, onThemeReflow }: 
   // En-tête minimaliste sans étiquettes, optimisé pour la lecture ATS.
   if (blockId === "contactLine") {
     const items: { field: string; value: string; placeholder: string }[] = [
-      { field: "phone", value: personalInfo.phone, placeholder: "Téléphone" },
+      { field: "phone", value: personalInfo.phone, placeholder: tf("phone") },
       { field: "email", value: personalInfo.email, placeholder: "Email" },
       { field: "linkedin", value: personalInfo.linkedin, placeholder: "LinkedIn" },
-      { field: "location", value: personalInfo.location, placeholder: "Ville, Province" },
+      { field: "location", value: personalInfo.location, placeholder: tf("city_province") },
     ];
     return (
       <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-zinc-600" style={{ fontSize: toPx(baseFontSize - 0.5), lineHeight: lh }}>
@@ -130,7 +135,7 @@ export function BlockContent({ blockId, data, theme, onChange, onThemeReflow }: 
         >
           {personalInfo.photo ? (
             // eslint-disable-next-line @next/next/no-img-element -- data URL / source dynamique, next/image inadapté
-            <img src={personalInfo.photo} alt="Avatar" className="size-full object-cover" />
+            <img src={personalInfo.photo} alt={tf("photo_alt")} className="size-full object-cover" />
           ) : (
             <svg viewBox="0 0 100 100" className="size-full"><circle cx="50" cy="40" r="18" fill="#475569" /><path d="M 22,82 C 22,65 34,58 50,58 C 66,58 78,65 78,82 C 78,85 75,85 50,85 C 25,85 22,85 22,82 Z" fill="#475569" /></svg>
           )}
@@ -156,7 +161,7 @@ export function BlockContent({ blockId, data, theme, onChange, onThemeReflow }: 
         onChange={(v) => updateCustom({ title: v })}
         className="font-bold uppercase tracking-wide block w-full border-b pb-0.5"
         style={{ fontSize: toPx(headingFontSize), color: primaryColor, borderColor: primaryColor }}
-        placeholder="Titre de section"
+        placeholder={tf("section_title")}
       />
     ) : (
       <EditableText
@@ -165,7 +170,7 @@ export function BlockContent({ blockId, data, theme, onChange, onThemeReflow }: 
         className="text-zinc-700 w-full text-left"
         style={{ fontSize: toPx(baseFontSize), lineHeight: lh }}
         multiline
-        placeholder="Contenu de la section..."
+        placeholder={tf("section_content")}
       />
     );
   }
@@ -190,12 +195,12 @@ export function BlockContent({ blockId, data, theme, onChange, onThemeReflow }: 
   // --- Contenus ---
   if (blockId === "content_contact") {
     const fields = [
-      { label: "Email", field: "email", value: personalInfo.email },
-      { label: "Téléphone", field: "phone", value: personalInfo.phone },
-      { label: "Localisation", field: "location", value: personalInfo.location },
-      { label: "LinkedIn", field: "linkedin", value: personalInfo.linkedin },
+      { label: doc.contact_email, field: "email", value: personalInfo.email },
+      { label: doc.contact_phone, field: "phone", value: personalInfo.phone },
+      { label: doc.contact_location, field: "location", value: personalInfo.location },
+      { label: doc.contact_linkedin, field: "linkedin", value: personalInfo.linkedin },
       ...(personalInfo.portfolio !== undefined
-        ? [{ label: "Portfolio", field: "portfolio", value: personalInfo.portfolio }]
+        ? [{ label: doc.contact_portfolio, field: "portfolio", value: personalInfo.portfolio }]
         : []),
     ];
     return (
@@ -237,10 +242,10 @@ export function BlockContent({ blockId, data, theme, onChange, onThemeReflow }: 
 
     return (
       <div className="flex flex-col w-full text-left">
-        <EditableText value={group.category} onChange={(v) => updateSkillGroup(idx, "category", v)} className="font-bold text-zinc-800" style={{ fontSize: toPx(baseFontSize), lineHeight: lh }} placeholder="Catégorie" />
+        <EditableText value={group.category} onChange={(v) => updateSkillGroup(idx, "category", v)} className="font-bold text-zinc-800" style={{ fontSize: toPx(baseFontSize), lineHeight: lh }} placeholder={tf("category")} />
 
         {mode === "text" && (
-          <EditableText value={group.items} onChange={(v) => updateSkillGroup(idx, "items", v)} className="text-zinc-600 mt-0.5 break-words" style={{ fontSize: toPx(baseFontSize), lineHeight: lh }} placeholder="Compétence 1, Compétence 2..." />
+          <EditableText value={group.items} onChange={(v) => updateSkillGroup(idx, "items", v)} className="text-zinc-600 mt-0.5 break-words" style={{ fontSize: toPx(baseFontSize), lineHeight: lh }} placeholder={tf("skills_list")} />
         )}
 
         {mode === "tags" && (
@@ -257,14 +262,14 @@ export function BlockContent({ blockId, data, theme, onChange, onThemeReflow }: 
                   color: "#3f3f46",
                 }}
               >
-                <EditableText value={item} onChange={(v) => updateItemAt(i, v)} placeholder="Compétence" />
+                <EditableText value={item} onChange={(v) => updateItemAt(i, v)} placeholder={tf("skill")} />
               </span>
             ))}
             <button
               type="button"
-              onClick={() => commitItems([...items, "Nouvelle compétence"])}
+              onClick={() => commitItems([...items, doc.new_skill])}
               className="opacity-0 group-hover/tags:opacity-100 text-zinc-400 hover:text-primary transition-opacity z-30"
-              title="Ajouter une compétence"
+              title={tf("add_skill")}
             >
               <PlusCircle size={11} />
             </button>
@@ -275,7 +280,7 @@ export function BlockContent({ blockId, data, theme, onChange, onThemeReflow }: 
           <div className="flex flex-col gap-1 mt-1">
             {items.map((item, i) => (
               <div key={`${i}_${item}`} className="flex items-center gap-2">
-                <EditableText value={item} onChange={(v) => updateItemAt(i, v)} className="text-zinc-700 flex-1 min-w-0" style={{ fontSize: toPx(baseFontSize - 0.5), lineHeight: lh }} placeholder="Compétence" />
+                <EditableText value={item} onChange={(v) => updateItemAt(i, v)} className="text-zinc-700 flex-1 min-w-0" style={{ fontSize: toPx(baseFontSize - 0.5), lineHeight: lh }} placeholder={tf("skill")} />
                 <SkillLevelBar
                   fill={skillFill(group, item)}
                   level={getSkillLevel(group, item)}
@@ -305,7 +310,7 @@ export function BlockContent({ blockId, data, theme, onChange, onThemeReflow }: 
             }}
             className="text-zinc-800 break-words"
             style={{ fontSize: toPx(baseFontSize), lineHeight: lh }}
-            placeholder="ex: Français (Natif)"
+            placeholder={tf("language_example")}
           />
         ))}
       </div>
@@ -318,8 +323,8 @@ export function BlockContent({ blockId, data, theme, onChange, onThemeReflow }: 
     if (!edu) return null;
     return (
       <div className="flex flex-col w-full text-left">
-        <EditableText value={edu.degree} onChange={(v) => updateEducation(idx, "degree", v)} className="font-bold text-zinc-900 leading-snug break-words" style={{ fontSize: toPx(baseFontSize) }} placeholder="Diplôme" />
-        <EditableText value={edu.institution} onChange={(v) => updateEducation(idx, "institution", v)} className="text-zinc-600 italic leading-snug mt-0.5 break-words" style={{ fontSize: toPx(baseFontSize) }} placeholder="Institution" />
+        <EditableText value={edu.degree} onChange={(v) => updateEducation(idx, "degree", v)} className="font-bold text-zinc-900 leading-snug break-words" style={{ fontSize: toPx(baseFontSize) }} placeholder={tf("degree")} />
+        <EditableText value={edu.institution} onChange={(v) => updateEducation(idx, "institution", v)} className="text-zinc-600 italic leading-snug mt-0.5 break-words" style={{ fontSize: toPx(baseFontSize) }} placeholder={tf("institution")} />
         <EditableText value={edu.date ?? ""} onChange={(v) => updateEducation(idx, "date", v)} className="text-zinc-500 leading-snug mt-0.5" style={{ fontSize: toPx(baseFontSize - 1) }} placeholder="2020 — 2023" />
       </div>
     );
@@ -327,7 +332,7 @@ export function BlockContent({ blockId, data, theme, onChange, onThemeReflow }: 
 
   if (blockId === "content_summary") {
     return (
-      <EditableText value={personalInfo.summary} onChange={(v) => updatePersonalInfo("summary", v)} className="text-justify text-zinc-700 w-full" style={{ fontSize: toPx(baseFontSize), lineHeight: lh }} multiline placeholder="Rédigez votre résumé professionnel ici..." />
+      <EditableText value={personalInfo.summary} onChange={(v) => updatePersonalInfo("summary", v)} className="text-justify text-zinc-700 w-full" style={{ fontSize: toPx(baseFontSize), lineHeight: lh }} multiline placeholder={tf("summary")} />
     );
   }
 
@@ -339,9 +344,9 @@ export function BlockContent({ blockId, data, theme, onChange, onThemeReflow }: 
       <div className="flex flex-col w-full text-left group/exp relative">
         <div className="flex justify-between items-start leading-snug">
           <div className="flex-1 font-bold text-zinc-900 pr-4">
-            <EditableText value={exp.title} onChange={(v) => updateExperience(idx, "title", v)} placeholder="Poste" style={{ fontSize: toPx(baseFontSize + 0.5) }} />
+            <EditableText value={exp.title} onChange={(v) => updateExperience(idx, "title", v)} placeholder={tf("position")} style={{ fontSize: toPx(baseFontSize + 0.5) }} />
             <span className="text-zinc-400 mx-1">—</span>
-            <EditableText value={exp.org} onChange={(v) => updateExperience(idx, "org", v)} placeholder="Entreprise" style={{ fontSize: toPx(baseFontSize + 0.5), color: primaryColor !== "#1a1a1a" ? primaryColor : undefined }} />
+            <EditableText value={exp.org} onChange={(v) => updateExperience(idx, "org", v)} placeholder={tf("company")} style={{ fontSize: toPx(baseFontSize + 0.5), color: primaryColor !== "#1a1a1a" ? primaryColor : undefined }} />
           </div>
           <ExperienceDatePicker
             value={exp.date}
@@ -369,7 +374,7 @@ export function BlockContent({ blockId, data, theme, onChange, onThemeReflow }: 
                 type="button"
                 onClick={() => updateBullets(idx, exp.bullets.filter((_, i) => i !== bulletIdx))}
                 className="opacity-0 group-hover/bullet:opacity-100 absolute -right-5 top-1/2 -translate-y-1/2 p-0.5 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 z-30 transition-opacity"
-                title="Supprimer"
+                title={tf("delete")}
               >
                 <Trash2 size={10} />
               </button>
@@ -378,7 +383,7 @@ export function BlockContent({ blockId, data, theme, onChange, onThemeReflow }: 
         </ul>
         <button
           type="button"
-          onClick={() => updateBullets(idx, [...exp.bullets, "Nouvelle mission..."])}
+          onClick={() => updateBullets(idx, [...exp.bullets, doc.new_bullet])}
           className="opacity-0 group-hover/exp:opacity-100 flex items-center gap-1 mt-1 text-[9px] text-zinc-400 hover:text-primary transition-opacity self-start z-30"
         >
           <PlusCircle size={10} /> Ajouter une puce
@@ -393,11 +398,11 @@ export function BlockContent({ blockId, data, theme, onChange, onThemeReflow }: 
     if (!proj) return null;
     return (
       <div className="flex flex-col w-full text-left">
-        <EditableText value={proj.title} onChange={(v) => updateProject(idx, "title", v)} className="font-bold text-zinc-950 leading-snug" style={{ fontSize: toPx(baseFontSize + 0.5) }} placeholder="Nom du projet" />
-        <EditableText value={proj.description} onChange={(v) => updateProject(idx, "description", v)} className="text-zinc-700 text-justify leading-relaxed mt-0.5" style={{ fontSize: toPx(baseFontSize), lineHeight: lh }} multiline placeholder="Description..." />
+        <EditableText value={proj.title} onChange={(v) => updateProject(idx, "title", v)} className="font-bold text-zinc-950 leading-snug" style={{ fontSize: toPx(baseFontSize + 0.5) }} placeholder={tf("project_name")} />
+        <EditableText value={proj.description} onChange={(v) => updateProject(idx, "description", v)} className="text-zinc-700 text-justify leading-relaxed mt-0.5" style={{ fontSize: toPx(baseFontSize), lineHeight: lh }} multiline placeholder={tf("description")} />
         {proj.stack && (
           <div className="text-zinc-500 mt-0.5" style={{ fontSize: toPx(baseFontSize - 0.5) }}>
-            <span className="font-bold text-zinc-800">Stack: </span>
+            <span className="font-bold text-zinc-800">{doc.stack}</span>
             <EditableText value={proj.stack} onChange={(v) => updateProject(idx, "stack", v)} placeholder="React, Node..." className="italic" />
           </div>
         )}
@@ -406,11 +411,11 @@ export function BlockContent({ blockId, data, theme, onChange, onThemeReflow }: 
   }
 
   if (blockId === "content_certifications") {
-    return <EditableText value={personalInfo.certifications ?? ""} onChange={(v) => updatePersonalInfo("certifications", v)} className="text-zinc-800 w-full text-left" style={{ fontSize: toPx(baseFontSize), lineHeight: lh }} multiline placeholder="Certification 1, Certification 2..." />;
+    return <EditableText value={personalInfo.certifications ?? ""} onChange={(v) => updatePersonalInfo("certifications", v)} className="text-zinc-800 w-full text-left" style={{ fontSize: toPx(baseFontSize), lineHeight: lh }} multiline placeholder={tf("certifications")} />;
   }
 
   if (blockId === "content_interests") {
-    return <EditableText value={personalInfo.interests ?? ""} onChange={(v) => updatePersonalInfo("interests", v)} className="text-zinc-800 w-full text-left" style={{ fontSize: toPx(baseFontSize), lineHeight: lh }} multiline placeholder="Lecture · Voyages · Sport..." />;
+    return <EditableText value={personalInfo.interests ?? ""} onChange={(v) => updatePersonalInfo("interests", v)} className="text-zinc-800 w-full text-left" style={{ fontSize: toPx(baseFontSize), lineHeight: lh }} multiline placeholder={tf("interests")} />;
   }
 
   return null;

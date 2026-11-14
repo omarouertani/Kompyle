@@ -8,7 +8,7 @@ import { checkRateLimit } from "@/lib/rate-limiter";
 
 let COVER_LETTER_SCHEMA_JSON = "";
 try {
-  COVER_LETTER_SCHEMA_JSON = JSON.stringify(z.toJSONSchema(coverLetterSchema), null, 2);
+  COVER_LETTER_SCHEMA_JSON = JSON.stringify(z.toJSONSchema(coverLetterSchema));
 } catch {
   COVER_LETTER_SCHEMA_JSON = "";
 }

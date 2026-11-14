@@ -567,6 +567,7 @@ function MarqueeText({ text }: { text: string }) {
 }
 
 function PdfIframe({ url, loading }: { url: string | null; loading: boolean }) {
+  const tu = useTranslations("UI");
   const t = useTranslations("CVPreview");
   return (
     <div className="flex-1 rounded-lg overflow-hidden border border-border bg-card shadow-sm min-h-0 relative">
@@ -580,7 +581,7 @@ function PdfIframe({ url, loading }: { url: string | null; loading: boolean }) {
         <iframe
           src={url}
           className="w-full h-full border-none"
-          title="PDF preview"
+          title={tu("pdf_preview")}
         />
       )}
     </div>

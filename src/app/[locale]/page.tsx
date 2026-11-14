@@ -1,8 +1,11 @@
 "use client";
 
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
-import type { CoverLetterData } from "@/types/cv";
+import type { CVData, CVLang, CoverLetterData } from "@/types/cv";
+import { usePathname, useRouter } from "@/i18n/routing";
+import { detectCVLanguage, isCVLang, otherLang } from "@/lib/cv-i18n";
+import { requestCVTranslation, setPendingToast, takePendingToast } from "@/lib/cv-import/translate-client";
 import CVBuilder from "@/components/cv/CVBuilder";
 import CoverLetterBuilder from "@/components/cv/CoverLetterBuilder";
 import { useTranslations, useLocale } from "next-intl";
@@ -37,7 +40,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SidebarProvider, Sidebar, SidebarHeader, SidebarContent, SidebarRail, SidebarInset } from "@/components/ui/sidebar";
 
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { useProfileManager } from "@/hooks/use-profile-manager";
+import { rememberActiveProfile, useProfileManager } from "@/hooks/use-profile-manager";
 import { useAIProviderConfig } from "@/hooks/use-ai-provider-config";
 import { ModelSelect } from "@/components/ai/ModelSelect";
 import { ProfileActionsMenu } from "@/components/ProfileActionsMenu";
@@ -76,19 +79,21 @@ function LoadingSpinner({ type }: { type: "cv" | "letter" }) {
 type LeftTab = "ai" | "cv-builder" | "letter-builder";
 type RightTab = "cv" | "letter" | "ats";
 
-const initialCoverLetter: CoverLetterData = {
-  recipientName: "",
-  recipientCompany: "",
-  recipientAddress: "",
-  date: new Date().toLocaleDateString('fr-FR', { year: 'numeric', month: 'long', day: 'numeric' }),
-  subject: "Candidature",
-  salutation: "Madame, Monsieur,",
-  paragraphs: [
-    "C'est avec un grand intérêt que je vous soumets ma candidature.",
-    "Mes expériences précédentes m'ont permis de développer les compétences nécessaires pour ce poste."
-  ],
-  signOff: "Je vous prie d'agréer, Madame, Monsieur, mes salutations distinguées.",
-};
+/** Lettre de départ (avant toute génération IA), dans la langue de l'UI. */
+function useInitialCoverLetter(): CoverLetterData {
+  const t = useTranslations("LetterTemplate");
+  const locale = useLocale();
+  return {
+    recipientName: "",
+    recipientCompany: "",
+    recipientAddress: "",
+    date: new Date().toLocaleDateString(locale === "fr" ? "fr-FR" : "en-US", { year: "numeric", month: "long", day: "numeric" }),
+    subject: t("subject"),
+    salutation: t("salutation"),
+    paragraphs: [t("paragraph_1"), t("paragraph_2")],
+    signOff: t("sign_off"),
+  };
+}
 
 export default function AdaptPage() {
   const t = useTranslations("LeftPanel");
@@ -123,6 +128,9 @@ export default function AdaptPage() {
   const dragDepth = useRef(0);
 
   const profile = useProfileManager(locale, t);
+  const initialCoverLetter = useInitialCoverLetter();
+  const router = useRouter();
+  const pathname = usePathname();
 
   // L'historique des raffinages appartient à UN CV/version précis. On le vide dès
   // qu'on change de profil ou de version — sinon l'historique d'un autre CV
@@ -181,28 +189,98 @@ export default function AdaptPage() {
     setImportOpen(true);
   };
 
-  /** Applique un CV importé : remplace TOUT le contenu du CV courant (aucune
-   *  donnée d'exemple ne survit) en gardant modèle et thème, annulable par
-   *  Ctrl+Z ou par le bouton du toast ; ou crée un nouveau profil. */
+  /** Bascule l'interface dans la langue `lang` (le profil actif est rechargé
+   *  dans cette langue). Le toast éventuel est réaffiché après la bascule. */
+  const switchAppLanguage = (lang: CVLang, message: string, description?: string) => {
+    setPendingToast(message, description);
+    router.replace(pathname, { locale: lang });
+  };
+
+  // Toast laissé par une bascule de langue (import d'un CV dans l'autre langue).
+  useEffect(() => {
+    const pending = takePendingToast();
+    if (pending) toast.success(pending.message, { description: pending.description });
+  }, []);
+
+  /** Applique un CV importé. Sa langue est détectée ; la version dans l'autre
+   *  langue est générée par l'IA, et les DEUX versions sont enregistrées dans le
+   *  profil (une ligne par langue) : sélectionner FR/EN dans l'app affiche la
+   *  bonne. Si le CV n'est pas dans la langue de l'app, l'app bascule dans sa
+   *  langue. Mode « replace » : remplace TOUT le contenu du CV courant (annulable
+   *  par Ctrl+Z / le toast quand la langue ne change pas) ; « new » : nouveau profil. */
   const handleImportApply = async (imported: ImportedCV, target: ImportTarget): Promise<boolean> => {
-    if (target.mode === "new") {
-      const sample = mockCV(profile.selectedTemplate);
-      const base = {
+    const uiLang: CVLang = isCVLang(locale) ? locale : "fr";
+    const lang: CVLang = isCVLang(imported.language) ? imported.language : detectCVLanguage(imported);
+    const other = otherLang(lang);
+    const template = profile.selectedTemplate;
+
+    const loadingId = toast.loading(ti("toast_translating", { lang: ti(`lang_${other}`) }));
+    const translated = await requestCVTranslation({ ...imported, language: lang }, other, {
+      provider: aiConfig.provider,
+      model: aiConfig.model,
+      apiKey: apiKeys.keys[aiConfig.provider],
+    });
+    toast.dismiss(loadingId);
+    if (!translated) toast.warning(ti("toast_translate_failed", { lang: ti(`lang_${other}`) }));
+
+    const sources: Partial<Record<CVLang, ImportedCV>> = { [lang]: imported, ...(translated ? { [other]: translated } : {}) };
+    const build = (base: CVData): Partial<Record<CVLang, CVData>> => {
+      const out: Partial<Record<CVLang, CVData>> = {};
+      for (const [l, cv] of Object.entries(sources) as [CVLang, ImportedCV][]) {
+        out[l] = { ...applyImportedCV(base, cv), language: l };
+      }
+      return out;
+    };
+    const switchedHint = lang !== uiLang ? ti("toast_lang_switched", { lang: ti(`lang_${lang}`) }) : undefined;
+
+    // Nouveau profil (ou aucun profil enregistré à remplacer) : une ligne par langue.
+    if (target.mode === "new" || !profile.selectedProfile) {
+      const name = target.mode === "new" ? target.profileName : stripHtml(imported.personalInfo.name).trim() || ti("default_profile_name");
+      const sample = mockCV(template, lang);
+      const base: CVData = {
         ...sample,
         layout: sample.layout && { ...sample.layout, theme: profile.currentCV.layout?.theme ?? sample.layout.theme },
       };
-      const ok = await profile.createProfile(target.profileName, profile.selectedTemplate, applyImportedCV(base, imported));
-      if (!ok) {
+      const slug = await profile.createProfile(name, template, build(base));
+      if (!slug) {
         toast.error(ti("toast_new_error"));
         return false;
       }
       setActiveRightTab("cv");
-      toast.success(ti("toast_new_success", { name: target.profileName }));
+      const message = ti("toast_new_success", { name });
+      if (lang !== uiLang) switchAppLanguage(lang, message, switchedHint);
+      else toast.success(message);
       return true;
+    }
+
+    const slug = profile.selectedProfile;
+    const versions = build(profile.currentCV);
+
+    if (lang !== uiLang) {
+      // L'app bascule dans la langue du CV : les deux versions sont enregistrées
+      // AVANT la bascule (la page est rechargée dans l'autre langue).
+      const saved = await Promise.all(
+        (Object.entries(versions) as [CVLang, CVData][]).map(([l, cv]) => profile.saveLocaleVersion(slug, l, cv, template))
+      );
+      if (saved.some((ok) => !ok)) {
+        toast.error(ti("toast_new_error"));
+        return false;
+      }
+      if (versions[uiLang]) profile.setCurrentCV(versions[uiLang]);
+      rememberActiveProfile(slug);
+      switchAppLanguage(lang, ti("toast_applied"), switchedHint);
+      return true;
+    }
+
+    // Même langue que l'app : la version traduite est enregistrée en arrière-plan.
+    if (versions[other]) {
+      profile.saveLocaleVersion(slug, other, versions[other], template).then((ok) => {
+        if (!ok) toast.warning(ti("toast_translate_failed", { lang: ti(`lang_${other}`) }));
+      });
     }
     const previousCV = profile.currentCV;
     const previousLetter = profile.coverLetterData;
-    profile.setCurrentCV(markUndoableChange(applyImportedCV(previousCV, imported)));
+    profile.setCurrentCV(markUndoableChange(versions[lang] ?? { ...applyImportedCV(previousCV, imported), language: lang }));
     // La lettre reprend le modèle vierge : elle utilise le nom et le contact importés.
     profile.setCoverLetterData(null);
     setActiveRightTab("cv");

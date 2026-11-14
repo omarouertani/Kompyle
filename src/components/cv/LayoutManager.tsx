@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import React, { useState } from "react";
 import type { CVData, LayoutPage } from "@/types/cv";
 import {
@@ -29,6 +30,7 @@ export default function LayoutManager({
   data: CVData;
   onChange: (data: CVData) => void;
 }) {
+  const tu = useTranslations("UI");
   const [collapsed, setCollapsed] = useState(false);
   const layout = data.layout ?? defaultLayout();
   const pages: LayoutPage[] = layout.pages.length > 0 ? layout.pages : [emptyLayoutPage()];
@@ -81,7 +83,7 @@ export default function LayoutManager({
         aria-expanded={!collapsed}
       >
         <LayoutPanelLeft size={18} className="text-primary shrink-0" />
-        <span className="flex-1 text-left">Sections</span>
+        <span className="flex-1 text-left">{tu("sections")}</span>
         <span className="text-[11px] font-medium text-muted-foreground tabular-nums px-1.5 py-0.5 rounded-md bg-muted/60">
           {visibleCount}/{sortedIds.length}
         </span>
@@ -110,14 +112,14 @@ export default function LayoutManager({
                 value={stripHtml(getSectionLabel(id, data))}
                 onChange={(e) => onChange(renameSection(data, id, e.target.value))}
                 className="flex-1 text-sm font-medium min-w-0 bg-transparent rounded px-1 py-0.5 border border-transparent hover:border-border/70 focus:border-ring/40 focus:bg-input-bg focus:outline-none transition-colors"
-                title="Renommer la section"
+                title={tu("rename_section")}
                 spellCheck={false}
               />
               <Button
                 variant="ghost"
                 size="icon"
                 className="size-7 text-muted-foreground"
-                title={isVisible ? "Masquer" : "Afficher"}
+                title={isVisible ? tu("hide") : tu("show")}
                 onClick={() => (isVisible ? hide(id) : show(id))}
               >
                 {isVisible ? <Eye size={13} /> : <EyeOff size={13} />}
@@ -127,7 +129,7 @@ export default function LayoutManager({
                   variant="ghost"
                   size="icon"
                   className="size-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                  title="Supprimer la section"
+                  title={tu("delete_section")}
                   onClick={() => onChange(removeCustomSection(data, id))}
                 >
                   <Trash2 size={13} />
@@ -141,7 +143,7 @@ export default function LayoutManager({
             <Button
               variant="outline"
               className="w-full mt-2 gap-2 text-muted-foreground hover:text-foreground border-dashed"
-              title="Crée une section libre (titre + texte) modifiable dans le canvas"
+              title={tu("add_custom_hint")}
               onClick={() => onChange(addCustomSection(data))}
             >
               <SquarePlus size={15} /> Ajouter une section libre
