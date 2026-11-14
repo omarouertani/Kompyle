@@ -1,7 +1,9 @@
 "use client";
 
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
-import type { CVData, CoverLetterData } from "@/types/cv";
+import type { CVData, CVLang, CoverLetterData } from "@/types/cv";
+import { isCVLang } from "@/lib/cv-i18n";
+import { isSampleCV } from "@/lib/cv-import/apply";
 import { defaultLayout, normalizeTemplate, migrateLayoutForTemplate } from "@/lib/cv-layout";
 import { applyTemplateTheme } from "@/lib/cv-templates";
 import { bakeFreeElementPositions } from "@/lib/free-elements";
@@ -40,6 +42,16 @@ export type SaveStatus = "idle" | "saving" | "saved" | "error";
  *  le CV de l'utilisateur disparaissait au profit du CV d'exemple. */
 const ACTIVE_PROFILE_KEY = "kompyle_active_profile";
 
+/** Mémorise le profil actif tout de suite (avant une bascule de langue qui
+ *  remonte la page, sans attendre l'effet de persistance). */
+export function rememberActiveProfile(slug: string): void {
+  try {
+    localStorage.setItem(ACTIVE_PROFILE_KEY, slug);
+  } catch {
+    // stockage indisponible (navigation privée) — on continue sans persistance
+  }
+}
+
 function readStoredProfile(): string {
   try {
     return localStorage.getItem(ACTIVE_PROFILE_KEY) || "";
@@ -67,8 +79,24 @@ function slugify(name: string): string {
  *  démarrage sans aucun profil), on démarre sur un CV d'EXEMPLE (mock) plutôt
  *  que vierge : chaque nouvel utilisateur voit des templates remplis, qu'il
  *  remplace ensuite champ par champ par ses propres données. */
-function getFallbackCV(template: string): CVData {
-  return injectIds(mockCV(template));
+function getFallbackCV(template: string, lang: CVLang): CVData {
+  return injectIds(mockCV(template, lang));
+}
+
+/** CV d'exemple dans la langue de l'UI, à partir d'un CV d'exemple enregistré
+ *  dans l'AUTRE langue : on garde ce qui ne dépend pas de la langue (nom, photo,
+ *  mise en page, thème) et on prend le contenu d'exemple traduit. */
+function localizedSample(sample: CVData, template: string, lang: CVLang): CVData {
+  const mock = mockCV(template, lang);
+  return injectIds({
+    ...mock,
+    personalInfo: {
+      ...mock.personalInfo,
+      name: sample.personalInfo?.name || mock.personalInfo.name,
+      ...(sample.personalInfo?.photo ? { photo: sample.personalInfo.photo } : {}),
+    },
+    layout: sample.layout ?? mock.layout,
+  });
 }
 
 /** Nom lisible d'une adaptation : titre du CV (rôle, sinon nom) + date courte —
@@ -101,7 +129,8 @@ export function useProfileManager(locale: string, t: (key: string, values?: Reco
   /** Ligne DB actuellement éditée (profil principal OU adaptation). */
   const [currentProfileId, setCurrentProfileId] = useState<string | null>(null);
 
-  const [currentCV, setCurrentCV] = useState<CVData>(() => getFallbackCV("default"));
+  const uiLang: CVLang = isCVLang(locale) ? locale : "fr";
+  const [currentCV, setCurrentCV] = useState<CVData>(() => getFallbackCV("default", uiLang));
   const [originalCV, setOriginalCV] = useState<CVData | null>(null);
   const [isAdapted, setIsAdapted] = useState(false);
   const [coverLetterData, setCoverLetterData] = useState<CoverLetterData | null>(null);
@@ -188,7 +217,7 @@ export function useProfileManager(locale: string, t: (key: string, values?: Reco
   const loadFallback = useCallback(() => {
     if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
     isInitialLoad.current = true;
-    const fallback = getFallbackCV("default");
+    const fallback = getFallbackCV("default", uiLang);
     setCurrentCV(fallback);
     setSelectedTemplate("default");
     setMainProfileId(null);
@@ -196,7 +225,7 @@ export function useProfileManager(locale: string, t: (key: string, values?: Reco
     lastSavedRef.current = JSON.stringify(fallback);
     setHasUnsavedChanges(false);
     setSaveStatus("idle");
-  }, []);
+  }, [uiLang]);
 
   const resetStatus = useCallback(() => {
     setOriginalCV(null);
@@ -226,7 +255,15 @@ export function useProfileManager(locale: string, t: (key: string, values?: Reco
         mains[0];
       if (main) {
         setMainProfileId(main.id);
-        loadRow(main);
+        if (main.locale !== locale && isSampleCV(main.cv_data)) {
+          // Seul le CV d'EXEMPLE existe, dans l'autre langue : on l'affiche dans
+          // la langue de l'UI. Aucune ligne n'existe encore pour cette langue
+          // (currentProfileId null) : le 1er enregistrement la crée (même slug).
+          loadRow({ ...main, cv_data: localizedSample(main.cv_data, main.template, uiLang), cover_letter: null });
+          setCurrentProfileId(null);
+        } else {
+          loadRow(main);
+        }
         resetStatus();
         return main.slug; // slug réellement chargé (l'appelant resynchronise la sélection)
       }
@@ -234,7 +271,7 @@ export function useProfileManager(locale: string, t: (key: string, values?: Reco
       resetStatus();
       return ""; // base vide → CV d'exemple
     },
-    [fetchProfiles, loadRow, loadFallback, resetStatus, locale]
+    [fetchProfiles, loadRow, loadFallback, resetStatus, locale, uiLang]
   );
 
   // Chargement initial (+ CV adapté en attente après bascule de langue)
@@ -404,12 +441,13 @@ export function useProfileManager(locale: string, t: (key: string, values?: Reco
    *  sauvegarde en base, puis bascule dessus — les données se remplissent
    *  ensuite via l'onglet "Edit CV".
    *  `initial` (import d'un CV) : le profil est créé directement avec ces
-   *  données ; si la base est indisponible, rien n'est ouvert (renvoie false)
-   *  pour ne pas perdre le CV importé au profit du CV d'exemple. */
+   *  données, UNE LIGNE PAR LANGUE fournie (même slug) — l'app affiche la
+   *  version de la langue choisie. Si la base est indisponible, rien n'est
+   *  ouvert (renvoie false) pour ne pas perdre le CV importé. */
   const createProfile = useCallback(
-    async (name: string, template = "default", initial?: CVData): Promise<boolean> => {
+    async (name: string, template = "default", initial?: Partial<Record<CVLang, CVData>>): Promise<string | null> => {
       const trimmed = name.trim();
-      if (!trimmed) return false;
+      if (!trimmed) return null;
       const baseSlug = slugify(trimmed);
       // Un import ne doit jamais écraser un profil existant du même nom.
       const slug = initial && allRows.some((r) => r.slug === baseSlug) ? `${baseSlug}-${Date.now()}` : baseSlug;
@@ -418,37 +456,79 @@ export function useProfileManager(locale: string, t: (key: string, values?: Reco
       // les templates ne s'affichent jamais vides. L'utilisateur remplace chaque
       // champ par ses vraies données — l'exemple disparaît au fur et à mesure.
       // Le nom saisi à la création prime sur le nom d'exemple.
-      const blank = initial ? injectIds(initial) : injectIds(mockCV(template));
-      if (!initial) blank.personalInfo = { ...blank.personalInfo, name: trimmed };
+      const versions: Partial<Record<CVLang, CVData>> = {};
+      if (initial) {
+        for (const [lang, cv] of Object.entries(initial) as [CVLang, CVData][]) versions[lang] = injectIds(cv);
+      } else {
+        const blank = injectIds(mockCV(template, uiLang));
+        blank.personalInfo = { ...blank.personalInfo, name: trimmed };
+        versions[uiLang] = blank;
+      }
 
       try {
-        const res = await fetch("/api/cv-profiles", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            slug,
-            name: trimmed,
-            locale,
-            template,
-            cv_data: blank,
-            is_adaptation: false,
-            parent_id: null,
-          }),
-        });
-        if (!res.ok) throw new Error("create failed");
+        const results = await Promise.all(
+          (Object.entries(versions) as [CVLang, CVData][]).map(([lang, cv]) =>
+            fetch("/api/cv-profiles", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                slug,
+                name: trimmed,
+                locale: lang,
+                template,
+                cv_data: cv,
+                is_adaptation: false,
+                parent_id: null,
+              }),
+            })
+          )
+        );
+        if (results.length === 0 || results.some((r) => !r.ok)) throw new Error("create failed");
         await fetchProfiles();
         setCoverLetterData(null);
         setSelectedProfile(slug); // le useEffect recharge le profil créé
-        return true;
+        rememberActiveProfile(slug);
+        return slug;
       } catch {
-        if (initial) return false;
+        if (initial) return null;
         // DB indisponible : on ouvre quand même un CV vierge en mémoire
         setCoverLetterData(null);
         setSelectedProfile(slug);
+        return null;
+      }
+    },
+    [uiLang, fetchProfiles, allRows]
+  );
+
+  /** Enregistre la version `lang` du profil principal `slug` (création ou mise à
+   *  jour de la ligne de cette langue). Sert à garder les deux langues d'un CV
+   *  importé à jour. Renvoie false si la base est indisponible. */
+  const saveLocaleVersion = useCallback(
+    async (slug: string, lang: CVLang, cv: CVData, template: string): Promise<boolean> => {
+      if (!slug) return false;
+      const data = injectIds(cv);
+      const existing = allRows.find((r) => r.slug === slug && r.locale === lang && !r.is_adaptation);
+      const name = existing?.name ?? allRows.find((r) => r.slug === slug && !r.is_adaptation)?.name ?? slug;
+      try {
+        const res = existing
+          ? await fetch(`/api/cv-profiles/${existing.id}`, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ cv_data: data, template }),
+            })
+          : await fetch("/api/cv-profiles", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ slug, name, locale: lang, template, cv_data: data, is_adaptation: false, parent_id: null }),
+            });
+        if (!res.ok) return false;
+        await fetchProfiles();
+        return true;
+      } catch {
         return false;
       }
     },
-    [locale, fetchProfiles, allRows]
+    [allRows, fetchProfiles]
   );
 
   /** Bascule entre CV principal et une adaptation (dropdown de versions). */
@@ -636,36 +716,52 @@ export function useProfileManager(locale: string, t: (key: string, values?: Reco
     };
   }, [coverLetterData, currentProfileId]);
 
-  /** Renomme un profil (champ `name` uniquement — le slug reste stable). */
+  /** Lignes principales d'un même profil (une par langue) à partir d'une ligne. */
+  const siblingIds = useCallback(
+    (id: string): string[] => {
+      const row = allRows.find((r) => r.id === id);
+      if (!row) return [id];
+      return allRows.filter((r) => !r.is_adaptation && r.slug === row.slug).map((r) => r.id);
+    },
+    [allRows]
+  );
+
+  /** Renomme un profil dans toutes ses langues (champ `name` uniquement — le slug reste stable). */
   const renameProfile = useCallback(
     async (id: string, name: string): Promise<boolean> => {
       const trimmed = name.trim();
       if (!trimmed) return false;
       try {
-        const res = await fetch(`/api/cv-profiles/${id}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name: trimmed }),
-        });
-        if (!res.ok) throw new Error("rename failed");
+        const results = await Promise.all(
+          siblingIds(id).map((rowId) =>
+            fetch(`/api/cv-profiles/${rowId}`, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ name: trimmed }),
+            })
+          )
+        );
+        if (results.some((r) => !r.ok)) throw new Error("rename failed");
         await fetchProfiles();
         return true;
       } catch {
         return false;
       }
     },
-    [fetchProfiles]
+    [fetchProfiles, siblingIds]
   );
 
-  /** Supprime un profil (et, via ON DELETE, dissocie ses adaptations) puis
-   *  bascule sur un autre profil principal (ou un CV vierge s'il n'en reste pas). */
+  /** Supprime un profil dans toutes ses langues (et, via ON DELETE, dissocie ses
+   *  adaptations) puis bascule sur un autre profil principal (ou un CV vierge
+   *  s'il n'en reste pas). */
   const deleteProfile = useCallback(
     async (id: string): Promise<boolean> => {
       try {
-        const res = await fetch(`/api/cv-profiles/${id}`, { method: "DELETE" });
-        if (!res.ok) throw new Error("delete failed");
+        const ids = siblingIds(id);
+        const results = await Promise.all(ids.map((rowId) => fetch(`/api/cv-profiles/${rowId}`, { method: "DELETE" })));
+        if (results.some((r) => !r.ok)) throw new Error("delete failed");
         const remaining = await fetchProfiles();
-        const others = remaining.filter((r) => !r.is_adaptation && r.id !== id);
+        const others = remaining.filter((r) => !r.is_adaptation && !ids.includes(r.id));
         setCoverLetterData(null);
         if (others.length > 0) {
           setSelectedProfile(others[0].slug);
@@ -685,7 +781,7 @@ export function useProfileManager(locale: string, t: (key: string, values?: Reco
         return false;
       }
     },
-    [fetchProfiles, loadFallback]
+    [fetchProfiles, loadFallback, siblingIds]
   );
 
   /** Supprime un CV adapté (version) puis revient au CV principal. */
@@ -739,6 +835,7 @@ export function useProfileManager(locale: string, t: (key: string, values?: Reco
 
   return {
     selectedProfile,
+    saveLocaleVersion,
     selectedTemplate,
     setSelectedTemplate,
     changeTemplate,

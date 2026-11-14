@@ -11,7 +11,7 @@ import {
   Gelasio,
 } from "next/font/google";
 import { NextIntlClientProvider } from "next-intl";
-import { getMessages } from "next-intl/server";
+import { getMessages, getTranslations } from "next-intl/server";
 import { notFound } from "next/navigation";
 import { routing } from "@/i18n/routing";
 import { ThemeProvider } from "@/components/ThemeProvider";
@@ -44,28 +44,32 @@ const merriweather = Merriweather({ subsets: ["latin"], weight: ["400", "600", "
 const gelasio = Gelasio({ subsets: ["latin"], weight: ["400", "600", "700"], style: ["normal", "italic"], variable: "--font-gelasio", display: "swap" });
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
-const OG_DESCRIPTION =
-  "Privacy-first, open-source AI resume editor & ATS auditor with a Canva-style canvas and pixel-perfect PDF export.";
-
-export const metadata: Metadata = {
-  metadataBase: new URL(SITE_URL),
-  title: "Kompyle — AI Resume Editor & ATS Auditor",
-  description: OG_DESCRIPTION,
-  openGraph: {
-    title: "Kompyle — AI Resume Editor & ATS Auditor",
-    description: OG_DESCRIPTION,
-    url: SITE_URL,
-    siteName: "Kompyle",
-    images: [{ url: "/og-image.png", width: 1280, height: 640, alt: "Kompyle" }],
-    type: "website",
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "Kompyle — AI Resume Editor & ATS Auditor",
-    description: OG_DESCRIPTION,
-    images: ["/og-image.png"],
-  },
-};
+export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
+  const { locale } = await params;
+  const t = await getTranslations({ locale, namespace: "Meta" });
+  const title = t("title");
+  const description = t("description");
+  return {
+    metadataBase: new URL(SITE_URL),
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      url: SITE_URL,
+      siteName: "Kompyle",
+      images: [{ url: "/og-image.png", width: 1280, height: 640, alt: "Kompyle" }],
+      type: "website",
+      locale: locale === "fr" ? "fr_FR" : "en_US",
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: ["/og-image.png"],
+    },
+  };
+}
 
 export default async function LocaleLayout({
   children,

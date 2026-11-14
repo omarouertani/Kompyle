@@ -31,8 +31,7 @@ import { blockTextAlign, isBlockOutOfPage, pdfMetadata } from "./template/shared
 import { renderFreeElementsPdf, renderStackedPdf } from "./template/free-elements-pdf";
 import { getPageDims } from "@/lib/page-size";
 import { photoFrame } from "@/lib/photo-frame";
-import { detectJobLanguage } from "@/lib/detect-language";
-import { stripHtml } from "@/utils/strip-html";
+import { cvLanguage } from "@/lib/cv-i18n";
 
 registerPdfFont(ACTIVE_PDF_FONT);
 
@@ -58,11 +57,11 @@ const CVTemplateModern: React.FC<CVTemplateModernProps> = ({ data, originalData 
     const f = photoFrame(layout.theme, size, layout.theme?.primaryColor || "#1a1a1a");
     return { width: size, height: size, borderRadius: f.radius, borderWidth: f.borderWidth, borderColor: f.borderColor };
   };
-  const cvLanguage = detectJobLanguage(stripHtml(`${data.personalInfo?.role ?? ""} ${data.personalInfo?.summary ?? ""}`));
+  const cvLang = cvLanguage(data);
 
   return (
     <PdfThemeProvider value={{ ...defaultPdfTheme, fontFamily: pdfFontFamily }}>
-    <Document {...pdfMetadata(data, cvLanguage)}>
+    <Document {...pdfMetadata(data, cvLang)}>
       {dedupePages(layout.pages).map((page, pageIndex) => {
         const hasSidebar = page.sidebar.some((id) => SECTION_RENDERERS[id]);
 

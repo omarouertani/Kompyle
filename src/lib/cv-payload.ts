@@ -13,7 +13,7 @@ import { stripHtml } from "@/utils/strip-html";
  * Ne mute pas l'entrée : renvoie une copie superficielle adaptée au prompt.
  */
 export function cvForAiPrompt(cvData: CVData): Omit<CVData, "layout"> {
-  const { layout: _layout, personalInfo, ...rest } = cvData;
+  const { layout: _layout, language: _language, personalInfo, ...rest } = cvData;
   const { photo: _photo, ...personalInfoNoPhoto } = personalInfo;
   // Niveaux des barres de compétences : purement visuels, ré-imposés à la sortie.
   const skills = rest.skills.map((g) => {

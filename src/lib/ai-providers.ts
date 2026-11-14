@@ -12,6 +12,10 @@ import { defaultModelFor } from "./ai-models";
 /** Taille max de l'extrait de corps d'erreur conservé (lisible, sans noyer l'UI). */
 const MAX_ERROR_BODY = 600;
 
+/** Délai max d'UN appel à un modèle (les modèles « thinking » prennent ~20 s ;
+ *  au-delà de 90 s on considère que le modèle est bloqué). */
+export const AI_CALL_TIMEOUT_MS = 90_000;
+
 export class ProviderHttpError extends Error {
   readonly provider: AIProvider;
   readonly status: number;
@@ -105,6 +109,9 @@ export async function callOpenAICompatible(opts: OpenAICompatibleOptions): Promi
 
     const response = await fetch(opts.url, {
       method: "POST",
+      // Un modèle qui ne répond jamais ne doit pas bloquer la requête : délai max,
+      // classé "timeout" par l'orchestrateur, qui passe au modèle suivant.
+      signal: AbortSignal.timeout(AI_CALL_TIMEOUT_MS),
       headers: {
         Authorization: `Bearer ${opts.apiKey}`,
         "Content-Type": "application/json",
@@ -242,6 +249,9 @@ export async function callGoogle(
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
   const response = await fetch(url, {
     method: "POST",
+    // Un modèle qui ne répond jamais ne doit pas bloquer la requête : délai max,
+    // classé "timeout" par l'orchestrateur, qui passe au modèle suivant.
+    signal: AbortSignal.timeout(AI_CALL_TIMEOUT_MS),
     headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
     body: JSON.stringify({
       systemInstruction: { parts: [{ text: systemPrompt }] },
@@ -281,6 +291,9 @@ export async function callAnthropic(
 
   const response = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
+    // Un modèle qui ne répond jamais ne doit pas bloquer la requête : délai max,
+    // classé "timeout" par l'orchestrateur, qui passe au modèle suivant.
+    signal: AbortSignal.timeout(AI_CALL_TIMEOUT_MS),
     headers: {
       "x-api-key": apiKey,
       "anthropic-version": "2023-06-01",

@@ -7,6 +7,7 @@ import { callWithFallback, AllProvidersFailedError, providerForModel } from "@/l
 import { checkRateLimit } from "@/lib/rate-limiter";
 import { SECTION_LABELS_EN } from "@/lib/cv-layout";
 import { describeExperienceForPrompt } from "@/lib/cv-analysis";
+import { enforceExperienceYears, experienceYearsPolicy, experienceYearsPromptRule } from "@/lib/experience-years";
 import { cvForAiPrompt } from "@/lib/cv-payload";
 import { detectJobLanguage } from "@/lib/detect-language";
 import { carrySkillLevels } from "@/lib/skill-levels";
@@ -18,7 +19,9 @@ import { carrySkillLevels } from "@/lib/skill-levels";
 // Calculé une seule fois au chargement du module.
 let RESUME_SCHEMA_JSON = "";
 try {
-  RESUME_SCHEMA_JSON = JSON.stringify(z.toJSONSchema(resumeSchema), null, 2);
+  // Compact (sans indentation) : les petits quotas (Groq gratuit : 8000 tokens/min)
+  // ne laissent pas de place à l'indentation.
+  RESUME_SCHEMA_JSON = JSON.stringify(z.toJSONSchema(resumeSchema));
 } catch {
   RESUME_SCHEMA_JSON = "";
 }
@@ -172,7 +175,13 @@ export async function POST(request: NextRequest) {
     const cvForAi = cvForAiPrompt(cvData);
 
     // Durées d'expérience calculées en TS et imposées à l'IA (anti-hallucination).
-    const experienceBlock = describeExperienceForPrompt(cvData.experiences);
+    // Le nombre d'années ÉCRIT dans le CV prime sur le calcul depuis les dates.
+    const yearsPolicy = experienceYearsPolicy(cvData);
+    const experienceBlock = `${describeExperienceForPrompt(
+      cvData.experiences,
+      yearsPolicy.source === "stated" ? yearsPolicy.years : undefined
+    )}
+${experienceYearsPromptRule(yearsPolicy)}`;
 
     // Build the user prompt
     const userPrompt = `## TARGET JOB POSTING:
@@ -183,14 +192,14 @@ ${experienceBlock}
 - If the job requires more years, DO NOT lie. Highlight intensity, fast learning, and high-impact projects instead.
 
 ## CURRENT CV (JSON):
-${JSON.stringify(cvForAi, null, 2)}
+${JSON.stringify(cvForAi)}
 
 ## INSTRUCTIONS:
 1. Mentally extract the top 5 mandatory technical skills and top 3 soft skills from the job posting, and identify the role's axis (e.g. backend, frontend, DevOps, data, testing).
 2. Adapt the CV to highlight these exact skills based ONLY on the candidate's actual history.
 3. Keep EVERY experience and project (no deletions — removing any creates blank years). Instead, reframe each one toward the job's axis: lead with the relevant angle, keep the other facets short but present.
 4. Keep the same number of bullets per experience; tighten wording for A4 readability without cutting items.
-5. Return ONLY the modified JSON object. No markdown, no prose.`;
+5. Return the COMPLETE adapted CV as ONE JSON object containing EVERY top-level key of the input (personalInfo, skills, spokenLanguages, education, experiences, projects, customSections) — not only the parts you changed. No markdown, no prose.`;
 
     // Call the selected provider/model (OpenRouter falls back across free models)
     let result;
@@ -222,7 +231,7 @@ ${JSON.stringify(cvForAi, null, 2)}
     // Extract + repair + validate the AI output with self-healing retry. On top
     // of schema validation, we enforce array-LENGTH integrity (anti-corruption):
     // a dropped/added item would misalign the index-based re-imposition below.
-    let validation = extractAndValidate(rawResponse, resumeSchema);
+    let validation = extractAndValidate(rawResponse, resumeSchema, cvForAi);
     let lengthIssues = validation.success ? arrayLengthIssues(validation.data, cvData) : [];
 
     if (!validation.success || lengthIssues.length > 0) {
@@ -231,7 +240,7 @@ ${JSON.stringify(cvForAi, null, 2)}
       try {
         const correctionPrompt = buildCorrectionPrompt(userPrompt, issues);
         const retryResult = await callWithFallback(SYSTEM_PROMPT, correctionPrompt, { provider, model: usedModel, apiKey });
-        validation = extractAndValidate(retryResult.text, resumeSchema);
+        validation = extractAndValidate(retryResult.text, resumeSchema, cvForAi);
         lengthIssues = validation.success ? arrayLengthIssues(validation.data, cvData) : [];
       } catch (retryError) {
         console.error("Self-correction retry failed:", retryError);
@@ -265,6 +274,10 @@ ${JSON.stringify(cvForAi, null, 2)}
     // Schema-validated data (unknown keys stripped). `const` is fine: the
     // immutable-field re-imposition below mutates properties, not the binding.
     const adaptedCV: CVData = validation.data;
+
+    // Garde-fou : l'IA ne change jamais le nombre d'années d'expérience.
+    const yearFixes = enforceExperienceYears(adaptedCV, yearsPolicy);
+    if (yearFixes.length > 0) console.warn("[adapt-cv] invented years of experience corrected:", yearFixes);
 
     // Preserve immutable fields from the original CV
     adaptedCV.personalInfo.name = cvData.personalInfo.name;
@@ -309,7 +322,10 @@ ${JSON.stringify(cvForAi, null, 2)}
     // headings (Experience / Education / Skills / …). Only the adapted copy is
     // touched — the user's saved CV keeps its own titles. Custom sections
     // (custom_*) are user-authored and left untouched.
-    if (adaptedCV.layout && detectJobLanguage(jobDescription) === "en") {
+    // Le CV adapté est rédigé dans la langue de l'offre : les titres par défaut
+    // (messages/*.json) suivent cette langue.
+    adaptedCV.language = detectJobLanguage(jobDescription);
+    if (adaptedCV.layout && adaptedCV.language === "en") {
       adaptedCV.layout = {
         ...adaptedCV.layout,
         sectionTitles: { ...adaptedCV.layout.sectionTitles, ...SECTION_LABELS_EN },

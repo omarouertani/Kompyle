@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import React from "react";
 import { cn } from "@/lib/utils";
 import { Lock } from "lucide-react";
@@ -55,6 +56,7 @@ export function AbsoluteBlock({
   onContextMenu,
   children,
 }: AbsoluteBlockProps) {
+  const tu = useTranslations("UI");
   const locked = !!pos.locked;
   return (
     <div
@@ -136,7 +138,7 @@ export function AbsoluteBlock({
           }}
           onMouseDown={(e) => onResizeStart(e, id, pos, edge)}
           onDoubleClick={() => onResetHeight?.(id, pos)}
-          title="Glisser pour redimensionner · double-clic : hauteur auto"
+          title={tu("resize_hint")}
         />
       ))}
     </div>

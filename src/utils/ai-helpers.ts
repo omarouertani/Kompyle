@@ -59,6 +59,37 @@ export function parseAiJson(raw: string): unknown {
   }
 }
 
+const isPlainObject = (v: unknown): v is Record<string, unknown> =>
+  typeof v === "object" && v !== null && !Array.isArray(v);
+
+/**
+ * Complète une réponse PARTIELLE de l'IA avec le document source : certains
+ * modèles (ex. Groq gpt-oss) ne renvoient que les sections qu'ils ont modifiées.
+ * Une clé absente (ou null) reprend la valeur source ; pour un objet imbriqué
+ * présent des deux côtés (personalInfo), on complète ses sous-clés de la même
+ * façon. Les tableaux renvoyés par l'IA ne sont jamais fusionnés.
+ * Renvoie aussi la liste des clés complétées (journalisation).
+ */
+export function fillMissingFromSource(parsed: unknown, source: unknown): { value: unknown; filled: string[] } {
+  if (!isPlainObject(parsed) || !isPlainObject(source)) return { value: parsed, filled: [] };
+  const filled: string[] = [];
+  const out: Record<string, unknown> = { ...parsed };
+  for (const [key, srcValue] of Object.entries(source)) {
+    const cur = out[key];
+    if (cur === undefined || cur === null) {
+      if (srcValue !== undefined) {
+        out[key] = srcValue;
+        filled.push(key);
+      }
+    } else if (isPlainObject(cur) && isPlainObject(srcValue)) {
+      const nested = fillMissingFromSource(cur, srcValue);
+      out[key] = nested.value;
+      filled.push(...nested.filled.map((k) => `${key}.${k}`));
+    }
+  }
+  return { value: out, filled };
+}
+
 export type AiExtractionResult<T> =
   | { success: true; data: T }
   | { success: false; error: string; issues: string[] };
@@ -71,10 +102,17 @@ export type AiExtractionResult<T> =
 export function extractAndValidate<S extends z.ZodTypeAny>(
   raw: string,
   schema: S,
+  /** Document source : complète les clés que l'IA a omises (réponse partielle). */
+  source?: unknown,
 ): AiExtractionResult<z.infer<S>> {
   let parsed: unknown;
   try {
     parsed = parseAiJson(raw);
+    if (source !== undefined) {
+      const { value, filled } = fillMissingFromSource(parsed, source);
+      if (filled.length > 0) console.warn("[ai] partial answer — kept source values for:", filled.join(", "));
+      parsed = value;
+    }
   } catch {
     return {
       success: false,

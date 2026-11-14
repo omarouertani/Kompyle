@@ -198,13 +198,21 @@ export function summarizeExperience(experiences: Pick<Experience, "date">[]): Ex
  * Bloc texte prêt à injecter dans un prompt : total + durée par poste.
  * L'IA s'en sert pour comparer l'expérience réelle aux exigences de l'offre.
  */
-export function describeExperienceForPrompt(experiences: Pick<Experience, "date">[]): string {
+export function describeExperienceForPrompt(
+  experiences: Pick<Experience, "date">[],
+  /** Nombre d'années ÉCRIT dans le CV : prime sur le calcul depuis les dates. */
+  statedYears?: number
+): string {
   const { perExperience, totalMonths, totalYears, totalLabel } = summarizeExperience(experiences);
   const lines = perExperience
     .filter((e) => e.date)
     .map((e) => `  • "${e.date}" → ${e.label}`)
     .join("\n");
-  return `- Total Professional Experience: EXACTLY ${totalLabel} (${totalYears} years / ${totalMonths} months total).
+  const total =
+    statedYears !== undefined
+      ? `EXACTLY ${statedYears} years (as written in the candidate's CV — this is the reference, do not recompute it)`
+      : `EXACTLY ${totalLabel} (${totalYears} years / ${totalMonths} months total)`;
+  return `- Total Professional Experience: ${total}.
 - Per-role durations (computed, DO NOT recalculate):
 ${lines || "  • (no dated experience found)"}`;
 }

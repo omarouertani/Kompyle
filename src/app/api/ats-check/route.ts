@@ -7,6 +7,7 @@ import { extractAndValidate } from "@/utils/ai-helpers";
 import { callWithFallback, AllProvidersFailedError, providerForModel } from "@/lib/ai-orchestrator";
 import { checkRateLimit } from "@/lib/rate-limiter";
 import { describeExperienceForPrompt } from "@/lib/cv-analysis";
+import { experienceYearsPolicy } from "@/lib/experience-years";
 import { cvForAiPrompt, buildAtsKeywordSurface } from "@/lib/cv-payload";
 import { reconcileAtsKeywords, reconcileAtsScores } from "@/lib/ats-keyword-verifier";
 
@@ -17,7 +18,7 @@ const ATS_TEMPERATURE = 0;
 // Schéma JSON canonique injecté dans le prompt — l'IA voit la forme exacte attendue.
 let ATS_SCHEMA_JSON = "";
 try {
-  ATS_SCHEMA_JSON = JSON.stringify(z.toJSONSchema(atsReportSchema), null, 2);
+  ATS_SCHEMA_JSON = JSON.stringify(z.toJSONSchema(atsReportSchema));
 } catch {
   ATS_SCHEMA_JSON = "";
 }
@@ -133,7 +134,11 @@ export async function POST(request: NextRequest) {
 
     // Durées d'expérience calculées en TS et IMPOSÉES à l'IA (anti-hallucination) :
     // total + détail par poste, pour comparer l'expérience réelle aux exigences de l'offre.
-    const experienceBlock = describeExperienceForPrompt(cvData.experiences);
+    const yearsPolicy = experienceYearsPolicy(cvData);
+    const experienceBlock = describeExperienceForPrompt(
+      cvData.experiences,
+      yearsPolicy.source === "stated" ? yearsPolicy.years : undefined
+    );
 
     // Surface de mots-clés à plat : remonte skills.items, projects.stack et techLine
     // hors des tableaux imbriqués pour contrer le "Lost in the Middle".

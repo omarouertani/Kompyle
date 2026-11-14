@@ -308,6 +308,7 @@ function BrandSwatch({
  *  color. We hide the actual input and trigger it via a styled button so the
  *  swatch matches Canva's visual treatment. */
 function CustomColorButton({ value, onPick }: { value: string | null; onPick: (c: string) => void }) {
+  const tu = useTranslations("UI");
   const ref = useRef<HTMLInputElement>(null);
   return (
     <div className="relative">
@@ -320,7 +321,7 @@ function CustomColorButton({ value, onPick }: { value: string | null; onPick: (c
           background:
             "conic-gradient(from 90deg at 50% 50%, #ef4444, #f97316, #fbbf24, #22c55e, #06b6d4, #3b82f6, #a855f7, #ec4899, #ef4444)",
         }}
-        title="Custom color"
+        title={tu("custom_color")}
       >
         <span className="absolute inset-1 rounded-full bg-card flex items-center justify-center">
           <Plus size={11} className="text-foreground" />
@@ -341,6 +342,7 @@ function CustomColorButton({ value, onPick }: { value: string | null; onPick: (c
 /** Eyedropper button. Falls back to a no-op if the browser doesn't support
  *  the EyeDropper API (Safari, older Firefox). */
 function EyedropperButton({ onPick }: { onPick: (c: string) => void }) {
+  const tu = useTranslations("UI");
   type EyeDropperWindow = { EyeDropper?: new () => { open: () => Promise<{ sRGBHex: string }> } };
   const supported = typeof window !== "undefined" && "EyeDropper" in window;
   const handleClick = async () => {
@@ -362,7 +364,7 @@ function EyedropperButton({ onPick }: { onPick: (c: string) => void }) {
       onClick={handleClick}
       onMouseDown={(e) => e.preventDefault()}
       className="size-7 rounded-full shrink-0 border border-border/60 bg-card hover:bg-muted/60 flex items-center justify-center shadow-sm"
-      title="Eyedropper"
+      title={tu("eyedropper")}
     >
       <Pipette size={12} className="text-foreground" />
     </button>
