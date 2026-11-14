@@ -6,6 +6,17 @@ import type { CVData } from "@/types/cv";
 import { defaultLayout, removeCustomSection, getParentSectionId } from "@/lib/cv-layout";
 import type { BlockPos } from "./snap";
 import { cloneFreeElement, freeElementPos, isFreeElementId } from "@/lib/free-elements";
+import { cvDocText, cvLanguage } from "@/lib/cv-i18n";
+
+/** Sections de liste où l'on peut AJOUTER un élément (id de section → clé de données). */
+const ADDABLE_SECTIONS = {
+  experience: "experiences",
+  projects: "projects",
+  education: "education",
+  skills: "skills",
+} as const;
+export type AddableSection = keyof typeof ADDABLE_SECTIONS;
+export const isAddableSection = (id: string): id is AddableSection => id in ADDABLE_SECTIONS;
 
 const DUPLICABLE = /^(skill|experience|project|education)_(\d+)$/;
 
@@ -302,5 +313,54 @@ export function useBlockActions({ data, defaultPositions, onChange }: UseBlockAc
     [data, layout, onChange]
   );
 
-  return { autoHeight, resetPosition, canDuplicate, duplicateItem, pasteItems, canDeleteBlock, deleteBlock, hideSectionOf };
+  /** Ajoute un élément VIDE en fin de section (seul moyen d'en créer un quand
+   *  la section est vide — dupliquer exige un élément existant). Les champs
+   *  vides affichent leurs indications sur le canvas et sont absents du PDF. */
+  const addItem = useCallback(
+    (section: AddableSection) => {
+      const doc = cvDocText(cvLanguage(data));
+      const id = uuidv4();
+      const blank = {
+        experience: { id, title: "", org: "", date: "", bullets: [doc.new_bullet] },
+        projects: { id, title: "", description: "", stack: "" },
+        education: { id, degree: "", institution: "", date: "" },
+        skills: { id, category: "", items: doc.new_skill },
+      }[section];
+      const key = ADDABLE_SECTIONS[section];
+      onChange({ ...data, [key]: [...(data[key] as object[]), blank] });
+    },
+    [data, onChange]
+  );
+
+  /** Peut-on déplacer l'élément de liste `blockId` d'un cran (-1 haut, +1 bas) ? */
+  const canMoveItem = useCallback(
+    (blockId: string, dir: -1 | 1) => {
+      const m = blockId.match(DUPLICABLE);
+      if (!m) return false;
+      const list = data[SECTION_KEYS[m[1] as keyof typeof SECTION_KEYS]] as unknown[];
+      const to = parseInt(m[2]) + dir;
+      return to >= 0 && to < list.length;
+    },
+    [data]
+  );
+
+  /** Échange l'élément avec son voisin dans les DONNÉES (ordre du PDF, de l'export
+   *  texte et de l'envoi à l'IA). Les positions restent attachées aux index : le
+   *  contenu change donc de place à l'écran comme dans le PDF. */
+  const moveItem = useCallback(
+    (blockId: string, dir: -1 | 1) => {
+      const m = blockId.match(DUPLICABLE);
+      if (!m) return;
+      const key = SECTION_KEYS[m[1] as keyof typeof SECTION_KEYS];
+      const list = [...(data[key] as unknown[])];
+      const from = parseInt(m[2]);
+      const to = from + dir;
+      if (to < 0 || to >= list.length) return;
+      [list[from], list[to]] = [list[to], list[from]];
+      onChange({ ...data, [key]: list });
+    },
+    [data, onChange]
+  );
+
+  return { autoHeight, resetPosition, canDuplicate, duplicateItem, pasteItems, canDeleteBlock, deleteBlock, hideSectionOf, addItem, canMoveItem, moveItem };
 }

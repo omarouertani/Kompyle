@@ -7,6 +7,7 @@ import { PDFViewer, pdf } from "@react-pdf/renderer";
 import CoverLetterTemplate, { type CoverLetterLabels } from "./CoverLetterTemplate";
 import { AIProgressOverlay } from "./AIProgress";
 import { DownloadMenu } from "./DownloadMenu";
+import { CoverLetterCanvas } from "./CoverLetterCanvas";
 import type { CoverLetterData, CVTheme, PersonalInfo } from "@/types/cv";
 
 
@@ -22,6 +23,8 @@ interface CoverLetterPreviewProps {
   isAdapting?: boolean;
   /** Theme of the current CV (font, colours): the letter matches it. */
   theme?: CVTheme;
+  /** Édition directe sur la page (éditeur). Sans elle, aperçu PDF seul. */
+  onChange?: (data: CoverLetterData) => void;
 }
 
 export default function CoverLetterPreview({
@@ -29,10 +32,12 @@ export default function CoverLetterPreview({
   personalInfo,
   isAdapting = false,
   theme,
+  onChange,
 }: CoverLetterPreviewProps) {
   const t = useTranslations("LetterPreview");
   const locale = useLocale();
 
+  const [mode, setMode] = useState<"editor" | "pdf">(onChange ? "editor" : "pdf");
   const [isDownloading, setIsDownloading] = useState(false);
   const [downloadError, setDownloadError] = useState(false);
   // true côté client uniquement (les viewers PDF ne supportent pas le SSR)
@@ -80,6 +85,25 @@ export default function CoverLetterPreview({
     <div className="flex flex-col flex-1 h-full w-full gap-3">
       {/* Toolbar */}
       <div className="flex justify-end items-center gap-2">
+        {onChange && (
+          <div className="mr-auto flex items-center gap-0.5 rounded-lg border border-border/60 bg-muted/50 p-0.5" role="tablist">
+            {(["editor", "pdf"] as const).map((m) => (
+              <button
+                key={m}
+                type="button"
+                role="tab"
+                aria-selected={mode === m}
+                onClick={() => setMode(m)}
+                className={cn(
+                  "rounded-md px-3 py-1 text-xs font-medium transition-colors",
+                  mode === m ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                {t(`mode_${m}`)}
+              </button>
+            ))}
+          </div>
+        )}
         {downloadError && (
           <div className="flex items-center gap-1.5 text-destructive text-xs font-medium">
             <AlertTriangle size={13} />
@@ -93,7 +117,19 @@ export default function CoverLetterPreview({
         />
       </div>
 
-      {/* PDF Viewer */}
+      {mode === "editor" && onChange ? (
+        <div className={cn("relative flex min-h-0 flex-1 flex-col transition-all duration-500", isAdapting && "pointer-events-none opacity-40 blur-[5px]")}>
+          <CoverLetterCanvas
+            data={data}
+            onChange={onChange}
+            personalInfo={personalInfo}
+            theme={theme}
+            locale={locale}
+            subjectPrefix={labels.subjectPrefix}
+          />
+          <AIProgressOverlay active={isAdapting} kind="letter" />
+        </div>
+      ) : (
       <div className="flex-1 rounded-lg overflow-hidden border border-border bg-card shadow-sm relative">
         <div className={cn("w-full h-full transition-all duration-500", isAdapting && "blur-[5px] scale-[0.99] opacity-40 pointer-events-none")}>
           {mounted && (
@@ -104,6 +140,7 @@ export default function CoverLetterPreview({
         </div>
         <AIProgressOverlay active={isAdapting} kind="letter" />
       </div>
+      )}
     </div>
   );
 }

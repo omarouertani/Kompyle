@@ -66,7 +66,7 @@ export function DownloadMenu({ label, busyLabel, formats }: DownloadMenuProps) {
       <DropdownMenuContent className="w-72">
         {formats.map((f) => (
           <DropdownMenuItem key={f.id} onClick={f.onSelect} className="items-start">
-            <span className="mt-px w-11 shrink-0 rounded bg-muted px-1 py-0.5 text-center text-[10px] font-bold tracking-wide text-foreground">
+            <span className="mt-px w-11 shrink-0 rounded-md bg-primary/10 px-1 py-0.5 text-center text-[10px] font-bold tracking-wide text-primary">
               {f.label}
             </span>
             {f.description && <span className="text-xs leading-snug text-muted-foreground">{f.description}</span>}

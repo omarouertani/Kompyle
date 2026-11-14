@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
+import { useDismiss } from "@/hooks/use-dismiss";
 import { FileUp, MoreVertical, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -24,19 +25,8 @@ export function ProfileActionsMenu({ onRename, onDelete, renameLabel, deleteLabe
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (!open) return;
-    const onPointer = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    };
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
-    document.addEventListener("mousedown", onPointer);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onPointer);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [open]);
+  // Clic ailleurs ou Échap : fermeture.
+  useDismiss(open, () => setOpen(false), ref);
 
   return (
     <div ref={ref} className="relative">
@@ -55,14 +45,14 @@ export function ProfileActionsMenu({ onRename, onDelete, renameLabel, deleteLabe
       {open && (
         <div
           role="menu"
-          className="absolute right-0 top-7 z-50 min-w-36 rounded-lg border border-border bg-popover p-1 text-popover-foreground shadow-lg motion-pop"
+          className="absolute right-0 top-7 z-50 min-w-36 popover-surface p-1.5 motion-pop"
         >
           {onImport && importLabel && (
             <button
               type="button"
               role="menuitem"
               onClick={() => { setOpen(false); onImport(); }}
-              className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs text-foreground hover:bg-muted"
+              className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-xs text-foreground transition-colors hover:bg-primary/10"
             >
               <FileUp size={13} />
               {importLabel}
@@ -72,7 +62,7 @@ export function ProfileActionsMenu({ onRename, onDelete, renameLabel, deleteLabe
             type="button"
             role="menuitem"
             onClick={() => { setOpen(false); onRename(); }}
-            className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs text-foreground hover:bg-muted"
+            className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-xs text-foreground transition-colors hover:bg-primary/10"
           >
             <Pencil size={13} />
             {renameLabel}

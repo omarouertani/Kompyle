@@ -1,0 +1,87 @@
+{
+  "$comment": "Source unique de la version de Kompyle et des nouveautés. Ajoutez la nouvelle version EN HAUT de 'releases'. type = 'feature' (montrée aux utilisateurs + ajoutée à la visite guidée) ou 'fix' (correctifs : annoncée comme mise à jour, sans visite). Voir CONTRIBUTING.md › Releasing a Version et AGENTS.md (règles pour les agents IA).",
+  "repository": "omarouertani/Kompyle",
+  "releases": [
+    {
+      "version": "0.2.0",
+      "date": "2026-11-15",
+      "type": "feature",
+      "summary": {
+        "fr": "Assistant IA en conversation, tout s’édite sur le CV et la lettre, CV bilingue FR/EN, IA plus fiable (années d’expérience protégées, délais, réponses partielles) et visite guidée.",
+        "en": "Conversational AI assistant, edit everything on the CV and the letter, bilingual FR/EN CV, more reliable AI (years of experience protected, timeouts, partial answers) and a guided tour."
+      },
+      "features": [
+        {
+          "id": "ai-chat",
+          "target": "composer",
+          "title": {
+            "fr": "Un assistant IA en conversation",
+            "en": "A conversational AI assistant"
+          },
+          "body": {
+            "fr": "Le panneau de gauche est maintenant dédié à l’IA : collez une offre, puis demandez des retouches en une phrase ou en un clic sur une <b>suggestion</b>. Tout le reste s’édite sur l’aperçu.",
+            "en": "The left panel is now dedicated to AI: paste an offer, then ask for changes in one sentence or with one click on a <b>suggestion</b>. Everything else is edited on the preview."
+          }
+        },
+        {
+          "id": "sections-menu",
+          "target": "canvas-toolbar",
+          "title": {
+            "fr": "Tout se fait sur le CV",
+            "en": "Everything happens on the CV"
+          },
+          "body": {
+            "fr": "Le bouton <b>Sections</b> affiche, masque et renomme vos sections. <b>Clic droit</b> sur un élément pour l’ajouter, le déplacer ou le supprimer : la page se réorganise toute seule.",
+            "en": "The <b>Sections</b> button shows, hides and renames your sections. <b>Right-click</b> an item to add, move or delete it: the page re-arranges itself."
+          }
+        },
+        {
+          "id": "letter-canvas",
+          "target": "letter-tab",
+          "title": {
+            "fr": "La lettre s’édite sur sa page",
+            "en": "Edit the letter on its page"
+          },
+          "body": {
+            "fr": "Cliquez directement dans la lettre pour la modifier, changez de modèle et ajoutez votre signature.",
+            "en": "Click straight into the letter to edit it, switch templates and add your signature."
+          }
+        },
+        {
+          "id": "bilingual-cv",
+          "target": "prefs",
+          "title": {
+            "fr": "Un CV en français et en anglais",
+            "en": "A CV in French and English"
+          },
+          "body": {
+            "fr": "Les titres du CV suivent sa langue. Un CV importé est créé en <b>français et en anglais</b> : changez la langue ici pour voir l’autre version.",
+            "en": "CV headings follow its language. An imported CV is created in <b>French and English</b>: switch the language here to see the other version."
+          }
+        },
+        {
+          "id": "guided-tour",
+          "target": "help",
+          "title": {
+            "fr": "La visite guidée",
+            "en": "The guided tour"
+          },
+          "body": {
+            "fr": "Revoyez à tout moment le tour complet de l’application avec ce bouton.",
+            "en": "Replay the full tour of the app at any time with this button."
+          }
+        }
+      ]
+    },
+    {
+      "version": "0.1.0",
+      "date": "2026-11-01",
+      "type": "feature",
+      "summary": {
+        "fr": "Première version publique.",
+        "en": "First public release."
+      },
+      "features": []
+    }
+  ]
+}

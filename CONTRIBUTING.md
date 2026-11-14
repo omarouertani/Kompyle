@@ -59,11 +59,13 @@ To check the Docker setup end to end, run `docker compose up --build`.
    - UI text goes in **both** `messages/en.json` and `messages/fr.json`.
    - Use **fictional data only** (such as the built-in "Jane Doe") in code, tests and screenshots. Never commit a real CV, address, phone number or API key.
    - Do not add a dependency without explaining why in the pull request.
+   - **Update [`release.json`](release.json)**: a `feature` entry for something users can see or do, a `fix` entry otherwise (see [Releasing a Version](#releasing-a-version)).
 
 3. **Check your work** before committing:
    ```bash
    npx tsc --noEmit
    npm run lint
+   npm run release:check
    npm run build
    ```
 
@@ -81,9 +83,38 @@ feat(ai): add Mistral provider to the AI engine
 1. Push your branch to your fork and open a Pull Request against `main`.
 2. Describe **what** changed and **why**. Link any related issues (e.g. `Fixes #12`).
 3. Include screenshots or GIFs for UI changes (using the sample data).
-4. Make sure `npx tsc --noEmit`, `npm run lint` and `npm run build` pass.
+4. Make sure `npx tsc --noEmit`, `npm run lint`, `npm run release:check` and `npm run build` pass.
+5. Mention the `release.json` entry (version and type) in the description.
 
 A maintainer will review your PR. PRs are merged using **squash merge**, so your commit history within the branch does not need to be perfectly clean.
+
+## Releasing a Version
+
+Versions and release notes live in [`release.json`](release.json). It drives three things: the version shown in the app, the **“Update available”** badge that self-hosted instances display, and the **“What’s new”** tour.
+
+1. Add the new version **at the top** of `releases`:
+   - `"type": "feature"` when users get something new. List each feature in `features` with an `id`, a `title` and a `body` in **French and English**, and optionally a `target`: the `data-tour` value of the element to highlight (add a `data-tour="…"` attribute to that element if needed). These features are shown once to existing users after they update, and added to the full guided tour for new users.
+   - `"type": "fix"` for bug fixes only: no `features`. Users are told an update is available, but no tour is shown.
+2. Set the same version in `package.json` ([semver](https://semver.org): minor for features, patch for fixes).
+3. Run `npm run release:check` (format, translations, `data-tour` targets, versions in sync).
+4. Merge to `main`. Instances check `release.json` on `main`, so they see the update as soon as it is merged.
+
+```json
+{
+  "version": "0.3.0",
+  "date": "2026-12-01",
+  "type": "feature",
+  "summary": { "fr": "Export LinkedIn.", "en": "LinkedIn export." },
+  "features": [
+    {
+      "id": "linkedin-export",
+      "target": "export",
+      "title": { "fr": "Export LinkedIn", "en": "LinkedIn export" },
+      "body": { "fr": "Copiez votre CV au format <b>LinkedIn</b>.", "en": "Copy your CV in <b>LinkedIn</b> format." }
+    }
+  ]
+}
+```
 
 ## Reporting Bugs & Requesting Features
 

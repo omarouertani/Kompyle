@@ -118,7 +118,7 @@
     "active_label": "Active profile:",
     "new_placeholder": "Profile name…",
     "create_blank": "Create blank profile",
-    "new_profile_tooltip": "New profile (empty template, fill via Edit CV)",
+    "new_profile_tooltip": "New profile (sample CV you fill in directly on the preview)",
     "rename_tooltip": "Rename profile",
     "rename_placeholder": "New name…",
     "delete_tooltip": "Delete profile",
@@ -428,7 +428,10 @@
     "column_sidebar": "Side column",
     "column_main": "Main column",
     "free_elements": "Free elements",
-    "free_elements_hint": "Top of the list = front."
+    "free_elements_hint": "Top of the list = front.",
+    "menu_add_item": "Add an item",
+    "menu_move_up": "Move up",
+    "menu_move_down": "Move down"
   },
   "Builder": {
     "photo_error": "This image could not be read. Try a JPEG or PNG file under 15 MB.",
@@ -516,7 +519,8 @@
     "signature_change": "Change",
     "signature_remove": "Remove",
     "signature_hint": "PNG with a transparent background works best. It is never sent to the AI.",
-    "signature_error": "This image could not be read. Try a PNG or JPEG."
+    "signature_error": "This image could not be read. Try a PNG or JPEG.",
+    "sender_hint_canvas": "Taken from your CV: edit it in the CV Preview tab."
   },
   "LetterPreview": {
     "download": "Download PDF",
@@ -524,7 +528,9 @@
     "download_error": "Cover letter download failed. Please try again.",
     "subject_prefix": "Subject:",
     "document_title": "Cover letter",
-    "file_prefix": "Cover_letter"
+    "file_prefix": "Cover_letter",
+    "mode_editor": "Editor",
+    "mode_pdf": "PDF preview"
   },
   "CVImport": {
     "title": "Import my CV",
@@ -709,7 +715,14 @@
     "city_province": "City, Province",
     "add_skill": "Add a skill",
     "delete": "Delete",
-    "photo_alt": "Profile photo"
+    "photo_alt": "Profile photo",
+    "photo_add": "Add a photo",
+    "photo_change": "Change photo",
+    "photo_remove": "Remove photo",
+    "photo_error": "This image could not be read.",
+    "add_language": "Add a language",
+    "add_bullet": "Add a bullet",
+    "skill_level": "Level — {skill}"
   },
   "UI": {
     "heading_size": "Size of this heading (all headings: Theme panel)",
@@ -729,10 +742,85 @@
     "close": "Close",
     "toggle_sidebar": "Toggle sidebar",
     "pdf_preview": "PDF preview",
-    "photo_alt": "Profile photo"
+    "photo_alt": "Profile photo",
+    "sections_hint": "Show, hide and rename your sections. Order, columns and pages are set on the canvas (drag, right-click).",
+    "add_custom_section": "Add a free section"
   },
   "Meta": {
     "title": "Kompyle — AI Resume Editor & ATS Auditor",
     "description": "Privacy-first, open-source AI resume editor & ATS auditor with a Canva-style canvas and pixel-perfect PDF export."
+  },
+  "AIChat": {
+    "request_adapt": "Adapt my CV to this job offer",
+    "request_letter": "Write the cover letter for this job offer",
+    "empty_title_new": "Tailor your CV to a job offer",
+    "empty_body_new": "Paste the job offer below: the AI adapts your CV, writes the cover letter and helps you pass the ATS. Everything else is edited directly on the preview.",
+    "empty_title_continue": "What would you like to improve?",
+    "empty_body_continue": "Describe a change: it applies to the version shown, without creating a copy.",
+    "s_import": "Import my existing CV",
+    "s_ats": "Check my ATS score",
+    "s_keywords": "Add the job offer keywords that are missing",
+    "s_summary": "Make the summary more impactful",
+    "s_quantify": "Quantify my achievements more",
+    "s_shorten": "Shorten the CV to fit on one page",
+    "action_view_cv": "View the CV",
+    "action_check_ats": "Check the ATS",
+    "action_write_letter": "Write the letter",
+    "action_view_letter": "View the letter",
+    "mode_label": "Request type",
+    "hint_enter": "Enter to send · Shift+Enter for a new line",
+    "hint_offer": "Paste the full job offer for better results.",
+    "clear": "Clear"
+  },
+  "Tour": {
+    "progress": "{{current}} / {{total}}",
+    "next": "Next",
+    "prev": "Back",
+    "finish": "Let’s go!",
+    "replay": "Guided tour",
+    "welcome_title": "Welcome to Kompyle 👋",
+    "welcome_body": "In one minute, here is everything you can do: <b>tailor your CV to a job offer with AI</b>, polish it directly on the page, write the cover letter and check your ATS score.<br><br>Leave anytime with <b>Esc</b> and replay the tour with the <b>?</b> button at the top.",
+    "api_keys_title": "1. Your AI key",
+    "api_keys_body": "Kompyle uses <b>your own key</b> from an AI provider. <b>Google Gemini, Groq, OpenRouter and NVIDIA are free</b>.<br>The key stays in your browser and is only sent to the provider you pick. Start by adding one here.",
+    "profiles_title": "2. Your CV profiles",
+    "profiles_body": "Each profile is a complete CV, saved automatically.<ul><li><b>+</b> creates a new profile</li><li><b>Import</b> brings in your existing CV (PDF, Word, text): it is created in <b>French and English</b></li><li><b>⋮</b> renames or deletes the profile</li></ul>",
+    "composer_title": "3. The AI assistant",
+    "composer_body": "<b>Paste a job offer</b>, then:<ul><li><b>Adapt CV</b> creates a version of your CV tailored to the offer (keywords, summary, achievements)</li><li><b>Create Letter</b> writes the cover letter</li></ul>Then ask for changes in one sentence (“shorten the summary”…) or click a suggestion. Pick the AI model at the bottom left.",
+    "doc_tabs_title": "4. Your three documents",
+    "doc_tabs_body": "<b>CV Preview</b>: your CV, editable in place.<br><b>Cover Letter</b>: the letter, editable on its page.<br><b>ATS Checker</b>: how your CV scores against the offer.",
+    "cv_controls_title": "5. CV layout",
+    "cv_controls_body": "Switch between the <b>Editor</b> and the exact <b>PDF preview</b>, pick the <b>template</b> (with photo, without photo, Canadian…) and the page size (<b>A4</b> or Letter). After an adaptation you can also <b>compare</b> with the original and switch versions.",
+    "toolbar_title": "6. The toolbar",
+    "toolbar_body": "<ul><li><b>Theme</b>: colours, font, sizes, spacing</li><li><b>Sections</b>: show, hide, rename, add a section</li><li><b>Insert</b>: text, shapes, icons, images</li><li><b>Layers</b>: reorder sections</li></ul>Plus text formatting (bold, colour, alignment…) and Undo / Redo.",
+    "page_title": "7. Edit right on the page",
+    "page_body": "<b>Click any text</b> to type. Drag a block to move it, pull its edge to resize it.<br><b>Right-click</b> an item: add, duplicate, move up / down, delete, hide the section. Hover the photo to change it.<br>The page re-arranges itself when you add or remove something.",
+    "export_title": "8. Export",
+    "export_body": "<b>PDF</b>: the full layout, ready to send.<br><b>DOCX</b>: an editable Word file.<br><b>TXT</b>: plain text, ideal for application forms and ATS.",
+    "letter_title": "9. The cover letter",
+    "letter_body": "Written by the AI from the offer and your CV, then <b>editable directly on the page</b>: recipient, subject, paragraphs, sign-off. Pick the template and add your <b>signature</b>.",
+    "ats_title": "10. The ATS score",
+    "ats_body": "Recruiters filter CVs with software (ATS). Here the AI <b>scores your CV against the offer</b>, lists the keywords found and missing, and can <b>adapt the CV in one click</b> to close the gaps.",
+    "prefs_title": "11. Theme and language",
+    "prefs_body": "Switch between <b>light and dark</b>, and between <b>French and English</b>. The language also switches the CV version shown: an imported CV exists in both languages.",
+    "done_title": "You’re all set! 🚀",
+    "done_body": "The fastest way to start:<ol><li>add a free <b>AI key</b>,</li><li><b>import your CV</b> (or fill in the sample),</li><li>paste a <b>job offer</b> and click <b>Adapt CV</b>.</li></ol>Replay this tour anytime with the <b>?</b> button at the top right.",
+    "whats_new_title": "New in Kompyle v{version} ✨",
+    "whats_new_body": "A few things are new since your last visit. Here is what changed, in {count, plural, one {# step} other {# steps}}."
+  },
+  "Update": {
+    "badge": "Update v{version}",
+    "title": "Kompyle v{version} is available",
+    "installed": "Installed: v{version}",
+    "kind_features": "new features",
+    "kind_fixes": "bug fixes",
+    "type_feature": "New",
+    "type_fix": "Fixes",
+    "how": "To update",
+    "mode_docker": "Docker",
+    "mode_node": "npm",
+    "copy": "Copy",
+    "copied": "Copied",
+    "data_kept": "Run it in the project folder. Your profiles are kept (database in a Docker volume). The new features will be shown to you on the next load.",
+    "details": "All release notes"
   }
 }

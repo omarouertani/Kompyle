@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useRef, useState } from "react";
+import { useDismiss } from "@/hooks/use-dismiss";
 import { useTranslations } from "next-intl";
 import { Plus, Type, Minus, Square, Circle, ImagePlus, Shapes, ChevronLeft, Icon } from "lucide-react";
 import { toast } from "sonner";
@@ -75,21 +76,8 @@ export function InsertMenu({ onInsert }: { onInsert: InsertHandler }) {
     }
   };
 
-  useEffect(() => {
-    if (!open) return;
-    const onDown = (e: MouseEvent) => {
-      if (!ref.current?.contains(e.target as Node)) setOpenState(false);
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpenState(false);
-    };
-    document.addEventListener("mousedown", onDown);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onDown);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [open]);
+  // Clic ailleurs ou Échap : fermeture.
+  useDismiss(open, () => setOpenState(false), ref);
 
   return (
     <div className="relative" ref={ref}>
@@ -118,7 +106,7 @@ export function InsertMenu({ onInsert }: { onInsert: InsertHandler }) {
         <div
           role="menu"
           className={cn(
-            "absolute left-0 top-8 z-50 rounded-lg border border-border bg-popover shadow-lg motion-pop p-1 flex flex-col",
+            "absolute left-0 top-8 z-50 popover-surface motion-pop p-1.5 flex flex-col",
             iconsOpen ? "w-52" : "w-40"
           )}
           onMouseDown={(e) => e.stopPropagation()}
@@ -127,7 +115,7 @@ export function InsertMenu({ onInsert }: { onInsert: InsertHandler }) {
             <>
               <button
                 type="button"
-                className="flex items-center gap-1 rounded-md px-2 py-1 text-xs text-left hover:bg-muted/80"
+                className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs text-left transition-colors hover:bg-primary/10"
                 onClick={() => setIconsOpen(false)}
               >
                 <ChevronLeft size={12} />
@@ -141,7 +129,7 @@ export function InsertMenu({ onInsert }: { onInsert: InsertHandler }) {
                     role="menuitem"
                     title={t(`icon_names.${name}`)}
                     aria-label={t(`icon_names.${name}`)}
-                    className="flex h-7 w-7 items-center justify-center rounded-md hover:bg-muted/80"
+                    className="flex h-7 w-7 items-center justify-center rounded-lg transition-colors hover:bg-primary/10"
                     onClick={() => {
                       setOpen(false);
                       onInsert("icon", undefined, name);
@@ -157,7 +145,7 @@ export function InsertMenu({ onInsert }: { onInsert: InsertHandler }) {
               key={it.kind}
               type="button"
               role="menuitem"
-              className="flex items-center gap-2 rounded-md px-2 py-1.5 text-xs text-left hover:bg-muted/80"
+              className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-xs text-left transition-colors hover:bg-primary/10"
               onClick={() => {
                 if (it.kind === "icon") return setIconsOpen(true);
                 setOpen(false);

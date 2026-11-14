@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useRef, useState } from "react";
+import { useDismiss } from "@/hooks/use-dismiss";
 import type { CVTheme, CVFontFamily, PhotoShape, SkillMode } from "@/types/cv";
 import { Palette, Check, AlignLeft, Tags, BarChart3 } from "lucide-react";
 import { useTranslations } from "next-intl";
@@ -315,21 +316,8 @@ export function ThemePanel({ theme, onThemeChange, compact = false }: ThemePanel
   const [open, setOpen] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (!open) return;
-    const onDown = (e: MouseEvent) => {
-      if (!panelRef.current?.contains(e.target as Node)) setOpen(false);
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpen(false);
-    };
-    document.addEventListener("mousedown", onDown);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onDown);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [open]);
+  // Clic ailleurs ou Échap : fermeture.
+  useDismiss(open, () => setOpen(false), panelRef);
 
   const activeFont = theme.fontFamily ?? "sans";
   const activeSkillMode = theme.skillMode ?? "text";

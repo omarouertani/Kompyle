@@ -4,11 +4,12 @@ import { useState, useCallback, useMemo } from "react";
 import { useTranslations } from "next-intl";
 import type { CVData, CVLayout } from "@/types/cv";
 import { addCustomSection, getParentSectionId } from "@/lib/cv-layout";
-import { Maximize2, MoveUpRight, MoveRight, Copy, EyeOff, RotateCcw, SquarePlus, Lock, LockOpen, Group, Ungroup, Trash2, FilePlus, BringToFront, SendToBack, ArrowUp, ArrowDown } from "lucide-react";
+import { Maximize2, MoveUpRight, MoveRight, Copy, EyeOff, RotateCcw, SquarePlus, Lock, LockOpen, Group, Ungroup, Trash2, FilePlus, BringToFront, SendToBack, ArrowUp, ArrowDown, ListPlus, ChevronUp, ChevronDown } from "lucide-react";
 import type { ZAction } from "@/lib/z-order";
 import type { ContextMenuItem } from "./ContextMenu";
 import type { BlockPos } from "./snap";
 import { isSectionBlock } from "./block-helpers";
+import { isAddableSection, type AddableSection } from "./use-block-actions";
 
 interface UseContextMenuArgs {
   data: CVData;
@@ -35,6 +36,10 @@ interface UseContextMenuArgs {
   moveSectionToPage: (blockId: string, targetPage: number) => void;
   /** Ordre de superposition (premier plan, avancer, reculer, arrière-plan). */
   reorderZ: (ids: string[], action: ZAction) => void;
+  /** Ajout d'un élément vide dans une section de liste. */
+  addItem: (section: AddableSection) => void;
+  canMoveItem: (blockId: string, dir: -1 | 1) => boolean;
+  moveItem: (blockId: string, dir: -1 | 1) => void;
 }
 
 type Menu = { x: number; y: number; blockId: string | null; pageIndex: number | null } | null;
@@ -65,6 +70,9 @@ export function useContextMenu({
   addPage,
   removePage,
   reorderZ,
+  addItem,
+  canMoveItem,
+  moveItem,
 }: UseContextMenuArgs) {
   const t = useTranslations("Canvas");
   const [menu, setMenu] = useState<Menu>(null);
@@ -156,6 +164,16 @@ export function useContextMenu({
       const blockId = menu.blockId;
       items.push({ label: t("menu_duplicate"), icon: Copy, onClick: () => duplicateItem(blockId) });
     }
+    // Ajouter un élément / réordonner (repris de l'ancien formulaire « Éditer le CV »)
+    {
+      const blockId = menu.blockId;
+      const section = getParentSectionId(blockId);
+      if (isAddableSection(section)) {
+        items.push({ label: t("menu_add_item"), icon: ListPlus, separator: true, onClick: () => addItem(section) });
+      }
+      if (canMoveItem(blockId, -1)) items.push({ label: t("menu_move_up"), icon: ChevronUp, onClick: () => moveItem(blockId, -1) });
+      if (canMoveItem(blockId, 1)) items.push({ label: t("menu_move_down"), icon: ChevronDown, onClick: () => moveItem(blockId, 1) });
+    }
     // Ordre de superposition
     items.push(
       { label: t("menu_bring_front"), icon: BringToFront, separator: true, onClick: () => reorderZ(targets, "front") },
@@ -212,7 +230,7 @@ export function useContextMenu({
     }
     items.push({ label: t("menu_realign"), icon: RotateCcw, separator: true, onClick: realign });
     return items;
-  }, [menu, selectedIds, t, onChange, data, realign, savedPositions, defaultPositions, autoHeight, resetPosition, toggleLock, canDuplicate, duplicateItem, canDeleteBlock, deleteBlock, selectionHasGroup, ungroupSelected, groupSelected, layout.pages, pageOfSection, moveSectionToPage, hideSectionOf, clearSelection, addPage, removePage, reorderZ]);
+  }, [menu, selectedIds, t, onChange, data, realign, savedPositions, defaultPositions, autoHeight, resetPosition, toggleLock, canDuplicate, duplicateItem, canDeleteBlock, deleteBlock, selectionHasGroup, ungroupSelected, groupSelected, layout.pages, pageOfSection, moveSectionToPage, hideSectionOf, clearSelection, addPage, removePage, reorderZ, addItem, canMoveItem, moveItem]);
 
   return { menu, setMenu, openBlockMenu, openCanvasMenu, menuItems };
 }

@@ -1,6 +1,6 @@
 {
   "name": "kompyle-app",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "license": "MIT",
   "scripts": {
@@ -10,7 +10,8 @@
     "lint": "eslint",
     "db:up": "docker compose up -d db",
     "db:down": "docker compose stop db",
-    "db:seed": "npx tsx scripts/seed.ts"
+    "db:seed": "npx tsx scripts/seed.ts",
+    "release:check": "node scripts/check-release.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.5.0",
@@ -35,6 +36,7 @@
     "clsx": "^2.1.1",
     "diff": "^9.0.0",
     "docx": "^9.15.3",
+    "driver.js": "1.10.2",
     "lucide-react": "^1.17.0",
     "next": "16.4.6",
     "next-intl": "^4.13.0",

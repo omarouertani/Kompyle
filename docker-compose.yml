@@ -45,6 +45,9 @@ services:
       # No AI key is required: keys are entered in the web UI (BYOK).
       # Optional server-side fallback for OpenRouter only:
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      # « Mise à jour disponible » : lit release.json sur GitHub (désactivable).
+      KOMPYLE_UPDATE_CHECK: ${KOMPYLE_UPDATE_CHECK:-true}
+      KOMPYLE_UPDATE_URL: ${KOMPYLE_UPDATE_URL:-}
     depends_on:
       db:
         condition: service_healthy

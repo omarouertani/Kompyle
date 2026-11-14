@@ -3,8 +3,10 @@
 import React, { useSyncExternalStore } from "react";
 import { Link } from "@/i18n/routing";
 import { useTranslations, useLocale } from "next-intl";
+import { requestTour } from "@/components/OnboardingTour";
+import { UpdateNotice } from "@/components/UpdateNotice";
 import { useTheme } from "next-themes";
-import { Moon, Sun, Globe, PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { Moon, Sun, Globe, PanelLeftClose, PanelLeftOpen, CircleHelp } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { ApiKeysDialog } from "@/components/ApiKeysDialog";
 import { Logo } from "@/components/Logo";
@@ -20,6 +22,7 @@ interface HeaderProps {
 export default function Header({ toggleSidebar, isSidebarCollapsed }: HeaderProps) {
   const tu = useTranslations("UI");
   const t = useTranslations("Header");
+  const tt = useTranslations("Tour");
   const locale = useLocale();
   const { theme, setTheme } = useTheme();
   
@@ -102,8 +105,24 @@ export default function Header({ toggleSidebar, isSidebarCollapsed }: HeaderProp
       {/* Actions */}
       <div className="flex items-center gap-1">
         {/* Clés API — visible en haut, séparé des bascules thème/langue par un divider. */}
-        <ApiKeysDialog />
+        <UpdateNotice />
+        <span data-tour="api-keys" className="inline-flex">
+          <ApiKeysDialog />
+        </span>
         <span className="mx-1.5 h-5 w-px bg-border" aria-hidden />
+        {/* Relance la visite guidée */}
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={requestTour}
+          data-tour="help"
+          title={tt("replay")}
+          aria-label={tt("replay")}
+          className="size-9 text-muted-foreground"
+        >
+          <CircleHelp size={17} />
+        </Button>
+        <div data-tour="prefs" className="flex items-center gap-1">
         {mounted ? (
           <Button
             variant="ghost"
@@ -128,6 +147,7 @@ export default function Header({ toggleSidebar, isSidebarCollapsed }: HeaderProp
           <Globe size={15} />
           {locale.toUpperCase()}
         </Link>
+        </div>
       </div>
     </header>
   );

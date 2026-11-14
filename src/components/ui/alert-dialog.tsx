@@ -31,10 +31,20 @@ function AlertDialogOverlay({ className, ...props }: React.ComponentProps<typeof
   );
 }
 
-function AlertDialogContent({ className, ...props }: React.ComponentProps<typeof AlertDialogPrimitive.Content>) {
+/** Clic sur le fond assombri = Échap : la fenêtre se ferme sans viser « × »,
+ *  et un `onEscapeKeyDown` qui bloque la fermeture (action en cours) la bloque
+ *  aussi ici. `dismissOnOutsideClick={false}` pour une confirmation critique. */
+const closeLikeEscape = () =>
+  document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", code: "Escape", bubbles: true, cancelable: true }));
+
+function AlertDialogContent({
+  className,
+  dismissOnOutsideClick = true,
+  ...props
+}: React.ComponentProps<typeof AlertDialogPrimitive.Content> & { dismissOnOutsideClick?: boolean }) {
   return (
     <AlertDialogPortal>
-      <AlertDialogOverlay />
+      <AlertDialogOverlay onClick={dismissOnOutsideClick ? closeLikeEscape : undefined} />
       <AlertDialogPrimitive.Content
         data-slot="alert-dialog-content"
         className={cn(

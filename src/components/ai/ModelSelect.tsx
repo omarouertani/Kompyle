@@ -48,7 +48,7 @@ export function ModelSelect({ model, onModelChange, disabled, label, className, 
     <>
       {(Object.keys(PROVIDER_MODELS) as AIProvider[]).map((prov) => (
         <SelectGroup key={prov}>
-          <SelectLabel className="flex items-center gap-2 px-2 pt-2 pb-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+          <SelectLabel className="flex items-center gap-2 px-2.5 pt-2.5 pb-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
             <span className="size-2 rounded-full" style={{ backgroundColor: PROVIDER_META[prov].color }} />
             {PROVIDER_META[prov].label}
             {PROVIDER_META[prov].free && (

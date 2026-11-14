@@ -1,7 +1,8 @@
 "use client";
 
-import React from "react";
+import React, { useMemo, useRef, type RefObject } from "react";
 import { useTranslations } from "next-intl";
+import { useDismiss } from "@/hooks/use-dismiss";
 import { DndContext, PointerSensor, KeyboardSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, arrayMove, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -63,6 +64,14 @@ export function LayersPanel({
 }: LayersPanelProps) {
   const tu = useTranslations("UI");
   const t = useTranslations("Canvas");
+  // Clic ailleurs ou Échap : fermeture. Le bouton « Calques » de la barre
+  // d'outils compte comme « dedans » (sinon il refermerait puis rouvrirait).
+  const panelRef = useRef<HTMLDivElement>(null);
+  const toggleRef = useMemo<RefObject<HTMLElement | null>>(
+    () => ({ get current() { return document.querySelector<HTMLElement>("[data-layers-toggle]"); } }),
+    []
+  );
+  useDismiss(true, onClose, panelRef, toggleRef);
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
@@ -120,6 +129,7 @@ export function LayersPanel({
 
   return (
     <div
+      ref={panelRef}
       data-canvas-toolbar
       className="absolute right-2 top-14 z-[60] w-60 max-h-[70%] flex flex-col rounded-xl border border-border/70 bg-popover/95 backdrop-blur-xl shadow-xl"
       onMouseDown={(e) => e.stopPropagation()}
