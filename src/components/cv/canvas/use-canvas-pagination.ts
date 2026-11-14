@@ -46,6 +46,37 @@ interface UseCanvasPaginationArgs {
  *  Le cœur du module : tout ce qui répartit les blocs sur des pages A4 à partir
  *  de leurs hauteurs RÉELLES (mesurées dans le DOM, après chargement des
  *  polices) plutôt que d'estimations heuristiques. */
+/** Exécute `cb` une fois le nouveau contenu rendu : après deux frames, ou après
+ *  un court délai si les frames sont suspendues (onglet en arrière-plan). */
+function afterRender(cb: () => void): void {
+  let done = false;
+  const run = () => {
+    if (done) return;
+    done = true;
+    cb();
+  };
+  requestAnimationFrame(() => requestAnimationFrame(run));
+  setTimeout(run, 150);
+}
+
+/** Empreinte de la STRUCTURE du CV (nombre d'éléments, de puces, de langues,
+ *  champs présents, sections affichées) — pas du texte : taper ne la change pas. */
+function cvStructureKey(d: CVData, l: CVLayout): string {
+  const pi = d.personalInfo ?? ({} as CVData["personalInfo"]);
+  const has = (v: unknown) => (v === undefined ? "u" : v === "" ? "e" : "1");
+  return [
+    d.experiences.map((e) => e.bullets.length).join("."),
+    d.projects.length,
+    d.education.length,
+    d.skills.map((s) => s.items.split(",").filter((x) => x.trim()).length).join("."),
+    d.spokenLanguages.length,
+    (d.customSections ?? []).map((c) => c.id).join("."),
+    [pi.portfolio, pi.birthDate, pi.photo, pi.certifications, pi.interests, pi.summary, pi.techLine].map(has).join(""),
+    l.pages.map((p) => `${p.main.join(",")}|${p.sidebar.join(",")}`).join("/"),
+    l.theme?.skillMode ?? "",
+  ].join("#");
+}
+
 export function useCanvasPagination({
   data,
   layout,
@@ -187,6 +218,22 @@ export function useCanvasPagination({
       const blocks = sectionIds
         .flatMap((s) => getSectionBlockIds(s, d))
         .filter((b) => positions[b]);
+      if (Object.keys(saved).length > 0) {
+        let prev: string | null = null;
+        for (const b of blocks) {
+          if (!saved[b] && prev) {
+            const p = positions[prev];
+            const sameSection = getParentSectionId(b) === getParentSectionId(prev);
+            positions[b] = {
+              ...positions[b],
+              y: p.y + 0.5,
+              page: p.page,
+              ...(sameSection ? { x: p.x, w: p.w ?? positions[b].w } : {}),
+            };
+          }
+          prev = b;
+        }
+      }
       const pageOf = (b: string) => positions[b].page ?? 0;
       for (const page of new Set(blocks.map(pageOf))) {
         const group = blocks.filter((b) => pageOf(b) === page).sort((a, b) => positions[a].y - positions[b].y);
@@ -234,6 +281,60 @@ export function useCanvasPagination({
       })
     );
   }, [relaxPreservingPositions]);
+
+  // Ré-empilement AUTOMATIQUE quand la structure du contenu change (élément
+  // ajouté / supprimé / dupliqué / déplacé, puce, langue, compétence, section
+  // affichée ou masquée, champ ajouté…) : chaque bloc reprend sa place sous le
+  // précédent, les trous laissés par une suppression se referment. Mise en page
+  // dérivée → pas de pas d'annulation (AUTO_REFLOW_KEY).
+  const structure = cvStructureKey(data, layout);
+  const lastStructure = useRef(structure);
+  // Fonctions de reflow lues via une ref : l'effet ne doit dépendre QUE de la
+  // structure (sinon un re-rendu intermédiaire annulerait le ré-empilement prévu).
+  const restackFns = useRef({ relaxPreservingPositions, buildPaginatedLayout });
+  useEffect(() => {
+    restackFns.current = { relaxPreservingPositions, buildPaginatedLayout };
+  }, [relaxPreservingPositions, buildPaginatedLayout]);
+  const unmounted = useRef(false);
+  useEffect(() => {
+    // Remis à false au (re)montage : en dev, StrictMode démonte/remonte les effets.
+    unmounted.current = false;
+    return () => { unmounted.current = true; };
+  }, []);
+  useEffect(() => {
+    if (lastStructure.current === structure) return;
+    lastStructure.current = structure;
+    const { relaxPreservingPositions, buildPaginatedLayout } = restackFns.current;
+    afterRender(() => {
+        if (unmounted.current) return;
+        const { data: d, layout: l, template: tpl, onChange: oc } = reflowRefs.current;
+        const hasSaved = !!(l.absolutePositions && Object.keys(l.absolutePositions).length > 0);
+        if (hasSaved) {
+          // Placement manuel conservé (X, ordre, pages) ; seuls les Y sont recalculés.
+          const positions = relaxPreservingPositions();
+          if (positions) oc({ ...d, layout: { ...l, useAbsolutePositioning: true, absolutePositions: positions } }, AUTO_REFLOW_KEY);
+        } else {
+          // Mise en page par défaut : recalcul complet sur les hauteurs mesurées.
+          const nextLayout = buildPaginatedLayout(d, l, tpl);
+          if (nextLayout) oc({ ...d, layout: nextLayout }, AUTO_REFLOW_KEY);
+        }
+    });
+  }, [structure]);
+
+  // Texte allongé (frappe, collage, IA) : un bloc qui grandit ne doit jamais
+  // recouvrir le suivant. Après une pause, on ne fait descendre que les blocs
+  // chevauchés (les espacements choisis restent) ; rien n'est écrit sinon.
+  useEffect(() => {
+    if (!hasSavedPositions) return;
+    const timer = setTimeout(() => {
+      const { data: d, layout: l, onChange: oc } = reflowRefs.current;
+      const next = relaxPreservingPositions("overlapsOnly");
+      const saved = l.absolutePositions ?? {};
+      if (!next || !Object.keys(next).some((id) => saved[id] && saved[id].y !== next[id].y)) return;
+      oc({ ...d, layout: { ...l, absolutePositions: { ...saved, ...next } } }, AUTO_REFLOW_KEY);
+    }, 600);
+    return () => clearTimeout(timer);
+  }, [data, hasSavedPositions, relaxPreservingPositions]);
 
   // Auto-correction UNIQUE à l'ouverture : des positions enregistrées peuvent
   // avoir été calculées avec d'autres hauteurs (police corrigée, retours à la

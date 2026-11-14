@@ -105,6 +105,7 @@ export function CVPageScaleWrapper({
     >
       <div
         data-page-index={pageIndex}
+        data-tour={pageIndex === 0 ? "cv-page" : undefined}
         className="shadow-2xl border border-border/60 bg-white text-zinc-900 shrink-0 cv-a4-page relative mx-auto overflow-hidden"
         style={{
           width: `${PAGE_WIDTH_PX * finalScale}px`,

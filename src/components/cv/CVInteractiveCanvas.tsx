@@ -151,7 +151,7 @@ export default function CVInteractiveCanvas({ data, onChange: onChangeProp, temp
     startSidebarResize,
   } = useCanvasInteractions({ data, template, defaultPositions, onChange, resolveDropRef, onGroupScaled: () => groupScaledRef.current?.() });
 
-  const { autoHeight, resetPosition, canDuplicate, duplicateItem, pasteItems, canDeleteBlock, deleteBlock, hideSectionOf } =
+  const { autoHeight, resetPosition, canDuplicate, duplicateItem, pasteItems, canDeleteBlock, deleteBlock, hideSectionOf, addItem, canMoveItem, moveItem } =
     useBlockActions({ data, defaultPositions, onChange });
 
   // Formatage au niveau bloc (sur la donnée, un seul onChange) : sélectionner un
@@ -373,6 +373,9 @@ export default function CVInteractiveCanvas({ data, onChange: onChangeProp, temp
     addPage,
     removePage,
     reorderZ: layers.reorder,
+    addItem,
+    canMoveItem,
+    moveItem,
   });
 
   /** Résout la position d'un bloc : cas photo, position sauvegardée, ou
@@ -534,6 +537,8 @@ export default function CVInteractiveCanvas({ data, onChange: onChangeProp, temp
         onInsert={insertFreeElement}
         layersOpen={layersOpen}
         onToggleLayers={() => setLayersOpen((o) => !o)}
+        data={data}
+        onDataChange={onChange}
       />
 
       {layersOpen && (

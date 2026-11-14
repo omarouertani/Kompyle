@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { useTranslations } from "next-intl";
+import { useDismiss } from "@/hooks/use-dismiss";
 import { Highlighter, Link2, Unlink, RemoveFormatting, ListOrdered, MoveVertical } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { useCanvasFormat } from "./use-canvas-format";
@@ -53,6 +54,8 @@ export function TextExtrasGroup({ fmt, applyFmt, onBlockCommand, onBlockStyles, 
   const [linkDraft, setLinkDraft] = useState("");
   const [linkError, setLinkError] = useState(false);
   const toggle = (k: "highlight" | "link" | "spacing") => setOpen((o) => (o === k ? null : k));
+  const groupRef = useRef<HTMLDivElement>(null);
+  useDismiss(open !== null, () => setOpen(null), groupRef);
 
   const applyHighlight = (color: string) => {
     applyFmt(() => fmt.exec("hiliteColor", color), () => onBlockCommand?.("hiliteColor", color) ?? false);
@@ -84,7 +87,7 @@ export function TextExtrasGroup({ fmt, applyFmt, onBlockCommand, onBlockStyles, 
   };
 
   return (
-    <div className="relative flex items-center gap-0.5">
+    <div ref={groupRef} className="relative flex items-center gap-0.5">
       <ToolButton
         title={t("format_list_ordered")}
         onClick={() => { if (fmt.exec("insertOrderedList")) onReflow?.(); }}
@@ -111,9 +114,8 @@ export function TextExtrasGroup({ fmt, applyFmt, onBlockCommand, onBlockStyles, 
 
       {open && (
         <>
-          <div className="fixed inset-0 z-30" onClick={() => setOpen(null)} />
           <div
-            className="absolute left-0 top-8 z-40 rounded-lg border border-border bg-popover shadow-lg motion-pop p-2 text-[11px] text-foreground"
+            className="absolute left-0 top-8 z-40 popover-surface motion-pop p-2 text-[11px] text-foreground"
             onMouseDown={(e) => {
               // Ne pas voler le focus de l'éditeur, sauf pour le champ du lien.
               if (!(e.target instanceof HTMLInputElement)) e.preventDefault();

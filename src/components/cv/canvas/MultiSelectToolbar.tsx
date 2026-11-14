@@ -2,6 +2,7 @@
 
 import React, { useRef } from "react";
 import { useTranslations } from "next-intl";
+import { useDismiss } from "@/hooks/use-dismiss";
 import {
   AlignStartVertical,
   AlignCenterVertical,
@@ -126,8 +127,10 @@ export function MultiSelectToolbar({ count, hasGroup, onAlign, onGroup, onUngrou
 /** Sélecteur de police compact pour la multi-sélection (applique à tous). */
 function SelectionFontPicker({ onPick, title }: { onPick: (stack: string) => void; title: string }) {
   const [open, setOpen] = React.useState(false);
+  const ref = React.useRef<HTMLDivElement>(null);
+  useDismiss(open, () => setOpen(false), ref);
   return (
-    <div className="relative">
+    <div ref={ref} className="relative">
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
@@ -138,14 +141,13 @@ function SelectionFontPicker({ onPick, title }: { onPick: (stack: string) => voi
       </button>
       {open && (
         <>
-          <div className="fixed inset-0 z-30" onClick={() => setOpen(false)} />
-          <div className="absolute left-0 top-7 z-40 w-40 max-h-60 overflow-y-auto rounded-lg border border-border bg-popover shadow-lg motion-pop p-1 scrollbar-thin">
+          <div className="absolute left-0 top-7 z-40 w-40 max-h-60 overflow-y-auto popover-surface motion-pop p-1.5 scrollbar-thin">
             {(Object.entries(FONT_FAMILIES) as Array<[CVFontFamily, { label: string; stack: string }]>).map(([key, font]) => (
               <button
                 key={key}
                 type="button"
                 onClick={() => { onPick(font.stack); setOpen(false); }}
-                className="w-full px-2 py-1.5 rounded-md text-left text-xs text-foreground hover:bg-muted/60"
+                className="w-full px-2 py-1.5 rounded-lg text-left text-xs text-foreground transition-colors hover:bg-primary/10"
                 style={{ fontFamily: font.stack }}
               >
                 {font.label}

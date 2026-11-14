@@ -6,17 +6,17 @@ import type { CVData, CVLang, CoverLetterData } from "@/types/cv";
 import { usePathname, useRouter } from "@/i18n/routing";
 import { detectCVLanguage, isCVLang, otherLang } from "@/lib/cv-i18n";
 import { requestCVTranslation, setPendingToast, takePendingToast } from "@/lib/cv-import/translate-client";
-import CVBuilder from "@/components/cv/CVBuilder";
-import CoverLetterBuilder from "@/components/cv/CoverLetterBuilder";
 import { useTranslations, useLocale } from "next-intl";
 import Header from "@/components/Header";
 import {
   Sparkles,
-  PencilRuler,
-
   FileText,
   Mail,
-  PenTool,
+  Wand2,
+  ListChecks,
+  Minimize2,
+  Target,
+  RotateCcw,
   PanelLeftClose,
   PanelLeftOpen,
   Save,
@@ -37,6 +37,10 @@ import { stripHtml } from "@/utils/strip-html";
 import { Button } from "@/components/ui/button";
 import { PromptInput, PromptInputTextarea, PromptInputToolbar, PromptInputAction } from "@/components/ui/prompt-input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Conversation, ConversationEmptyState } from "@/components/ai-elements/conversation";
+import { Message, MessageAction, MessageActions, MessageContent } from "@/components/ai-elements/message";
+import { Suggestion, Suggestions } from "@/components/ai-elements/suggestion";
+import { Shimmer } from "@/components/ai-elements/shimmer";
 import { SidebarProvider, Sidebar, SidebarHeader, SidebarContent, SidebarRail, SidebarInset } from "@/components/ui/sidebar";
 
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -46,9 +50,9 @@ import { ModelSelect } from "@/components/ai/ModelSelect";
 import { ProfileActionsMenu } from "@/components/ProfileActionsMenu";
 import { useApiKeys } from "@/hooks/use-api-keys";
 import { useAISubmission } from "@/hooks/use-ai-submission";
-import { StatusBanner } from "@/components/cv/status-banner";
 import { toast } from "sonner";
 import { CVImportDialog, type ImportTarget } from "@/components/cv/import/CVImportDialog";
+import { OnboardingTour } from "@/components/OnboardingTour";
 import { applyImportedCV, isSampleCV } from "@/lib/cv-import/apply";
 import type { ImportedCV } from "@/lib/cv-import/schema";
 import { markUndoableChange } from "@/lib/undoable-change";
@@ -76,7 +80,18 @@ function LoadingSpinner({ type }: { type: "cv" | "letter" }) {
   );
 }
 
-type LeftTab = "ai" | "cv-builder" | "letter-builder";
+/** Un tour du fil IA du panneau de gauche. */
+type ChatItem = {
+  id: number;
+  role: "user" | "assistant";
+  text: string;
+  /** Sur quoi porte la demande : CV ou lettre (actions proposées en réponse). */
+  target?: "cv" | "letter";
+  /** Libellé au-dessus d'une demande (ex. « Offre d'emploi »). */
+  label?: string;
+  status?: "pending" | "success" | "error";
+  details?: string | string[] | null;
+};
 type RightTab = "cv" | "letter" | "ats";
 
 /** Lettre de départ (avant toute génération IA), dans la langue de l'UI. */
@@ -101,10 +116,10 @@ export default function AdaptPage() {
   const tp = useTranslations("Profiles");
   const tAdapt = useTranslations("AIAdapt");
   const te = useTranslations("AIErrors");
+  const tc = useTranslations("AIChat");
   const ti = useTranslations("CVImport");
   const locale = useLocale();
 
-  const [activeLeftTab, setActiveLeftTab] = useState<LeftTab>("ai");
   const [activeRightTab, setActiveRightTab] = useState<RightTab>("cv");
   /** Compteur incrémenté pour redéclencher l'ouverture du dialog ATS. */
   const [atsTriggerKey, setAtsTriggerKey] = useState(0);
@@ -113,7 +128,9 @@ export default function AdaptPage() {
   /** Mode du composeur unifié : "new" = adapter l'offre dans une NOUVELLE version
    *  depuis le CV sélectionné · "continue" = modifier le CV sélectionné EN PLACE. */
   const [composerMode, setComposerMode] = useState<"new" | "continue">("new");
-  const [refineHistory, setRefineHistory] = useState<string[]>([]);
+  /** Fil de la conversation avec l'IA (demandes et réponses). */
+  const [thread, setThread] = useState<ChatItem[]>([]);
+  const nextChatId = useRef(0);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isCreatingProfile, setIsCreatingProfile] = useState(false);
   const [newProfileName, setNewProfileName] = useState("");
@@ -132,15 +149,46 @@ export default function AdaptPage() {
   const router = useRouter();
   const pathname = usePathname();
 
-  // L'historique des raffinages appartient à UN CV/version précis. On le vide dès
-  // qu'on change de profil ou de version — sinon l'historique d'un autre CV
-  // resterait affiché comme s'il s'appliquait au CV courant. (Remis à zéro
-  // pendant le rendu quand la clé change, plutôt que dans un effet.)
-  const refineHistoryKey = `${profile.selectedProfile}::${profile.currentProfileId ?? ""}`;
-  const [refineHistoryOwner, setRefineHistoryOwner] = useState(refineHistoryKey);
-  if (refineHistoryOwner !== refineHistoryKey) {
-    setRefineHistoryOwner(refineHistoryKey);
-    setRefineHistory([]);
+  // Le fil appartient à UN profil : on le vide quand on change de profil (pas de
+  // version : une adaptation crée une version et la conversation continue).
+  // Remis à zéro pendant le rendu quand la clé change, plutôt que dans un effet.
+  const [threadOwner, setThreadOwner] = useState(profile.selectedProfile);
+  if (threadOwner !== profile.selectedProfile) {
+    setThreadOwner(profile.selectedProfile);
+    setThread([]);
+  }
+
+  /** Ajoute une demande (utilisateur) et la réponse en attente (assistant). */
+  const pushRequest = (text: string, target: "cv" | "letter", pendingText: string, label?: string) => {
+    const id = nextChatId.current;
+    nextChatId.current += 2;
+    setThread((prev) => [
+      ...prev.filter((m) => m.status !== "pending"),
+      { id, role: "user", text, target, label },
+      { id: id + 1, role: "assistant", text: pendingText, target, status: "pending" },
+    ]);
+  };
+
+  // La fin d'une action IA (succès / erreur) complète la réponse en attente. Une
+  // fin sans demande en attente (adaptation reprise après changement de langue)
+  // ajoute simplement la réponse. Ajusté pendant le rendu (pas d'effet).
+  const [seenStatus, setSeenStatus] = useState(profile.status);
+  if (seenStatus !== profile.status) {
+    setSeenStatus(profile.status);
+    if (profile.status === "idle") {
+      // Annulation : la réponse en attente disparaît.
+      setThread((prev) => prev.filter((m) => m.status !== "pending"));
+    } else if (profile.status === "success" || profile.status === "error") {
+      const status = profile.status;
+      // Après un résultat de l'IA, la suite naturelle est de le retoucher.
+      if (status === "success") setComposerMode("continue");
+      const done = { text: profile.statusMessage, status, details: status === "error" ? profile.statusDetails : null };
+      setThread((prev) => {
+        const i = prev.findIndex((m) => m.status === "pending");
+        if (i >= 0) return prev.map((m, j) => (j === i ? { ...m, ...done } : m));
+        return [...prev, { id: Date.now(), role: "assistant", target: "cv", ...done }];
+      });
+    }
   }
 
   /** Change d'onglet de droite ; en arrivant sur l'ATS, referme le sidebar s'il
@@ -159,8 +207,8 @@ export default function AdaptPage() {
     setIsCreatingProfile(false);
     setNewProfileName("");
     await profile.createProfile(name);
-    // Ouvre directement l'éditeur manuel pour remplir le CV vierge
-    setActiveLeftTab("cv-builder");
+    // Le CV se remplit directement sur le canvas de l'aperçu.
+    setActiveRightTab("cv");
   };
 
   const submitRename = async () => {
@@ -182,6 +230,12 @@ export default function AdaptPage() {
     if (!activeMainProfile) return;
     const ok = await profile.deleteProfile(activeMainProfile.id);
     if (!ok) setProfileActionError(tp("delete_error"));
+  };
+
+  /** Visite guidée : onglet CV affiché et panneau IA ouvert (cibles visibles). */
+  const prepareTour = () => {
+    setActiveRightTab("cv");
+    setIsSidebarOpen(true);
   };
 
   const openImport = (file: File | null = null) => {
@@ -373,165 +427,251 @@ export default function AdaptPage() {
   const submitRefine = async (target: "cv" | "letter") => {
     const instruction = refineInstruction.trim();
     if (!instruction) return;
-    const ok = target === "cv"
-      ? await handleRefineCV(instruction)
-      : await handleRefineLetter(instruction);
-    if (ok) {
-      setRefineHistory((prev) => [...prev, instruction]);
-      setRefineInstruction("");
-    }
+    pushRequest(instruction, target, target === "cv" ? t("status_loading_refine_cv") : t("status_loading_refine_letter"));
+    setRefineInstruction("");
+    const ok = target === "cv" ? await handleRefineCV(instruction) : await handleRefineLetter(instruction);
+    // En cas d'échec, on rend la consigne pour pouvoir la renvoyer.
+    if (!ok) setRefineInstruction((cur) => cur || instruction);
   };
 
-  const renderLeftContent = () => {
-    switch (activeLeftTab) {
-      case "ai": {
-        // Composeur unifié. "continue" (modif en place) n'est proposé qu'une fois
-        // qu'un document existe ; sinon on force "new" (nouvelle version depuis l'offre).
-        const canContinue = profile.isAdapted || !!profile.coverLetterData;
-        const mode: "new" | "continue" = canContinue ? composerMode : "new";
-        const composerValue = mode === "new" ? jobDescription : refineInstruction;
-        const onComposerChange = mode === "new" ? setJobDescription : setRefineInstruction;
-        const isLoading = profile.status === "loading";
-        return (
-          <div className="flex flex-col gap-5 p-6">
-            <div>
-              <h1 className="text-2xl font-semibold tracking-tight text-foreground mb-1.5">{mode === "new" ? t("title") : t("refine_title")}</h1>
-              <p className="text-sm text-muted-foreground leading-relaxed">{mode === "new" ? t("subtitle") : t("refine_subtitle")}</p>
-            </div>
+  /** Envoi depuis l'offre : adapter le CV, ou rédiger la lettre. */
+  const submitFromOffer = (target: "cv" | "letter") => {
+    const offer = jobDescription.trim();
+    if (!offer) return;
+    pushRequest(
+      offer,
+      target,
+      target === "cv" ? t("status_loading_cv") : t("status_loading_letter"),
+      target === "cv" ? tc("request_adapt") : tc("request_letter")
+    );
+    if (target === "cv") handleAdaptCV();
+    else handleGenerateLetter();
+  };
 
-            {/* Groupe composeur : saisie + choix du mode + alerte clé, espacés
-                serré ensemble (plus de marges négatives « -mt-3 » bricolées). */}
-            <div className="flex flex-col gap-2.5">
-            {/* ── Saisie du poste : PromptInput réutilisable, actions intégrées ── */}
-            <PromptInput>
-              <PromptInputTextarea
-                placeholder={mode === "new" ? t("placeholder") : t("refine_placeholder")}
-                value={composerValue}
-                onChange={(e) => onComposerChange(e.target.value)}
-                disabled={isLoading}
-                minHeight={150}
-                maxHeight={300}
-              />
-              <PromptInputToolbar className="justify-between">
-                {/* Modèle IA en icône-seule, à gauche (menu compact, ouvert vers le bas). */}
-                <ModelSelect
-                  compact
-                  model={aiConfig.model}
-                  onModelChange={aiConfig.selectModel}
-                  disabled={isLoading}
-                />
-                <div className="flex items-center gap-1.5">
-                  {isLoading ? (
-                    /* Pendant le travail de l'IA : un seul bouton pour ANNULER. */
-                    <PromptInputAction
-                      variant="outline"
-                      label={t("btn_cancel")}
-                      icon={<X className="size-4" />}
-                      onClick={aiCancel}
-                    />
+  // Mode du composeur. « continue » (modifier en place) n'est proposé qu'une fois
+  // qu'un document existe ; sinon on reste sur « new » (adapter depuis l'offre).
+  const canContinue = profile.isAdapted || !!profile.coverLetterData;
+  const mode: "new" | "continue" = canContinue ? composerMode : "new";
+  const isLoading = profile.status === "loading";
+
+
+  const refineSuggestions = [
+    { key: "s_keywords", icon: <Target size={12} /> },
+    { key: "s_summary", icon: <Wand2 size={12} /> },
+    { key: "s_quantify", icon: <ListChecks size={12} /> },
+    { key: "s_shorten", icon: <Minimize2 size={12} /> },
+  ] as const;
+
+  /** Actions proposées sous une réponse réussie de l'assistant. */
+  const replyActions = (item: ChatItem) =>
+    item.target === "letter" ? (
+      <MessageActions>
+        <MessageAction icon={<Mail size={12} />} onClick={() => goToRightTab("letter")}>{tc("action_view_letter")}</MessageAction>
+      </MessageActions>
+    ) : (
+      <MessageActions>
+        <MessageAction icon={<FileText size={12} />} onClick={() => goToRightTab("cv")}>{tc("action_view_cv")}</MessageAction>
+        <MessageAction
+          icon={<ShieldCheck size={12} />}
+          onClick={() => {
+            goToRightTab("ats");
+            setAtsTriggerKey((k) => k + 1);
+          }}
+        >
+          {tc("action_check_ats")}
+        </MessageAction>
+        {jobDescription.trim() && (
+          <MessageAction icon={<Mail size={12} />} disabled={isLoading} onClick={() => submitFromOffer("letter")}>
+            {tc("action_write_letter")}
+          </MessageAction>
+        )}
+      </MessageActions>
+    );
+
+  const renderAIPanel = () => {
+    const composerValue = mode === "new" ? jobDescription : refineInstruction;
+    const onComposerChange = mode === "new" ? setJobDescription : setRefineInstruction;
+    const keyMissing = !apiKeys.keys[aiConfig.provider];
+
+    return (
+      <div className="flex h-full min-h-0 flex-col">
+        <Conversation scrollKey={thread.map((m) => `${m.id}:${m.status}`).join(",")}>
+          {thread.length === 0 ? (
+            <ConversationEmptyState
+              icon={<Sparkles size={20} />}
+              title={mode === "new" ? tc("empty_title_new") : tc("empty_title_continue")}
+              description={mode === "new" ? tc("empty_body_new") : tc("empty_body_continue")}
+            >
+              <Suggestions className="mt-1">
+                {mode === "new" ? (
+                  <>
+                    <Suggestion icon={<FileUp size={12} />} onClick={() => openImport()}>{tc("s_import")}</Suggestion>
+                    <Suggestion icon={<ShieldCheck size={12} />} onClick={() => goToRightTab("ats")}>{tc("s_ats")}</Suggestion>
+                  </>
+                ) : (
+                  refineSuggestions.map(({ key, icon }) => (
+                    <Suggestion key={key} icon={icon} disabled={isLoading} onClick={() => setRefineInstruction(tc(key))}>
+                      {tc(key)}
+                    </Suggestion>
+                  ))
+                )}
+              </Suggestions>
+            </ConversationEmptyState>
+          ) : (
+            thread.map((item) =>
+              item.role === "user" ? (
+                <Message key={item.id} from="user">
+                  {item.label && <span className="px-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{item.label}</span>}
+                  <MessageContent
+                    from="user"
+                    className={cn("whitespace-pre-line", item.text.length > 280 && "max-h-40 overflow-hidden [mask-image:linear-gradient(to_bottom,black_70%,transparent)]")}
+                  >
+                    {item.text.length > 400 ? `${item.text.slice(0, 400)}…` : item.text}
+                  </MessageContent>
+                </Message>
+              ) : (
+                <Message key={item.id} from="assistant">
+                  {item.status === "pending" ? (
+                    <MessageContent from="assistant">
+                      <Shimmer>{item.text}</Shimmer>
+                    </MessageContent>
                   ) : (
                     <>
-                      <PromptInputAction
-                        variant="outline"
-                        label={mode === "new" ? t("btn_letter") : t("btn_refine_letter")}
-                        icon={<Mail className="size-4" />}
-                        onClick={() => {
-                          if (mode === "new") { setRefineHistory([]); handleGenerateLetter(); }
-                          else submitRefine("letter");
-                        }}
-                        disabled={!composerValue.trim() || (mode === "continue" && !profile.coverLetterData)}
-                      />
-                      <PromptInputAction
-                        variant="default"
-                        label={mode === "new" ? t("btn_adapt") : t("btn_refine_cv")}
-                        icon={mode === "new" ? <Sparkles className="size-4" /> : <FileText className="size-4" />}
-                        onClick={() => {
-                          if (mode === "new") { setRefineHistory([]); handleAdaptCV(); }
-                          else submitRefine("cv");
-                        }}
-                        disabled={!composerValue.trim() || (mode === "continue" && !profile.isAdapted)}
-                      />
+                      <MessageContent from="assistant" tone={item.status === "error" ? "error" : "default"}>
+                        <p>{item.text}</p>
+                        {item.details && (
+                          <ul className="mt-1.5 list-disc pl-4 text-xs opacity-80">
+                            {(Array.isArray(item.details) ? item.details : [item.details]).map((d, i) => <li key={i}>{d}</li>)}
+                          </ul>
+                        )}
+                      </MessageContent>
+                      {item.status === "success" && replyActions(item)}
                     </>
                   )}
-                </div>
-              </PromptInputToolbar>
-            </PromptInput>
+                </Message>
+              )
+            )
+          )}
+        </Conversation>
 
-            {/* Choix du mode : NOUVELLE version depuis l'offre · ou CONTINUER sur ce CV.
-                "Continuer" (modif en place) n'est dispo qu'une fois qu'un document
-                existe (CV adapté / lettre) — sinon désactivé, on reste en "nouvelle". */}
-            <div className="flex items-center gap-1 rounded-lg border border-border/50 bg-muted/50 p-1">
-              <button
-                type="button"
-                onClick={() => setComposerMode("new")}
-                className={cn(
-                  "flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition-all",
-                  mode === "new" ? "bg-card text-primary shadow-sm ring-1 ring-primary/15" : "text-muted-foreground hover:text-foreground",
-                )}
-              >
-                <Sparkles size={13} />
-                {t("mode_new")}
-              </button>
-              <button
-                type="button"
-                onClick={() => canContinue && setComposerMode("continue")}
-                disabled={!canContinue}
-                title={canContinue ? undefined : t("mode_continue_hint")}
-                className={cn(
-                  "flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition-all",
-                  mode === "continue" ? "bg-card text-primary shadow-sm ring-1 ring-primary/15" : "text-muted-foreground hover:text-foreground",
-                  !canContinue && "cursor-not-allowed opacity-40 hover:text-muted-foreground",
-                )}
-              >
-                <FileText size={13} />
-                {t("mode_continue")}
-              </button>
-            </div>
-
-            {/* Alerte clé API manquante pour le provider du modèle choisi. */}
-            {!apiKeys.keys[aiConfig.provider] && (
-              <span className="flex items-center gap-1.5 text-[11px] font-medium text-warning leading-tight pl-0.5">
-                {te("missing_key")}
-              </span>
-            )}
-            </div>
-
-            {/* Historique des modifications déjà appliquées (mode "continuer"). */}
-            {mode === "continue" && refineHistory.length > 0 && (
-              <div className="flex flex-col gap-1.5">
-                {refineHistory.map((instruction, i) => (
-                  <div key={i} className="flex items-start gap-2 text-xs text-muted-foreground bg-muted/40 rounded-lg px-2.5 py-1.5">
-                    <Check size={12} className="text-success mt-0.5 shrink-0" />
-                    <span className="leading-snug">{instruction}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            <StatusBanner status={profile.status} message={profile.statusMessage} details={profile.statusDetails} />
+        {/* Suggestions de retouche au-dessus du composeur, une fois la conversation engagée */}
+        {thread.length > 0 && mode === "continue" && !isLoading && (
+          <div className="no-scrollbar flex gap-1.5 overflow-x-auto px-4 pb-2">
+            {refineSuggestions.map(({ key, icon }) => (
+              <Suggestion key={key} icon={icon} className="shrink-0" onClick={() => setRefineInstruction(tc(key))}>
+                {tc(key)}
+              </Suggestion>
+            ))}
           </div>
-        );
-      }
-      case "cv-builder":
-        return (
-          <div className="p-6">
-            <CVBuilder data={profile.currentCV} onChange={profile.setCurrentCV} />
+        )}
+
+        {/* Composeur */}
+        <div data-tour="composer" className="flex flex-col gap-2 border-t border-border/60 bg-sidebar p-3">
+          <div className="flex items-center gap-1 rounded-lg bg-muted/50 p-0.5" role="tablist" aria-label={tc("mode_label")}>
+            {(["new", "continue"] as const).map((m) => {
+              const disabled = m === "continue" && !canContinue;
+              return (
+                <button
+                  key={m}
+                  type="button"
+                  role="tab"
+                  aria-selected={mode === m}
+                  disabled={disabled}
+                  title={disabled ? t("mode_continue_hint") : undefined}
+                  onClick={() => setComposerMode(m)}
+                  className={cn(
+                    "flex flex-1 items-center justify-center gap-1.5 rounded-md px-2 py-1 text-[11px] font-semibold transition-all",
+                    mode === m ? "bg-card text-primary shadow-sm ring-1 ring-primary/15" : "text-muted-foreground hover:text-foreground",
+                    disabled && "cursor-not-allowed opacity-40 hover:text-muted-foreground"
+                  )}
+                >
+                  {m === "new" ? <Sparkles size={12} /> : <Wand2 size={12} />}
+                  {m === "new" ? t("mode_new") : t("mode_continue")}
+                </button>
+              );
+            })}
           </div>
-        );
-      case "letter-builder":
-        return (
-          <div className="p-6">
-            <CoverLetterBuilder
-              personalInfo={profile.currentCV.personalInfo}
-              data={profile.coverLetterData || initialCoverLetter}
-              onChange={(newData) => {
-                profile.setCoverLetterData(newData);
-                if (activeRightTab !== "letter") setActiveRightTab("letter");
+
+          <PromptInput>
+            <PromptInputTextarea
+              placeholder={mode === "new" ? t("placeholder") : t("refine_placeholder")}
+              value={composerValue}
+              onChange={(e) => onComposerChange(e.target.value)}
+              onKeyDown={(e) => {
+                // Entrée envoie la retouche (Maj+Entrée = nouvelle ligne). Une offre
+                // collée est souvent multi-lignes : en mode « new », bouton seulement.
+                if (mode === "continue" && e.key === "Enter" && !e.shiftKey && !isLoading) {
+                  e.preventDefault();
+                  if (refineInstruction.trim() && profile.isAdapted) submitRefine("cv");
+                }
               }}
+              disabled={isLoading}
+              minHeight={mode === "new" ? 120 : 64}
+              maxHeight={260}
             />
+            <PromptInputToolbar className="justify-between">
+              <ModelSelect compact model={aiConfig.model} onModelChange={aiConfig.selectModel} disabled={isLoading} />
+              <div className="flex items-center gap-1.5">
+                {isLoading ? (
+                  <PromptInputAction variant="outline" label={t("btn_cancel")} icon={<X className="size-4" />} onClick={aiCancel} />
+                ) : mode === "new" ? (
+                  <>
+                    <PromptInputAction
+                      variant="outline"
+                      label={t("btn_letter")}
+                      icon={<Mail className="size-4" />}
+                      onClick={() => submitFromOffer("letter")}
+                      disabled={!jobDescription.trim()}
+                    />
+                    <PromptInputAction
+                      variant="default"
+                      label={t("btn_adapt")}
+                      icon={<Sparkles className="size-4" />}
+                      onClick={() => submitFromOffer("cv")}
+                      disabled={!jobDescription.trim()}
+                    />
+                  </>
+                ) : (
+                  <>
+                    <PromptInputAction
+                      variant="outline"
+                      label={t("btn_refine_letter")}
+                      icon={<Mail className="size-4" />}
+                      onClick={() => submitRefine("letter")}
+                      disabled={!refineInstruction.trim() || !profile.coverLetterData}
+                    />
+                    <PromptInputAction
+                      variant="default"
+                      label={t("btn_refine_cv")}
+                      icon={<Wand2 className="size-4" />}
+                      onClick={() => submitRefine("cv")}
+                      disabled={!refineInstruction.trim() || !profile.isAdapted}
+                    />
+                  </>
+                )}
+              </div>
+            </PromptInputToolbar>
+          </PromptInput>
+
+          <div className="flex items-center justify-between gap-2 px-0.5">
+            {keyMissing ? (
+              <span className="text-[11px] font-medium leading-tight text-warning">{te("missing_key")}</span>
+            ) : (
+              <span className="text-[11px] text-muted-foreground">{mode === "continue" ? tc("hint_enter") : tc("hint_offer")}</span>
+            )}
+            {thread.length > 0 && !isLoading && (
+              <button
+                type="button"
+                onClick={() => setThread([])}
+                className="flex shrink-0 items-center gap-1 text-[11px] text-muted-foreground transition-colors hover:text-foreground"
+              >
+                <RotateCcw size={11} /> {tc("clear")}
+              </button>
+            )}
           </div>
-        );
-    }
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -549,6 +689,9 @@ export default function AdaptPage() {
         confirmLabel={tp("confirm_delete")}
         onConfirm={confirmDeleteProfile}
       />
+
+      {/* Visite guidée : 1re ouverture, puis bouton « ? » de l'en-tête */}
+      <OnboardingTour ready={!profile.initialLoading} prepare={prepareTour} />
 
       <CVImportDialog
         open={importOpen}
@@ -576,7 +719,7 @@ export default function AdaptPage() {
       >
         <Sidebar side="left" variant="sidebar" className="overflow-hidden border-r border-border !top-14 !h-[calc(100svh-3.5rem)]">
           <SidebarHeader className="px-3 pt-3 pb-2 border-b border-border shrink-0 bg-sidebar flex flex-col gap-2.5">
-            <div className="flex flex-col gap-2.5 rounded-xl bg-card/60 p-2.5 border border-border/60 shadow-sm">
+            <div data-tour="profiles" className="flex flex-col gap-2.5 rounded-xl bg-card/60 p-2.5 border border-border/60 shadow-sm">
               {/* Ligne 1 : libellé + statut de sauvegarde (intégré, plus de barre flottante) */}
               <div className="flex items-center justify-between gap-2 pl-0.5">
                 <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">{tp("active_label")}</span>
@@ -727,26 +870,10 @@ export default function AdaptPage() {
               )}
             </div>
 
-            <Tabs value={activeLeftTab} onValueChange={(v) => setActiveLeftTab(v as LeftTab)}>
-              <TabsList className="w-full h-9 bg-muted/60 gap-0.5">
-                <TabsTrigger value="ai" className="flex-1 gap-1.5 text-xs font-medium">
-                  <Sparkles size={13} />
-                  {t("tab_ai")}
-                </TabsTrigger>
-                <TabsTrigger value="cv-builder" className="flex-1 gap-1.5 text-xs font-medium">
-                  <PencilRuler size={13} />
-                  {t("tab_cv")}
-                </TabsTrigger>
-                <TabsTrigger value="letter-builder" className="flex-1 gap-1.5 text-xs font-medium">
-                  <PenTool size={13} />
-                  {t("tab_letter")}
-                </TabsTrigger>
-              </TabsList>
-            </Tabs>
           </SidebarHeader>
 
-          <SidebarContent className="flex-1 overflow-y-auto overflow-x-hidden no-scrollbar bg-sidebar">
-            {renderLeftContent()}
+          <SidebarContent className="flex-1 min-h-0 overflow-hidden bg-sidebar">
+            {renderAIPanel()}
           </SidebarContent>
           <SidebarRail />
         </Sidebar>
@@ -764,16 +891,16 @@ export default function AdaptPage() {
             </Button>
 
             <Tabs value={activeRightTab} onValueChange={(v) => goToRightTab(v as RightTab)}>
-              <TabsList className="w-[420px]">
+              <TabsList data-tour="doc-tabs" className="w-[420px]">
                 <TabsTrigger value="cv" className="flex-1 gap-1.5">
                   <FileText size={14} />
                   {tr("tab_cv")}
                 </TabsTrigger>
-                <TabsTrigger value="letter" className="flex-1 gap-1.5">
+                <TabsTrigger value="letter" data-tour="letter-tab" className="flex-1 gap-1.5">
                   <Mail size={14} />
                   {tr("tab_letter")}
                 </TabsTrigger>
-                <TabsTrigger value="ats" className="flex-1 gap-1.5">
+                <TabsTrigger value="ats" data-tour="ats-tab" className="flex-1 gap-1.5">
                   <ShieldCheck size={14} />
                   {tr("tab_ats")}
                 </TabsTrigger>
@@ -826,6 +953,7 @@ export default function AdaptPage() {
                 personalInfo={profile.currentCV.personalInfo}
                 theme={profile.currentCV.layout?.theme}
                 isAdapting={profile.loadingType === "letter"}
+                onChange={profile.setCoverLetterData}
               />
             )}
 

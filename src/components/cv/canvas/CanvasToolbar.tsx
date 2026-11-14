@@ -2,6 +2,7 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
+import { useDismiss } from "@/hooks/use-dismiss";
 import { cn } from "@/lib/utils";
 import { toolbarPill } from "./toolbar-styles";
 import {
@@ -28,9 +29,10 @@ import {
   MoreHorizontal,
   Layers,
 } from "lucide-react";
-import type { BlockTextAlign, CVTheme, CVFontFamily } from "@/types/cv";
+import type { BlockTextAlign, CVData, CVTheme, CVFontFamily } from "@/types/cv";
 import { FONT_FAMILIES, ThemePanel, fontKeyFromStack } from "./ThemePanel";
 import { InsertMenu, type InsertHandler } from "./InsertMenu";
+import { SectionsMenu } from "./SectionsMenu";
 import { ColorDrawer } from "./ColorDrawer";
 import { useCanvasFormat } from "./use-canvas-format";
 import { TextExtrasGroup } from "./TextExtrasGroup";
@@ -76,6 +78,9 @@ interface CanvasToolbarProps {
   /** Panneau de calques ouvert / bascule. */
   layersOpen?: boolean;
   onToggleLayers?: () => void;
+  /** Données du CV : gestionnaire de sections (afficher / renommer / ajouter). */
+  data?: CVData;
+  onDataChange?: (data: CVData) => void;
 }
 
 /** Largeurs (px) de la barre sous lesquelles on compacte / on autorise le retour à la ligne. */
@@ -118,6 +123,8 @@ export function CanvasToolbar({
   onInsert,
   layersOpen = false,
   onToggleLayers,
+  data,
+  onDataChange,
 }: CanvasToolbarProps) {
   const t = useTranslations("Canvas");
   const fmt = useCanvasFormat();
@@ -297,6 +304,7 @@ export function CanvasToolbar({
     <>
       <div
         data-canvas-toolbar
+        data-tour="canvas-toolbar"
         className="border-b border-border/45 bg-background/95 backdrop-blur-md z-20 shrink-0 w-full shadow-sm"
       >
         <div ref={rowRef} className={cn("px-3 py-2 flex items-center gap-2", narrow ? "flex-wrap" : "flex-nowrap")}>
@@ -313,12 +321,15 @@ export function CanvasToolbar({
 
           <ThemePanel theme={theme} onThemeChange={onThemeChange} compact />
 
+          {data && onDataChange && <SectionsMenu data={data} onChange={onDataChange} />}
+
           {onInsert && <InsertMenu onInsert={onInsert} />}
 
           {onToggleLayers && (
             <button
               type="button"
               onClick={onToggleLayers}
+              data-layers-toggle
               className={toolbarPill(layersOpen)}
               title={t("layers")}
               aria-pressed={layersOpen}
@@ -497,20 +508,19 @@ export function CanvasToolbar({
 /** Bouton « … » qui ouvre un panneau contenant des groupes d'outils. */
 function MoreMenu({ title, children }: { title: string; children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useDismiss(open, () => setOpen(false), ref);
   return (
-    <div className="relative shrink-0">
+    <div ref={ref} className="relative shrink-0">
       <ToolGroup>
         <ToolButton title={title} active={open} onClick={() => setOpen((o) => !o)}>
           <MoreHorizontal size={14} />
         </ToolButton>
       </ToolGroup>
       {open && (
-        <>
-          <div className="fixed inset-0 z-30" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 top-9 z-40 rounded-lg border border-border bg-popover shadow-lg motion-pop p-2 flex flex-wrap items-center gap-2 w-max max-w-[min(92vw,420px)]">
-            {children}
-          </div>
-        </>
+        <div className="absolute right-0 top-9 z-40 popover-surface motion-pop p-2 flex flex-wrap items-center gap-2 w-max max-w-[min(92vw,420px)]">
+          {children}
+        </div>
       )}
     </div>
   );
@@ -590,6 +600,8 @@ function FontFamilyPicker({
 
   const close = () => { setOpen(false); setQuery(""); };
   const pick = (k: CVFontFamily) => { onChange(k); close(); };
+  const fontRef = useRef<HTMLDivElement>(null);
+  useDismiss(open, close, fontRef);
 
   const renderItem = (key: CVFontFamily) => (
     <button
@@ -599,7 +611,7 @@ function FontFamilyPicker({
       onMouseDown={(e) => e.preventDefault()}
       className={cn(
         "w-full px-2 py-1.5 rounded-md text-left text-xs transition-colors flex items-center justify-between",
-        value === key ? "bg-primary/10 text-foreground font-semibold" : "text-foreground hover:bg-muted/60",
+        value === key ? "bg-primary/10 text-primary font-semibold" : "text-foreground hover:bg-primary/10",
       )}
       style={{ fontFamily: FONT_FAMILIES[key].stack }}
     >
@@ -609,7 +621,7 @@ function FontFamilyPicker({
   );
 
   return (
-    <div className="relative">
+    <div ref={fontRef} className="relative">
       <button
         type="button"
         onClick={() => (open ? close() : setOpen(true))}
@@ -623,8 +635,7 @@ function FontFamilyPicker({
       </button>
       {open && (
         <>
-          <div className="fixed inset-0 z-30" onClick={close} />
-          <div className="absolute left-0 top-8 z-40 w-48 rounded-lg border border-border bg-popover shadow-lg motion-pop p-1">
+          <div className="absolute left-0 top-8 z-40 w-48 popover-surface motion-pop p-1">
             <input
               autoFocus
               type="text"
@@ -704,15 +715,16 @@ function FontSizeStepper({
 function ShortcutsHelpButton() {
   const t = useTranslations("Canvas");
   const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useDismiss(open, () => setOpen(false), ref);
   return (
-    <div className="relative">
+    <div ref={ref} className="relative">
       <ToolButton onClick={() => setOpen((o) => !o)} title={t("shortcuts_help")}>
         <Info size={13} />
       </ToolButton>
       {open && (
         <>
-          <div className="fixed inset-0 z-30" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 top-9 z-40 w-72 rounded-lg border border-border bg-popover shadow-lg motion-pop p-3 text-[11px] text-foreground/90 leading-relaxed">
+          <div className="absolute right-0 top-9 z-40 w-72 popover-surface motion-pop p-3 text-[11px] text-foreground/90 leading-relaxed">
             <div className="font-semibold text-xs text-foreground mb-1.5">{t("shortcuts_title")}</div>
             <div className="text-muted-foreground">{t("hint")}</div>
           </div>

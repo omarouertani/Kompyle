@@ -27,7 +27,9 @@
 	--foreground: oklch(0.34 0.03 95.72);
 	--card: oklch(0.98 0.01 95.10);
 	--card-foreground: oklch(0.19 0.00 106.59);
-	--popover: oklch(1.00 0 0);
+	/* Menus et popovers : crème du thème (pas de blanc pur), détachés du fond
+	   par la bordure et l'ombre de .popover-surface. */
+	--popover: oklch(0.985 0.012 92);
 	--popover-foreground: oklch(0.27 0.02 98.94);
 	--primary: oklch(0.62 0.14 39.04);
 	--primary-foreground: oklch(1.00 0 0);
@@ -158,6 +160,79 @@
 	--color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
 	--color-sidebar-border: var(--sidebar-border);
 	--color-sidebar-ring: var(--sidebar-ring);
+}
+
+/* ── Barres de défilement aux couleurs du thème (toute l'app, menus compris) ──
+   Chromium / Safari : pseudo-éléments ::-webkit-scrollbar (fines, arrondies,
+   sans flèches). Firefox : propriétés standard. Les deux suivent le thème
+   clair / sombre via les variables ci-dessous. */
+:root {
+	--scrollbar-thumb: color-mix(in oklch, var(--muted-foreground) 38%, transparent);
+	--scrollbar-thumb-hover: color-mix(in oklch, var(--muted-foreground) 62%, transparent);
+	--popover-shadow: 0 14px 36px -10px rgb(0 0 0 / 0.18), 0 3px 8px -3px rgb(0 0 0 / 0.08);
+}
+.dark {
+	--scrollbar-thumb: color-mix(in oklch, var(--muted-foreground) 32%, transparent);
+	--scrollbar-thumb-hover: color-mix(in oklch, var(--muted-foreground) 55%, transparent);
+	--popover-shadow: 0 16px 40px -10px rgb(0 0 0 / 0.55), 0 3px 8px -3px rgb(0 0 0 / 0.35);
+}
+@supports not selector(::-webkit-scrollbar) {
+	* {
+		scrollbar-width: thin;
+		scrollbar-color: var(--scrollbar-thumb) transparent;
+	}
+}
+::-webkit-scrollbar {
+	width: 10px;
+	height: 10px;
+}
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-corner {
+	background: transparent;
+}
+::-webkit-scrollbar-thumb {
+	background-color: var(--scrollbar-thumb);
+	border: 3px solid transparent;
+	border-radius: 9999px;
+	background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover {
+	background-color: var(--scrollbar-thumb-hover);
+}
+::-webkit-scrollbar-button {
+	display: none;
+	width: 0;
+	height: 0;
+}
+
+/* Défilement sans barre visible (fil IA, barres d'outils). */
+@utility no-scrollbar {
+	scrollbar-width: none;
+	&::-webkit-scrollbar {
+		display: none;
+	}
+}
+/* Barre plus discrète pour les petits panneaux. Sous Chromium, une valeur
+   standard (scrollbar-width / -color) désactiverait les styles ::-webkit-* :
+   on la neutralise pour garder partout la même barre aux couleurs du thème. */
+@supports selector(::-webkit-scrollbar) {
+	.scrollbar-thin {
+		scrollbar-width: auto;
+		scrollbar-color: auto;
+	}
+}
+.scrollbar-thin::-webkit-scrollbar {
+	width: 8px;
+	height: 8px;
+}
+
+/* Surface commune de TOUS les menus déroulants / popovers de l'app. */
+@utility popover-surface {
+	border-radius: calc(var(--radius) * 1.4);
+	border: 1px solid color-mix(in oklch, var(--border) 85%, transparent);
+	background-color: var(--popover);
+	color: var(--popover-foreground);
+	box-shadow: var(--popover-shadow);
 }
 
 @layer base {
@@ -358,6 +433,10 @@
 		animation-delay: calc(var(--i, 0) * 50ms);
 	}
 
+	@keyframes ai-shimmer {
+		from { background-position: 100% 0; }
+		to { background-position: -150% 0; }
+	}
 	@keyframes motion-grow {
 		from {
 			transform: scaleX(0);
@@ -465,4 +544,106 @@
 		transition-duration: 0.01ms !important;
 		scroll-behavior: auto !important;
 	}
+}
+/* ── Visite guidée (Driver.js) aux couleurs de l'app ─────────────────────────
+   Surcharge du thème par défaut (blanc, boutons gris) : surface des menus,
+   typographie de l'app, bouton principal orange, clair / sombre. */
+.driver-popover.kompyle-tour {
+	--driver-popover-font-family: var(--font-body);
+	max-width: 360px;
+	min-width: 280px;
+	padding: 18px 18px 14px;
+	border-radius: calc(var(--radius) * 1.6);
+	border: 1px solid color-mix(in oklch, var(--border) 85%, transparent);
+	background-color: var(--popover);
+	color: var(--popover-foreground);
+	box-shadow: var(--popover-shadow);
+}
+.driver-popover.kompyle-tour .driver-popover-title {
+	font-size: 15px;
+	font-weight: 650;
+	line-height: 1.35;
+	color: var(--foreground);
+	padding-right: 20px;
+}
+.driver-popover.kompyle-tour .driver-popover-description {
+	margin-top: 8px;
+	font-size: 13px;
+	line-height: 1.55;
+	color: var(--muted-foreground);
+}
+.driver-popover.kompyle-tour .driver-popover-description b {
+	font-weight: 600;
+	color: var(--foreground);
+}
+.driver-popover.kompyle-tour .driver-popover-description :is(ul, ol) {
+	margin: 6px 0 0;
+	padding-left: 18px;
+	display: flex;
+	flex-direction: column;
+	gap: 3px;
+}
+.driver-popover.kompyle-tour .driver-popover-description ul { list-style: disc; }
+.driver-popover.kompyle-tour .driver-popover-description ol { list-style: decimal; }
+.driver-popover.kompyle-tour .driver-popover-description li::marker { color: var(--primary); }
+.driver-popover.kompyle-tour .driver-popover-close-btn {
+	top: 10px;
+	right: 10px;
+	width: 26px;
+	height: 26px;
+	border-radius: 8px;
+	color: var(--muted-foreground);
+}
+.driver-popover.kompyle-tour .driver-popover-close-btn:hover,
+.driver-popover.kompyle-tour .driver-popover-close-btn:focus-visible {
+	color: var(--foreground);
+	background-color: var(--muted);
+}
+.driver-popover.kompyle-tour .driver-popover-footer {
+	margin-top: 16px;
+	gap: 8px;
+}
+.driver-popover.kompyle-tour .driver-popover-progress-text {
+	font-size: 11px;
+	font-weight: 600;
+	font-variant-numeric: tabular-nums;
+	color: var(--muted-foreground);
+}
+.driver-popover.kompyle-tour .driver-popover-navigation-btns { gap: 6px; }
+.driver-popover.kompyle-tour .driver-popover-footer-btn {
+	padding: 6px 12px;
+	border-radius: var(--radius);
+	border: 1px solid var(--border);
+	background-color: var(--card);
+	color: var(--foreground);
+	font-size: 12px;
+	font-weight: 600;
+	text-shadow: none;
+	transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+.driver-popover.kompyle-tour .driver-popover-footer-btn:hover { background-color: var(--muted); }
+.driver-popover.kompyle-tour .driver-popover-next-btn {
+	border-color: var(--primary);
+	background-color: var(--primary);
+	color: var(--primary-foreground);
+}
+.driver-popover.kompyle-tour .driver-popover-next-btn:hover {
+	background-color: color-mix(in oklch, var(--primary) 88%, black);
+}
+.driver-popover.kompyle-tour .driver-popover-footer-btn:focus-visible {
+	outline: 2px solid var(--ring);
+	outline-offset: 2px;
+}
+.driver-popover.kompyle-tour .driver-popover-arrow-side-left { border-left-color: var(--popover); }
+.driver-popover.kompyle-tour .driver-popover-arrow-side-right { border-right-color: var(--popover); }
+.driver-popover.kompyle-tour .driver-popover-arrow-side-top { border-top-color: var(--popover); }
+.driver-popover.kompyle-tour .driver-popover-arrow-side-bottom { border-bottom-color: var(--popover); }
+/* Zone mise en avant : liseré orange de la marque. */
+.driver-active .driver-active-element {
+	outline: 2px solid color-mix(in oklch, var(--primary) 70%, transparent);
+	outline-offset: 4px;
+	border-radius: 10px;
+}
+@media (prefers-reduced-motion: reduce) {
+	.driver-popover.kompyle-tour { animation: none; }
 }

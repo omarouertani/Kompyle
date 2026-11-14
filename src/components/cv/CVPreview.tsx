@@ -267,7 +267,7 @@ export default function CVPreview({
 
       {/* Toolbar */}
       <div className="flex items-center justify-between gap-4 shrink-0 flex-wrap sm:flex-nowrap">
-        <div className="flex min-w-0 flex-1 items-center gap-2 flex-wrap">
+        <div data-tour="cv-controls" className="flex min-w-0 flex-1 items-center gap-2 flex-wrap">
           {originalData && (
             <Button
               variant={sideBySide ? "secondary" : "outline"}
@@ -429,6 +429,7 @@ export default function CVPreview({
             {/* Un seul bouton de téléchargement : PDF (mise en page complète),
                 Word (une colonne, mise en forme conservée) et texte brut (le plus
                 sûr pour les ATS et les formulaires de candidature). */}
+            <span data-tour="export" className="inline-flex">
             <DownloadMenu
               label={t("download_menu")}
               busyLabel={t("downloading")}
@@ -438,6 +439,7 @@ export default function CVPreview({
                 { id: "txt", label: "TXT", description: t("format_txt_desc"), onSelect: handleDownloadText },
               ]}
             />
+            </span>
           </div>
         )}
       </div>

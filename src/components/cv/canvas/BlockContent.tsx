@@ -1,11 +1,13 @@
 "use client";
 
-import React from "react";
+import React, { useRef, useState } from "react";
+import { toast } from "sonner";
 import type { CVData, CVTheme, Experience, Project, Education, SkillGroup, SkillMode } from "@/types/cv";
 import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 import { cvDocText, cvLanguage } from "@/lib/cv-i18n";
-import { Trash2, PlusCircle } from "lucide-react";
+import { Trash2, PlusCircle, Camera } from "lucide-react";
+import { PhotoCropDialog } from "../PhotoCropDialog";
 import { EditableText, ptsToPx } from "../cv-canvas-primitives";
 import { ExperienceDatePicker } from "../ExperienceDatePicker";
 import { CanvasSectionHeading } from "../canvas-section-heading";
@@ -48,6 +50,9 @@ export function BlockContent({ blockId, data, theme, onChange, onThemeReflow }: 
   // Indications de saisie : langue de l'interface. Texte inséré dans le CV : langue du CV.
   const tf = useTranslations("CanvasFields");
   const doc = cvDocText(cvLanguage(data));
+  // Photo choisie, en attente de recadrage (dialogue ouvert tant que non nulle).
+  const [cropFile, setCropFile] = useState<File | null>(null);
+  const photoInputRef = useRef<HTMLInputElement>(null);
 
   const updatePersonalInfo = (field: string, value: string) =>
     onChange({ ...data, personalInfo: { ...personalInfo, [field]: value } });
@@ -121,7 +126,7 @@ export function BlockContent({ blockId, data, theme, onChange, onThemeReflow }: 
   if (blockId === "photo") {
     const frame = photoFrame(cvTheme, photoSize, isChaima ? primaryColor : "#d4d4d8");
     return (
-      <div className="flex justify-center items-center">
+      <div className="group/photo relative flex justify-center items-center">
         <div
           className="overflow-hidden bg-zinc-200 flex items-center justify-center shadow-sm"
           style={{
@@ -140,6 +145,51 @@ export function BlockContent({ blockId, data, theme, onChange, onThemeReflow }: 
             <svg viewBox="0 0 100 100" className="size-full"><circle cx="50" cy="40" r="18" fill="#475569" /><path d="M 22,82 C 22,65 34,58 50,58 C 66,58 78,65 78,82 C 78,85 75,85 50,85 C 25,85 22,85 22,82 Z" fill="#475569" /></svg>
           )}
         </div>
+        {/* Changer / retirer la photo (remplace l'ancien formulaire « Éditer le CV »). */}
+        <div data-no-print className="absolute inset-x-0 -bottom-1 z-30 flex justify-center gap-1 opacity-0 transition-opacity group-hover/photo:opacity-100">
+          <button
+            type="button"
+            onClick={() => photoInputRef.current?.click()}
+            className="flex items-center gap-1 rounded-md bg-zinc-900/80 px-1.5 py-0.5 text-[9px] font-medium text-white shadow hover:bg-zinc-900"
+            title={tf("photo_change")}
+          >
+            <Camera size={10} /> {personalInfo.photo ? tf("photo_change") : tf("photo_add")}
+          </button>
+          {personalInfo.photo && (
+            <button
+              type="button"
+              onClick={() => updatePersonalInfo("photo", "")}
+              className="rounded-md bg-zinc-900/80 p-0.5 text-white shadow hover:bg-destructive"
+              title={tf("photo_remove")}
+              aria-label={tf("photo_remove")}
+            >
+              <Trash2 size={10} />
+            </button>
+          )}
+        </div>
+        <input
+          ref={photoInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) setCropFile(file);
+            e.target.value = "";
+          }}
+        />
+        <PhotoCropDialog
+          file={cropFile}
+          onCancel={() => setCropFile(null)}
+          onConfirm={(url) => {
+            updatePersonalInfo("photo", url);
+            setCropFile(null);
+          }}
+          onError={() => {
+            setCropFile(null);
+            toast.error(tf("photo_error"));
+          }}
+        />
       </div>
     );
   }
@@ -202,15 +252,37 @@ export function BlockContent({ blockId, data, theme, onChange, onThemeReflow }: 
       ...(personalInfo.portfolio !== undefined
         ? [{ label: doc.contact_portfolio, field: "portfolio", value: personalInfo.portfolio }]
         : []),
+      // La date de naissance n'est imprimée que par le modèle Moderne.
+      ...(isChaima && personalInfo.birthDate !== undefined
+        ? [{ label: doc.contact_birth, field: "birthDate", value: personalInfo.birthDate }]
+        : []),
+    ];
+    const addable = [
+      ...(personalInfo.portfolio === undefined ? [{ field: "portfolio", label: doc.contact_portfolio }] : []),
+      ...(isChaima && personalInfo.birthDate === undefined ? [{ field: "birthDate", label: doc.contact_birth }] : []),
     ];
     return (
-      <div className="flex flex-col gap-1.5 w-full">
+      <div className="group/contact relative flex flex-col gap-1.5 w-full">
         {fields.map(({ label, field, value }) => (
           <div key={field} className="flex flex-col">
             <span className="uppercase tracking-wider text-zinc-500" style={{ fontSize: toPx(baseFontSize - 2), lineHeight: 1 }}>{label}</span>
-            <EditableText value={value} onChange={(v) => updatePersonalInfo(field, v)} className="font-medium text-zinc-800 break-all" style={{ fontSize: toPx(baseFontSize), lineHeight: lh }} />
+            <EditableText value={value ?? ""} onChange={(v) => updatePersonalInfo(field, v)} className="font-medium text-zinc-800 break-all" style={{ fontSize: toPx(baseFontSize), lineHeight: lh }} placeholder={label} />
           </div>
         ))}
+        {addable.length > 0 && (
+          <div data-no-print className="absolute left-0 top-full z-30 mt-0.5 flex gap-1.5 opacity-0 transition-opacity group-hover/contact:opacity-100">
+            {addable.map(({ field, label }) => (
+              <button
+                key={field}
+                type="button"
+                onClick={() => updatePersonalInfo(field, "")}
+                className="flex items-center gap-0.5 text-[9px] text-zinc-400 hover:text-primary"
+              >
+                <PlusCircle size={10} /> {label}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
     );
   }
@@ -285,7 +357,7 @@ export function BlockContent({ blockId, data, theme, onChange, onThemeReflow }: 
                   fill={skillFill(group, item)}
                   level={getSkillLevel(group, item)}
                   color={primaryColor}
-                  label={`Niveau — ${stripHtml(item)}`}
+                  label={tf("skill_level", { skill: stripHtml(item) })}
                   onChange={(level) => setLevelOf(item, level)}
                 />
               </div>
@@ -298,21 +370,40 @@ export function BlockContent({ blockId, data, theme, onChange, onThemeReflow }: 
 
   if (blockId === "content_languages") {
     return (
-      <div className="flex flex-col gap-1 w-full text-left">
+      <div className="group/langs relative flex flex-col gap-1 w-full text-left">
         {data.spokenLanguages.map((lang, i) => (
-          <EditableText
-            key={i}
-            value={lang}
-            onChange={(v) => {
-              const next = [...data.spokenLanguages];
-              next[i] = v;
-              onChange({ ...data, spokenLanguages: next });
-            }}
-            className="text-zinc-800 break-words"
-            style={{ fontSize: toPx(baseFontSize), lineHeight: lh }}
-            placeholder={tf("language_example")}
-          />
+          <div key={i} className="group/lang relative">
+            <EditableText
+              value={lang}
+              onChange={(v) => {
+                const next = [...data.spokenLanguages];
+                next[i] = v;
+                onChange({ ...data, spokenLanguages: next });
+              }}
+              className="text-zinc-800 break-words"
+              style={{ fontSize: toPx(baseFontSize), lineHeight: lh }}
+              placeholder={tf("language_example")}
+            />
+            <button
+              type="button"
+              data-no-print
+              onClick={() => onChange({ ...data, spokenLanguages: data.spokenLanguages.filter((_, j) => j !== i) })}
+              className="absolute -right-4 top-1/2 z-30 -translate-y-1/2 rounded p-0.5 text-muted-foreground opacity-0 transition-opacity hover:bg-destructive/10 hover:text-destructive group-hover/lang:opacity-100"
+              title={tf("delete")}
+              aria-label={tf("delete")}
+            >
+              <Trash2 size={10} />
+            </button>
+          </div>
         ))}
+        <button
+          type="button"
+          data-no-print
+          onClick={() => onChange({ ...data, spokenLanguages: [...data.spokenLanguages, ""] })}
+          className="absolute left-0 top-full z-30 mt-0.5 flex items-center gap-0.5 text-[9px] text-zinc-400 opacity-0 transition-opacity hover:text-primary group-hover/langs:opacity-100"
+        >
+          <PlusCircle size={10} /> {tf("add_language")}
+        </button>
       </div>
     );
   }
@@ -386,7 +477,7 @@ export function BlockContent({ blockId, data, theme, onChange, onThemeReflow }: 
           onClick={() => updateBullets(idx, [...exp.bullets, doc.new_bullet])}
           className="opacity-0 group-hover/exp:opacity-100 flex items-center gap-1 mt-1 text-[9px] text-zinc-400 hover:text-primary transition-opacity self-start z-30"
         >
-          <PlusCircle size={10} /> Ajouter une puce
+          <PlusCircle size={10} /> {tf("add_bullet")}
         </button>
       </div>
     );

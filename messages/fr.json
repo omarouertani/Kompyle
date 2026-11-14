@@ -118,7 +118,7 @@
     "active_label": "Profil actif :",
     "new_placeholder": "Nom du profil…",
     "create_blank": "Créer le profil vierge",
-    "new_profile_tooltip": "Nouveau profil (template vide, à remplir via Éditer CV)",
+    "new_profile_tooltip": "Nouveau profil (CV d’exemple à remplir directement sur l’aperçu)",
     "rename_tooltip": "Renommer le profil",
     "rename_placeholder": "Nouveau nom…",
     "delete_tooltip": "Supprimer le profil",
@@ -428,7 +428,10 @@
     "column_sidebar": "Colonne latérale",
     "column_main": "Colonne principale",
     "free_elements": "Éléments libres",
-    "free_elements_hint": "Haut de la liste = devant."
+    "free_elements_hint": "Haut de la liste = devant.",
+    "menu_add_item": "Ajouter un élément",
+    "menu_move_up": "Monter",
+    "menu_move_down": "Descendre"
   },
   "Builder": {
     "photo_error": "Impossible de lire cette image. Essayez un fichier JPEG ou PNG de moins de 15 Mo.",
@@ -516,7 +519,8 @@
     "signature_change": "Changer",
     "signature_remove": "Retirer",
     "signature_hint": "Un PNG sur fond transparent donne le meilleur rendu. Elle n’est jamais envoyée à l’IA.",
-    "signature_error": "Impossible de lire cette image. Essayez un PNG ou un JPEG."
+    "signature_error": "Impossible de lire cette image. Essayez un PNG ou un JPEG.",
+    "sender_hint_canvas": "Repris de votre CV : modifiez-le dans l’onglet Aperçu CV."
   },
   "LetterPreview": {
     "download": "Télécharger le PDF",
@@ -524,7 +528,9 @@
     "download_error": "Échec du téléchargement de la lettre. Réessayez.",
     "subject_prefix": "Objet :",
     "document_title": "Lettre de motivation",
-    "file_prefix": "Lettre_de_motivation"
+    "file_prefix": "Lettre_de_motivation",
+    "mode_editor": "Éditeur",
+    "mode_pdf": "Aperçu PDF"
   },
   "CVImport": {
     "title": "Importer mon CV",
@@ -709,7 +715,14 @@
     "city_province": "Ville, Province",
     "add_skill": "Ajouter une compétence",
     "delete": "Supprimer",
-    "photo_alt": "Photo de profil"
+    "photo_alt": "Photo de profil",
+    "photo_add": "Ajouter une photo",
+    "photo_change": "Changer la photo",
+    "photo_remove": "Retirer la photo",
+    "photo_error": "Impossible de lire cette image.",
+    "add_language": "Ajouter une langue",
+    "add_bullet": "Ajouter une puce",
+    "skill_level": "Niveau — {skill}"
   },
   "UI": {
     "heading_size": "Taille de ce titre (tous les titres : panneau Thème)",
@@ -729,10 +742,85 @@
     "close": "Fermer",
     "toggle_sidebar": "Afficher / masquer le panneau",
     "pdf_preview": "Aperçu PDF",
-    "photo_alt": "Photo de profil"
+    "photo_alt": "Photo de profil",
+    "sections_hint": "Affichez, masquez et renommez vos sections. L’ordre, les colonnes et les pages se règlent dans le canvas (glisser, clic droit).",
+    "add_custom_section": "Ajouter une section libre"
   },
   "Meta": {
     "title": "Kompyle — Éditeur de CV IA & audit ATS",
     "description": "Éditeur de CV IA open source et respectueux de la vie privée, avec audit ATS, canvas façon Canva et export PDF fidèle au pixel près."
+  },
+  "AIChat": {
+    "request_adapt": "Adapter mon CV à cette offre",
+    "request_letter": "Rédiger la lettre pour cette offre",
+    "empty_title_new": "Adaptez votre CV à une offre",
+    "empty_body_new": "Collez l’offre d’emploi ci-dessous : l’IA adapte votre CV, rédige la lettre et vous aide à passer l’ATS. Tout le reste s’édite directement sur l’aperçu.",
+    "empty_title_continue": "Que voulez-vous améliorer ?",
+    "empty_body_continue": "Décrivez une retouche : elle s’applique à la version affichée, sans créer de copie.",
+    "s_import": "Importer mon CV existant",
+    "s_ats": "Vérifier mon score ATS",
+    "s_keywords": "Ajoute les mots-clés de l’offre qui manquent",
+    "s_summary": "Rends le résumé plus percutant",
+    "s_quantify": "Quantifie davantage mes réalisations",
+    "s_shorten": "Raccourcis le CV pour tenir sur une page",
+    "action_view_cv": "Voir le CV",
+    "action_check_ats": "Vérifier l’ATS",
+    "action_write_letter": "Rédiger la lettre",
+    "action_view_letter": "Voir la lettre",
+    "mode_label": "Type de demande",
+    "hint_enter": "Entrée pour envoyer · Maj+Entrée pour aller à la ligne",
+    "hint_offer": "Collez l’offre complète pour de meilleurs résultats.",
+    "clear": "Effacer"
+  },
+  "Tour": {
+    "progress": "{{current}} / {{total}}",
+    "next": "Suivant",
+    "prev": "Précédent",
+    "finish": "C’est parti !",
+    "replay": "Visite guidée",
+    "welcome_title": "Bienvenue sur Kompyle 👋",
+    "welcome_body": "En 1 minute, voici tout ce que vous pouvez faire : <b>adapter votre CV à une offre avec l’IA</b>, le retoucher directement sur la page, rédiger la lettre de motivation et vérifier votre score ATS.<br><br>Vous pouvez quitter à tout moment avec <b>Échap</b> et relancer la visite avec le bouton <b>?</b> en haut.",
+    "api_keys_title": "1. Votre clé IA",
+    "api_keys_body": "Kompyle utilise <b>votre propre clé</b> d’un fournisseur IA. <b>Google Gemini, Groq, OpenRouter et NVIDIA sont gratuits</b>.<br>La clé reste dans votre navigateur et n’est envoyée qu’au fournisseur choisi. Commencez par en ajouter une ici.",
+    "profiles_title": "2. Vos profils de CV",
+    "profiles_body": "Chaque profil est un CV complet, enregistré automatiquement.<ul><li><b>+</b> crée un nouveau profil</li><li><b>Importer</b> récupère votre CV existant (PDF, Word, texte) : il est créé en <b>français et en anglais</b></li><li><b>⋮</b> renomme ou supprime le profil</li></ul>",
+    "composer_title": "3. L’assistant IA",
+    "composer_body": "<b>Collez une offre d’emploi</b>, puis :<ul><li><b>Adapter CV</b> crée une version de votre CV taillée pour l’offre (mots-clés, résumé, réalisations)</li><li><b>Créer Lettre</b> rédige la lettre de motivation</li></ul>Ensuite, demandez des retouches en une phrase (« raccourcis le résumé »…) ou cliquez sur une suggestion. Le modèle IA se choisit en bas à gauche.",
+    "doc_tabs_title": "4. Vos trois documents",
+    "doc_tabs_body": "<b>Aperçu CV</b> : le CV, éditable directement.<br><b>Lettre de Motivation</b> : la lettre, éditable sur sa page.<br><b>ATS Checker</b> : le score de votre CV face à l’offre.",
+    "cv_controls_title": "5. Mise en page du CV",
+    "cv_controls_body": "Passez de l’<b>Éditeur</b> à l’<b>Aperçu PDF</b> exact, choisissez le <b>modèle</b> (avec photo, sans photo, canadien…) et le format (<b>A4</b> ou Letter). Après une adaptation, vous pouvez aussi <b>comparer</b> avec l’original et changer de version.",
+    "toolbar_title": "6. La barre d’outils",
+    "toolbar_body": "<ul><li><b>Thème</b> : couleurs, police, tailles, espacements</li><li><b>Sections</b> : afficher, masquer, renommer, ajouter une section</li><li><b>Insérer</b> : texte, formes, icônes, images</li><li><b>Calques</b> : réordonner les sections</li></ul>Plus la mise en forme du texte (gras, couleur, alignement…) et Annuler / Rétablir.",
+    "page_title": "7. Modifiez directement sur la page",
+    "page_body": "<b>Cliquez sur n’importe quel texte</b> pour l’écrire. Glissez un bloc pour le déplacer, tirez son bord pour le redimensionner.<br><b>Clic droit</b> sur un élément : ajouter, dupliquer, monter / descendre, supprimer, masquer la section. Survolez la photo pour la changer.<br>La page se réorganise toute seule quand vous ajoutez ou retirez quelque chose.",
+    "export_title": "8. Exportez",
+    "export_body": "<b>PDF</b> : la mise en page complète, prête à envoyer.<br><b>DOCX</b> : un Word modifiable.<br><b>TXT</b> : le texte brut, idéal pour les formulaires de candidature et les ATS.",
+    "letter_title": "9. La lettre de motivation",
+    "letter_body": "Générée par l’IA à partir de l’offre et de votre CV, puis <b>modifiable directement sur la page</b> : destinataire, objet, paragraphes, formule de politesse. Choisissez le modèle et ajoutez votre <b>signature</b>.",
+    "ats_title": "10. Le score ATS",
+    "ats_body": "Les recruteurs filtrent les CV avec un logiciel (ATS). Ici, l’IA <b>note votre CV face à l’offre</b>, liste les mots-clés trouvés et manquants, et peut <b>adapter le CV en un clic</b> pour combler les manques.",
+    "prefs_title": "11. Thème et langue",
+    "prefs_body": "Basculez entre <b>clair et sombre</b>, et entre <b>français et anglais</b>. La langue change aussi la version du CV affichée : un CV importé existe dans les deux langues.",
+    "done_title": "Vous êtes prêt ! 🚀",
+    "done_body": "Le plus rapide pour commencer :<ol><li>ajoutez une <b>clé IA</b> gratuite,</li><li><b>importez votre CV</b> (ou remplissez l’exemple),</li><li>collez une <b>offre</b> et cliquez sur <b>Adapter CV</b>.</li></ol>Revoyez cette visite à tout moment avec le bouton <b>?</b> en haut à droite.",
+    "whats_new_title": "Nouveau dans Kompyle v{version} ✨",
+    "whats_new_body": "Quelques nouveautés depuis votre dernière visite. Voici ce qui change, en {count, plural, one {# étape} other {# étapes}}."
+  },
+  "Update": {
+    "badge": "Mise à jour v{version}",
+    "title": "Kompyle v{version} est disponible",
+    "installed": "Installée : v{version}",
+    "kind_features": "nouvelles fonctionnalités",
+    "kind_fixes": "correctifs",
+    "type_feature": "Nouveautés",
+    "type_fix": "Correctifs",
+    "how": "Pour mettre à jour",
+    "mode_docker": "Docker",
+    "mode_node": "npm",
+    "copy": "Copier",
+    "copied": "Copié",
+    "data_kept": "À lancer dans le dossier du projet. Vos profils sont conservés (base de données dans un volume Docker). Les nouveautés vous seront présentées au prochain chargement.",
+    "details": "Toutes les notes de version"
   }
 }

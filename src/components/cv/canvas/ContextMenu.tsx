@@ -50,7 +50,7 @@ export function ContextMenu({ x, y, items, onClose }: ContextMenuProps) {
     <div
       ref={ref}
       style={style}
-      className="min-w-[210px] bg-popover border border-border rounded-lg shadow-lg p-1 select-none motion-pop"
+      className="min-w-[210px] popover-surface p-1.5 select-none motion-pop"
     >
       {items.map((item, i) => (
         <React.Fragment key={i}>
@@ -58,10 +58,10 @@ export function ContextMenu({ x, y, items, onClose }: ContextMenuProps) {
           <button
             type="button"
             className={cn(
-              "w-full flex items-center gap-2 px-2.5 py-1.5 text-xs rounded-md text-left transition-colors",
+              "w-full flex items-center gap-2 px-2.5 py-1.5 text-xs rounded-lg text-left transition-colors",
               item.danger
                 ? "text-destructive hover:bg-destructive/10"
-                : "text-foreground hover:bg-muted"
+                : "text-foreground hover:bg-primary/10"
             )}
             onClick={() => {
               item.onClick();
