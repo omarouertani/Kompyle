@@ -5,7 +5,7 @@
   "scripts": {
     "screenshots": "node scripts/screenshots.cjs",
     "record": "node scripts/record.cjs",
-    "build": "node scripts/render.cjs"
+    "build": "node scripts/render.cjs && node scripts/thumbs.cjs"
   },
   "devDependencies": {
     "playwright": "1.56.1"

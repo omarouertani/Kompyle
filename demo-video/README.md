@@ -51,6 +51,7 @@ tiles frames into a contact sheet.
 | `scripts/record.cjs` | The demo itself: scenes, clicks, camera keyframes, AI waits |
 | `scripts/lib/story.cjs` | Subtitles, intro/outro text, colours, output formats |
 | `scripts/render.cjs` | Compositor (canvas in headless Chromium → ffmpeg) |
+| `scripts/thumbs.cjs` | Thumbnails for the square and vertical videos |
 | `scripts/screenshots.cjs` | README screenshots |
 | `design.md` | Visual decisions for the video |
 
@@ -66,7 +67,8 @@ tiles frames into a contact sheet.
   the intro and outro. Square and vertical formats follow the cursor so the
   action stays in frame.
 - **Exports.** H.264 (CRF 17) + AAC 192 kb/s, `+faststart`, 30 fps; a PNG
-  thumbnail per format (the ATS score screen).
+  thumbnail per format: the ATS score frame for 16:9, a headline + that frame
+  for 1:1 and 9:16 (`scripts/thumbs.cjs`).
 
 ## AI answers in the recording
 
