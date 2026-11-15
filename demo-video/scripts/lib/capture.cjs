@@ -35,26 +35,26 @@ function createDirector(page) {
   const log = { moves: [], clicks: [], marks: [], keys: [] };
   let pos = { x: 960, y: 600 };
 
-  async function moveTo(x, y, ms) {
+  async function moveTo(x, y, ms, mouseSteps = 1) {
     const from = { ...pos };
     const dist = Math.hypot(x - from.x, y - from.y);
     const dur = ms ?? Math.min(900, Math.max(350, dist * 0.9));
     // Slight arc so the path does not look robotic.
     const nx = -(y - from.y) / (dist || 1), ny = (x - from.x) / (dist || 1);
     const bend = Math.min(60, dist * 0.08);
+    // The path is only logged (the compositor draws the cursor); the real mouse
+    // jumps to the target at the end. Real per-step moves re-render hover states
+    // and are very slow on a 4K screencast (a 1 s move could take 4 s).
     const steps = Math.max(8, Math.round(dur / 16));
-    const t0 = Date.now();
+    const t0 = now();
     for (let i = 1; i <= steps; i++) {
       const k = easeInOut(i / steps);
       const arc = Math.sin(Math.PI * k) * bend;
-      const px = from.x + (x - from.x) * k + nx * arc;
-      const py = from.y + (y - from.y) * k + ny * arc;
-      await page.mouse.move(px, py);
-      log.moves.push({ t: now(), x: px, y: py });
-      const target = t0 + (dur * i) / steps;
-      const wait = target - Date.now();
-      if (wait > 0) await sleep(wait);
+      log.moves.push({ t: t0 + (dur / 1000) * (i / steps), x: from.x + (x - from.x) * k + nx * arc, y: from.y + (y - from.y) * k + ny * arc });
     }
+    await sleep(dur);
+    await page.mouse.move(x, y, { steps: mouseSteps });
+    log.moves.push({ t: now(), x, y });
     pos = { x, y };
   }
 
@@ -82,6 +82,33 @@ function createDirector(page) {
     await sleep(pause);
   }
 
+  /** Click (or double-click with count: 2) at page coordinates. */
+  async function clickAt(x, y, label, { pause = 500, count = 1 } = {}) {
+    await moveTo(x, y);
+    await sleep(200);
+    for (let i = 1; i <= count; i++) {
+      await page.mouse.down({ clickCount: i });
+      if (i === 1) log.clicks.push({ t: now(), x, y, label });
+      await sleep(40);
+      await page.mouse.up({ clickCount: i });
+      if (i < count) await sleep(60);
+    }
+    console.log(`click ${label} @${Math.round(x)},${Math.round(y)}`);
+    await sleep(pause);
+  }
+
+  /** Press at (x1, y1), drag to (x2, y2), release: a text selection. */
+  async function drag(x1, y1, x2, y2, label, { ms = 700, pause = 400 } = {}) {
+    await moveTo(x1, y1);
+    await sleep(150);
+    await page.mouse.down();
+    log.clicks.push({ t: now(), x: x1, y: y1, label });
+    await moveTo(x2, y2, ms, 6);
+    await page.mouse.up();
+    console.log(`drag ${label}`);
+    await sleep(pause);
+  }
+
   async function type(text, { min = 28, max = 70 } = {}) {
     for (const ch of text) {
       await page.keyboard.type(ch);
@@ -98,7 +125,7 @@ function createDirector(page) {
     console.log(`mark ${name}`);
   }
 
-  return { log, moveTo, click, type, mark, box, get pos() { return pos; } };
+  return { log, moveTo, click, clickAt, drag, type, mark, box, get pos() { return pos; } };
 }
 
 module.exports = { startScreencast, createDirector, sleep, now };

@@ -8,6 +8,7 @@
     "build": "node scripts/render.cjs && node scripts/thumbs.cjs"
   },
   "devDependencies": {
+    "gl-transitions": "^1.43.0",
     "playwright": "1.56.1"
   }
 }
