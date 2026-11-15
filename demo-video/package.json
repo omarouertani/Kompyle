@@ -1,0 +1,13 @@
+{
+  "name": "kompyle-demo-video",
+  "private": true,
+  "type": "commonjs",
+  "scripts": {
+    "screenshots": "node scripts/screenshots.cjs",
+    "record": "node scripts/record.cjs",
+    "build": "node scripts/render.cjs"
+  },
+  "devDependencies": {
+    "playwright": "1.56.1"
+  }
+}

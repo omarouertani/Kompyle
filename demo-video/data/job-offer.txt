@@ -1,0 +1,17 @@
+Junior Full-Stack Engineer (React / Node.js) - Northwind Pay (fictional company)
+
+About the role
+Northwind Pay builds payment tools for small businesses. We are looking for a Full-Stack Engineer to join our product team in Lyon (hybrid).
+
+What you will do
+- Build customer-facing features with React, Next.js and TypeScript
+- Design REST and GraphQL APIs in Node.js with PostgreSQL
+- Write automated tests (Jest, Playwright) and take part in code reviews
+- Ship to AWS through our CI/CD pipeline and monitor production
+- Work closely with product designers on accessible (WCAG) interfaces
+
+What we are looking for
+- Solid experience with React and TypeScript
+- Experience with Node.js, SQL databases and Docker
+- Interest in fintech, payments and security best practices
+- Good communication skills in English and French

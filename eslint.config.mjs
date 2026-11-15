@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Standalone Node tooling (CommonJS scripts) for screenshots and the demo video.
+    "demo-video/**",
   ]),
 ]);
 
