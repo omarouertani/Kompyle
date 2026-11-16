@@ -3,6 +3,15 @@
   "repository": "omarouertani/Kompyle",
   "releases": [
     {
+      "version": "0.2.3",
+      "date": "2026-11-16",
+      "type": "fix",
+      "summary": {
+        "fr": "Règles de contribution renforcées : vérifications automatiques (CI, noms de branches et de commits), revue obligatoire du mainteneur et modèles de PR et d’issues.",
+        "en": "Stricter contribution rules: automated checks (CI, branch and commit names), mandatory maintainer review, and PR and issue templates."
+      }
+    },
+    {
       "version": "0.2.2",
       "date": "2026-11-16",
       "type": "fix",

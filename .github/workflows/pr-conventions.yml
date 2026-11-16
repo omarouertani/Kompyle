@@ -1,0 +1,61 @@
+name: PR conventions
+
+# Enforces the naming rules of CONTRIBUTING.md:
+#   - branch:    <type>/<kebab-case-name>     e.g. feat/linkedin-export
+#   - PR title:  Conventional Commits         e.g. feat(export): add LinkedIn export
+#   - commits:   Conventional Commits (merge commits are allowed)
+# PRs are squash-merged, so the PR title becomes the commit on main.
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, edited, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  conventions:
+    name: conventions
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check branch name
+        env:
+          BRANCH: ${{ github.head_ref }}
+        run: |
+          pattern='^((feat|fix|refactor|docs|chore)/[a-z0-9]+(-[a-z0-9]+)*|dependabot/.+)$'
+          if [[ ! "$BRANCH" =~ $pattern ]]; then
+            echo "::error::Branch '$BRANCH' does not follow <type>/<kebab-case-name> (type: feat, fix, refactor, docs, chore). Example: feat/linkedin-export"
+            exit 1
+          fi
+          echo "Branch name OK: $BRANCH"
+
+      - name: Check PR title
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          pattern='^(feat|fix|refactor|perf|docs|style|test|build|ci|chore|revert)(\([a-z0-9._/-]+\))?!?: .{8,}$'
+          if [[ ! "$TITLE" =~ $pattern ]]; then
+            echo "::error::PR title '$TITLE' must follow Conventional Commits: <type>(<scope>): <description>. Example: feat(export): add LinkedIn export"
+            exit 1
+          fi
+          echo "PR title OK: $TITLE"
+
+      - name: Check commit messages
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          pattern='^(feat|fix|refactor|perf|docs|style|test|build|ci|chore|revert)(\([a-z0-9._/-]+\))?!?: .{8,}$'
+          failed=0
+          while IFS= read -r subject; do
+            [[ "$subject" =~ ^Merge\  ]] && continue
+            if [[ ! "$subject" =~ $pattern ]]; then
+              echo "::error::Commit '$subject' must follow Conventional Commits: <type>(<scope>): <description>"
+              failed=1
+            fi
+          done < <(gh api --paginate "repos/$REPO/pulls/$PR/commits" --jq '.[].commit.message | split("\n")[0]')
+          exit $failed
