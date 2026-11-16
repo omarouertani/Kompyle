@@ -3,6 +3,15 @@
   "repository": "omarouertani/Kompyle",
   "releases": [
     {
+      "version": "0.2.2",
+      "date": "2026-11-16",
+      "type": "fix",
+      "summary": {
+        "fr": "Mises à jour de sécurité de dépendances (minimatch, brace-expansion, postcss-selector-parser).",
+        "en": "Security updates for dependencies (minimatch, brace-expansion, postcss-selector-parser)."
+      }
+    },
+    {
       "version": "0.2.1",
       "date": "2026-11-15",
       "type": "fix",

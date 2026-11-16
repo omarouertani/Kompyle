@@ -1,6 +1,6 @@
 {
   "name": "kompyle-app",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "private": true,
   "license": "MIT",
   "scripts": {
@@ -68,5 +68,10 @@
   },
   "engines": {
     "node": ">=20.9.0"
+  },
+  "overrides": {
+    "brace-expansion@^1": "1.1.22",
+    "postcss-selector-parser@^6": "6.1.6",
+    "minimatch@^10": "11.0.8"
   }
 }
