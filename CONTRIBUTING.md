@@ -53,7 +53,7 @@ To check the Docker setup end to end, run `docker compose up --build`.
    ```bash
    git checkout -b feat/short-description
    ```
-   Use a descriptive prefix: `feat/`, `fix/`, `refactor/`, `docs/`, `chore/`.
+   The name must be `<type>/<kebab-case-name>` with type `feat`, `fix`, `refactor`, `docs` or `chore` (for example `feat/linkedin-export`, `fix/pdf-clipping`). Other names fail the **PR conventions** check. Never push to `main` directly: every change goes through a pull request.
 
 2. **Make your changes.** Keep them focused: one logical change per pull request.
    - UI text goes in **both** `messages/en.json` and `messages/fr.json`.
@@ -78,6 +78,8 @@ fix(pdf): prevent canvas elements from clipping on export
 feat(ai): add Mistral provider to the AI engine
 ```
 
+The **PR conventions** check rejects commits and pull request titles that do not follow `<type>(<scope>): <description>` (merge commits are allowed). Types: `feat`, `fix`, `refactor`, `perf`, `docs`, `style`, `test`, `build`, `ci`, `chore`, `revert`.
+
 ## Submitting a Pull Request
 
 1. Push your branch to your fork and open a Pull Request against `main`.
@@ -86,7 +88,13 @@ feat(ai): add Mistral provider to the AI engine
 4. Make sure `npx tsc --noEmit`, `npm run lint`, `npm run release:check` and `npm run build` pass.
 5. Mention the `release.json` entry (version and type) in the description.
 
-A maintainer will review your PR. PRs are merged using **squash merge**, so your commit history within the branch does not need to be perfectly clean.
+To be merged, a PR needs:
+
+- the **CI** check (type check, lint, `release:check`, build) and the **PR conventions** check (branch name, PR title, commit messages) to pass;
+- the approval of the maintainer ([@omarouertani](https://github.com/omarouertani), see [`.github/CODEOWNERS`](.github/CODEOWNERS)). Approvals from other accounts do not count, and a new push dismisses an earlier approval;
+- all review conversations resolved.
+
+PRs are merged using **squash merge**: the PR title becomes the commit on `main`, so it must describe the change. Workflows on PRs from forks run only after the maintainer approves them.
 
 ## Releasing a Version
 
