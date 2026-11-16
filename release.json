@@ -3,6 +3,15 @@
   "repository": "omarouertani/Kompyle",
   "releases": [
     {
+      "version": "0.2.1",
+      "date": "2026-11-15",
+      "type": "fix",
+      "summary": {
+        "fr": "Captures d’écran du README mises à jour pour la v0.2.0, et scripts pour les régénérer avec une vidéo de démo.",
+        "en": "README screenshots updated for v0.2.0, with scripts to regenerate them and a demo video."
+      }
+    },
+    {
       "version": "0.2.0",
       "date": "2026-11-15",
       "type": "feature",
